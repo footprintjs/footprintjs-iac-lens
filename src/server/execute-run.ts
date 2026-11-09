@@ -6,6 +6,7 @@ import { FileStateStore, InfraEngine, KubernetesAdapter, SimulatorAdapter,
 import type { DeploymentRecorder } from 'footprint-iac/progress';
 import type { Recording } from '../core/types.ts';
 import type { NeoTarget } from './neo.ts';
+import { claimFreshNeo } from './claim-fresh-neo.ts';
 
 /** The delay belongs to the simulated provider readiness check, not the view. */
 export class ReviewSimulator extends SimulatorAdapter {
@@ -19,7 +20,7 @@ export class ReviewSimulator extends SimulatorAdapter {
 
 export async function executeRun(options: {
   graph: InfraGraph; directory: string; recorder: DeploymentRecorder;
-  simulator: SimulatorAdapter; neo?: NeoTarget;
+  simulator: SimulatorAdapter; neo?: NeoTarget; requireFreshCreate?: boolean;
 }): Promise<{ result: ApplyResult; recording?: Recording; captureError?: string }> {
   const engine = new InfraEngine({
     adapters: options.neo ? [new KubernetesAdapter({ context: options.neo.context,
@@ -28,7 +29,14 @@ export async function executeRun(options: {
     traceDirectory: resolve(options.directory, 'traces'), maxConcurrency: 2,
     recorders: [options.recorder],
   });
+  if (options.requireFreshCreate && options.neo?.freshClaimPath) {
+    await claimFreshNeo(options.neo.freshClaimPath, () => engine.plan(options.graph));
+  }
   const result = await engine.apply(options.graph);
+  if (options.requireFreshCreate && options.neo?.freshClaimPath
+    && result.plan.operations.some(operation => operation.action !== 'create')) {
+    throw new Error('The target changed after fresh admission. This run is not a first-creation recording; inspect its saved engine evidence.');
+  }
   try {
     const evidence = JSON.parse(await readFile(result.evidencePath, 'utf8'));
     return { result, recording: { snapshot: evidence.snapshot, structure: evidence.structure,

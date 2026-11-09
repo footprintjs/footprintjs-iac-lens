@@ -8,7 +8,7 @@ import { serveStatic } from './static.ts';
 import { streamState } from './events.ts';
 
 export interface DashboardOptions {
-  directory: string; staticDirectory: string; port?: number; neo?: NeoTarget; readinessDelay?: number;
+  directory: string; staticDirectory: string; port?: number; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number;
 }
 
 /** Loopback-only consumer server; every resource mutation still belongs to InfraEngine. */

@@ -40,6 +40,17 @@ Select **Neo · local Kubernetes** and **Deploy Neo locally**. Lens reads the su
 
 This fixture uses the app's scripted model and seeded SQLite data. Its container-local data is ephemeral. Ready means the adapter confirmed the resource's readiness contract in this run; it does not establish production durability, live collector/model behavior or cross-replica conversation continuity.
 
+For a first deployment instead of a reapply, prepare a new cluster from the sibling core checkout, then start a separate Lens server:
+
+```sh
+cd ../footprint-iac
+npm run neo:prepare-fresh
+cd ../footprint-iac-lens
+npm start -- --fresh-neo
+```
+
+Preparation creates a uniquely named local recording cluster, loads the real Neo images and leaves the app absent. The dashboard starts with Neo's three resources grey; click **Deploy Neo locally** to perform their first creation. Its default port is `15232`, with separate viewer data under `.artifacts/fresh/`. The existing review cluster, dashboard and app server stay available. Fresh startup checks the cluster's actual published API port and refuses an existing namespace or nonempty inventory. An exclusive local claim prevents two dashboards from starting the same fresh take; admission requires every resource to be absent and planned for creation. Use **Reapply / check no-op** afterward, or prepare another target to record another first creation. The real fixture still uses the scripted model and seeded data described above.
+
 ## Reuse the headless API
 
 ```ts

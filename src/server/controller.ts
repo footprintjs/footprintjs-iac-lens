@@ -19,16 +19,20 @@ export class DashboardController {
   private readonly simulator: ReviewSimulator;
   private completion: Promise<void> = Promise.resolve();
   private activeNeo: NeoTarget | undefined;
-  private readonly options: { directory: string; neo?: NeoTarget; readinessDelay?: number };
+  private readonly options: { directory: string; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number };
 
-  constructor(options: { directory: string; neo?: NeoTarget; readinessDelay?: number }) {
+  constructor(options: { directory: string; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number }) {
     this.options = options;
     this.simulator = new ReviewSimulator(resolve(options.directory, 'provider.json'), options.readinessDelay);
-    const graph = demoGraph();
-    this.state = { revision: 0, graph, busy: false, mode: 'simulator', neoAvailable: !!options.neo,
+    if (options.initialScenario === 'neo' && !options.neo) throw new Error('An initial Neo graph requires a prepared target');
+    const neo = options.initialScenario === 'neo' ? options.neo : undefined;
+    const graph = neo?.binding.graph ?? demoGraph();
+    this.state = { revision: 0, graph, busy: false, mode: neo ? 'kubernetes' : 'simulator', neoAvailable: !!options.neo,
+      ...(neo ? { design: neo.design, binding: neo.binding } : {}),
       ...(options.neo?.url ? { neoUrl: options.neo.url } : {}),
-      target: { id: 'local-simulator', label: 'Local simulator · no cloud resources' },
-      run: { id: '', status: 'idle', mode: 'simulator', resources: this.pending(graph), events: [] }, artifacts: [] };
+      target: neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Fresh local Neo Kubernetes target' }
+        : { id: 'local-simulator', label: 'Local simulator · no cloud resources' },
+      run: { id: '', status: 'idle', mode: neo ? 'kubernetes' : 'simulator', resources: this.pending(graph), events: [] }, artifacts: [] };
   }
 
   async initialize(): Promise<void> {
@@ -55,7 +59,7 @@ export class DashboardController {
         : { id: 'local-simulator', label: 'Local simulator · provider readiness is deliberately delayed' },
       run: { id: '', status: 'running', mode: neo ? 'kubernetes' : 'simulator', startedAt: new Date().toISOString(), resources: this.pending(graph), events: [] } };
     this.publish();
-    this.completion = this.perform(graph, neo);
+    this.completion = this.perform(graph, neo, scenario === 'neo');
   }
 
   private pending(graph: InfraGraph) { return graph.resources.map(resource => ({ id: resource.id, resourceId: resource.id, status: 'pending' as const })); }
@@ -64,7 +68,7 @@ export class DashboardController {
     for (const listener of this.listeners) { try { listener(); } catch { /* A disconnected viewer cannot change a deployment. */ } }
   }
 
-  private async perform(graph: InfraGraph, neo?: NeoTarget): Promise<void> {
+  private async perform(graph: InfraGraph, neo?: NeoTarget, firstCreate = false): Promise<void> {
     const recorder = createDeploymentRecorder();
     const unsubscribe = recorder.subscribe(event => {
       const projected = recorder.getSnapshot();
@@ -77,7 +81,8 @@ export class DashboardController {
     try {
       this.state.artifacts = [...await graphArtifacts(graph), ...await cloudFormationExample()];
       this.publish();
-      const completed = await executeRun({ graph, directory: this.options.directory, recorder, simulator: this.simulator, ...(neo ? { neo } : {}) });
+      const completed = await executeRun({ graph, directory: this.options.directory, recorder, simulator: this.simulator,
+        ...(neo ? { neo } : {}), requireFreshCreate: firstCreate });
       this.state.run = { ...this.state.run!, id: completed.result.runId,
         status: completed.result.ok ? 'passed' : 'failed', finishedAt: new Date().toISOString(),
         ...(completed.recording ? { recording: completed.recording } : {}),

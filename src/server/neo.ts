@@ -7,9 +7,10 @@ import { createNeoSystem, neoKubernetesProfile, NEO_NAMESPACE } from 'footprint-
 export interface NeoTarget {
   context: string; kubeconfig: string; stateDirectory: string; design: SystemDesign;
   binding: BindingResult; url?: string;
+  freshClaimPath?: string;
 }
 
-async function ownedPath(coreRoot: string, path: unknown): Promise<string> {
+export async function ownedPath(coreRoot: string, path: unknown): Promise<string> {
   if (typeof path !== 'string') throw new Error('Neo review metadata is missing its local path');
   const root = await realpath(resolve(coreRoot, '.artifacts'));
   const selected = await realpath(resolve(path));
