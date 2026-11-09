@@ -11,7 +11,7 @@ class EvidenceBoundary extends Component<{ children: ReactNode }, { error?: stri
   }
 }
 
-export default function EvidenceView({ recording, running }: { recording?: Recording; running: boolean }) {
+export default function EvidenceView({ recording, running, title = 'Deployment execution' }: { recording?: Recording; running: boolean; title?: string }) {
   const prepared = useMemo(() => {
     try { return { graph: recording?.structure ? graphFromStructure(recording.structure) : undefined }; }
     catch (error) { return { error: error instanceof Error ? error.message : String(error) }; }
@@ -23,7 +23,7 @@ export default function EvidenceView({ recording, running }: { recording?: Recor
   return <div className="evidence-view"><div className="evidence-notice"><Icon name="evidence" size={16}/><span>Native recorded execution · move the cursor to inspect captured state. Recorded dependencies describe this run; external gaps remain unknown.</span></div>
     <EvidenceBoundary key={String((recording.snapshot as { runId?: unknown }).runId ?? 'recording')}>
       <ExplainableShell runtimeSnapshot={recording.snapshot as ShellProps['runtimeSnapshot']} traceGraph={graph}
-        narrativeEntries={recording.narrativeEntries as ShellProps['narrativeEntries']} title="Deployment execution"
+        narrativeEntries={recording.narrativeEntries as ShellProps['narrativeEntries']} title={title}
         traceTheme={{ mode: 'light', visited: '#317b68', current: '#3478db' }}
         panelLabels={{ topology: 'Execution structure', details: 'Recorded evidence', timeline: 'Stage timeline' }}
         defaultExpanded={{ details: true, topology: false, timeline: false }}/>

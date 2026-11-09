@@ -8,6 +8,9 @@ import { demoGraph } from './graphs.ts';
 import { ReviewSimulator, executeRun } from './execute-run.ts';
 import type { NeoTarget } from './neo.ts';
 import { checkNeoForward, startNeoForward, type NeoForward } from './neo-forward.ts';
+import { KubernetesConnectionAdapter } from 'footprint-iac/connections';
+import { untestedConnections } from '../core/connections.ts';
+import { runConnectionReview } from './run-connections.ts';
 
 export class RequestError extends Error {
   readonly status: number;
@@ -34,7 +37,7 @@ export class DashboardController {
       ...(options.neo?.url ? { neoUrl: options.neo.url } : {}),
       target: neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Fresh local Neo Kubernetes target' }
         : { id: 'local-simulator', label: 'Local simulator · no cloud resources' },
-      run: { id: '', status: 'idle', mode: neo ? 'kubernetes' : 'simulator', resources: this.pending(graph), events: [] }, artifacts: [] };
+      run: { id: '', status: 'idle', mode: neo ? 'kubernetes' : 'simulator', resources: this.pending(graph), events: [] }, connections: untestedConnections(graph), artifacts: [] };
   }
 
   async initialize(): Promise<void> {
@@ -47,8 +50,19 @@ export class DashboardController {
   whenIdle(): Promise<void> { return this.completion; }
 
   start(scenario: Scenario): void {
-    if (!['demo', 'failure', 'neo', 'noop'].includes(scenario)) throw new RequestError(400, 'Unknown review scenario');
+    if (!['demo', 'failure', 'neo', 'noop', 'connections'].includes(scenario)) throw new RequestError(400, 'Unknown review scenario');
     if (this.state.busy) throw new RequestError(409, 'A deployment is already running');
+    if (scenario === 'connections') {
+      if (!this.activeNeo || this.state.mode !== 'kubernetes' || this.state.run?.status !== 'passed') {
+        throw new RequestError(409, 'Deploy the prepared local Neo target successfully before checking connections');
+      }
+      const graph = this.state.graph!, neo = this.activeNeo;
+      this.state.busy = true; this.state.connections = untestedConnections(graph); this.publish();
+      this.completion = this.performConnections(graph, neo).finally(async () => {
+        this.state.busy = false; this.publish(); await this.persist();
+      });
+      return;
+    }
     if (scenario === 'neo' && !this.options.neo) throw new RequestError(409, 'Neo was not enabled from a prepared local review');
     if (scenario === 'noop' && this.state.run?.status !== 'passed') throw new RequestError(409, 'Complete a successful run before checking no-op');
     const neo = scenario === 'neo' ? this.options.neo : scenario === 'noop' ? this.activeNeo : undefined;
@@ -60,7 +74,7 @@ export class DashboardController {
       ...(neo ? { design: neo.design, binding: neo.binding } : { design: undefined, binding: undefined }),
       target: neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Prepared local Neo Kubernetes fixture' }
         : { id: 'local-simulator', label: 'Local simulator · provider readiness is deliberately delayed' },
-      run: { id: '', status: 'running', mode: neo ? 'kubernetes' : 'simulator', startedAt: new Date().toISOString(), resources: this.pending(graph), events: [] } };
+      run: { id: '', status: 'running', mode: neo ? 'kubernetes' : 'simulator', startedAt: new Date().toISOString(), resources: this.pending(graph), events: [] }, connections: untestedConnections(graph) };
     this.publish();
     this.completion = this.perform(graph, neo, scenario === 'neo');
   }
@@ -93,19 +107,38 @@ export class DashboardController {
           tracePath: completed.result.tracePath, traceStatus: completed.result.traceStatus,
           failure: completed.result.failure, results: completed.result.results,
           ...(completed.captureError ? { captureError: completed.captureError } : {}) } };
-      if (completed.result.ok && neo?.freshClaimPath) await this.openNeo(neo);
+      if (completed.result.ok && neo) {
+        await this.performConnections(graph, neo);
+        if (neo.freshClaimPath) await this.openNeo(neo);
+      }
     } catch (error) {
       this.state.run = { ...this.state.run!, status: 'failed', finishedAt: new Date().toISOString(),
         report: { error: error instanceof Error ? error.message : String(error),
           coverage: 'Resource status shows only recorded outcomes; missing outcomes remain unknown.' } };
     } finally {
       unsubscribe(); this.state.busy = false; this.publish();
-      try { await writeFile(resolve(this.options.directory, 'latest.json'), JSON.stringify(this.state, null, 2) + '\n', { mode: 0o600 }); }
-      catch (error) {
-        this.state.run = { ...this.state.run!, report: { deploymentReport: this.state.run?.report,
-          viewerPersistenceError: error instanceof Error ? error.message : String(error) } };
-        this.publish();
-      }
+      await this.persist();
+    }
+  }
+
+  private async persist(): Promise<void> {
+    try { await writeFile(resolve(this.options.directory, 'latest.json'), JSON.stringify(this.state, null, 2) + '\n', { mode: 0o600 }); }
+    catch (error) {
+      this.state.run = { ...this.state.run!, report: { deploymentReport: this.state.run?.report,
+        viewerPersistenceError: error instanceof Error ? error.message : String(error) } };
+      this.publish();
+    }
+  }
+
+  private async performConnections(graph: InfraGraph, neo: NeoTarget): Promise<void> {
+    try {
+      await runConnectionReview({ graph, directory: this.options.directory,
+        adapter: new KubernetesConnectionAdapter({ context: neo.context, kubeconfig: neo.kubeconfig,
+          namespace: 'footprint-iac-neo-test', container: 'node', path: '/health', timeoutMs: 3_000 }),
+        update: connections => { this.state.connections = connections; this.publish(); } });
+    } catch (error) {
+      this.state.connections = { ...untestedConnections(graph), status: 'failed', checkedAt: Date.now(),
+        report: { error: error instanceof Error ? error.message : String(error) } }; this.publish();
     }
   }
 

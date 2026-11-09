@@ -2,6 +2,8 @@ import type { Resource } from 'footprint-iac';
 import { describeResource, resourceProgress, type ResourceDescription } from './model.ts';
 import type { DashboardState, ResourceProgress } from './types.ts';
 import { communicationRoute, orderRoute, RESOURCE_WIDTH, resourceColumnGap, resourceSize, type ResourceBox, type ResourceEdgeRoute } from './resource-geometry.ts';
+import { connectionProgress, CONNECTION_COLORS, CONNECTION_LABELS } from './connections.ts';
+import type { ConnectionStatus } from './types.ts';
 
 export { resourceEdgePath } from './resource-geometry.ts';
 export type { LayoutPoint, ResourceEdgeRoute } from './resource-geometry.ts';
@@ -12,7 +14,7 @@ export interface ResourceNodeView extends ResourceBox {
   description: ResourceDescription;
   progress: ResourceProgress;
 }
-export interface ResourceEdgeView { id: string; source: string; target: string; kind: 'order' | 'communication'; color: string; active: boolean; route: ResourceEdgeRoute }
+export interface ResourceEdgeView { id: string; source: string; target: string; kind: 'order' | 'communication'; color: string; active: boolean; route: ResourceEdgeRoute; connectionStatus?: ConnectionStatus; label?: string }
 
 /** Pure layout shared by renderers; no DOM, React, graph library or provider calls. */
 export function layoutResources(state: DashboardState): { nodes: ResourceNodeView[]; edges: ResourceEdgeView[] } {
@@ -61,7 +63,10 @@ export function layoutResources(state: DashboardState): { nodes: ResourceNodeVie
   let communicationLane = 0;
   for (const [index, relation] of (state.graph?.relations ?? []).entries()) {
     if (relation.kind !== 'communicatesWith' || !byId.has(relation.from) || !byId.has(relation.to)) continue;
-    edges.push({ id: `communication:${index}`, source: relation.from, target: relation.to, kind: 'communication', active: false, color: '#8e9eb3',
+    const progress = connectionProgress(state, `communication:${index}`, relation.from, relation.to);
+    edges.push({ id: `communication:${index}`, source: relation.from, target: relation.to, kind: 'communication',
+      connectionStatus: progress.status, label: `communicates · ${CONNECTION_LABELS[progress.status]}`,
+      active: progress.status === 'checking', color: CONNECTION_COLORS[progress.status],
       route: communicationRoute(nodeById.get(relation.from)!, nodeById.get(relation.to)!, bottom + 64 + communicationLane++ * 34) });
   }
   return { nodes, edges };

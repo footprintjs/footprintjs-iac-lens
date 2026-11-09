@@ -182,6 +182,7 @@ test('mutation admission rejects conflicting runs, invalid scenarios and unavail
   const running = await fixture(t);
   assert.equal((await running.post({ scenario: 'noop' })).status, 409);
   assert.equal((await running.post({ scenario: 'neo' })).status, 409);
+  assert.equal((await running.post({ scenario: 'connections' })).status, 409);
   assert.equal((await running.post({ scenario: 'shell' })).status, 400);
   assert.equal((await running.post({ scenario: 'demo', path: '/untrusted' })).status, 400);
   assert.equal((await running.post([])).status, 400);

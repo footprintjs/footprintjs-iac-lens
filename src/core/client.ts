@@ -25,6 +25,15 @@ export function readDashboardState(value: unknown): DashboardState {
       throw new Error('Deployment progress has an unsupported shape');
     }
   }
+  if (state.connections) {
+    const connections = state.connections;
+    if (!['idle', 'checking', 'passed', 'failed'].includes(connections.status) || !Array.isArray(connections.checks) || !Array.isArray(connections.events)
+      || connections.checks.some(check => !check || !['untested', 'checking', 'connected', 'failed'].includes(check.status)
+        || typeof check.connectionId !== 'string' || typeof check.from !== 'string' || typeof check.to !== 'string')
+      || connections.events.some(event => !event || !['checking', 'connected', 'failed'].includes(event.status))) {
+      throw new Error('Connection progress has an unsupported shape');
+    }
+  }
   return state as DashboardState;
 }
 /** A delayed HTTP snapshot must never replace a newer stream update. */

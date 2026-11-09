@@ -25,6 +25,24 @@ export interface Recording {
   structure: unknown;
   narrativeEntries?: unknown[];
 }
+export type ConnectionStatus = 'untested' | 'checking' | 'connected' | 'failed';
+export interface ConnectionObservation {
+  method: string; target: string; observedAt: number; latencyMs: number; details: Record<string, unknown>;
+}
+export interface ConnectionProgress {
+  connectionId: string; from: string; to: string; status: ConnectionStatus;
+  timestamp?: number; message?: string; runtimeStageId?: string;
+  observation?: ConnectionObservation; details?: Record<string, unknown>;
+}
+export interface ConnectionEvent extends ConnectionProgress {
+  version: 1; runId: string; sequence: number; timestamp: number; runtimeStageId: string;
+  status: 'checking' | 'connected' | 'failed';
+}
+export interface ConnectionRun {
+  id: string; status: 'idle' | 'checking' | 'passed' | 'failed';
+  checks: ConnectionProgress[]; events: ConnectionEvent[]; checkedAt?: number;
+  recording?: Recording; report?: { evidencePath?: string; tracePath?: string; error?: string; captureError?: string; traceStatus?: unknown };
+}
 export interface DashboardRun {
   id: string;
   status: 'idle' | 'running' | 'passed' | 'failed';
@@ -58,5 +76,6 @@ export interface DashboardState {
   run?: DashboardRun;
   recording?: Recording;
   artifacts?: OutputArtifact[];
+  connections?: ConnectionRun;
 }
-export type Scenario = 'demo' | 'failure' | 'noop' | 'neo';
+export type Scenario = 'demo' | 'failure' | 'noop' | 'neo' | 'connections';
