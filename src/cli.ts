@@ -18,15 +18,18 @@ for (let index = 0; index < args.length; index++) {
   } else throw new Error('Usage: npm start -- [--neo | --fresh-neo] [--port 15231]');
 }
 const root = projectRoot();
-const directory = resolve(root, freshNeo ? '.artifacts/fresh' : '.artifacts');
-await mkdir(directory, { recursive: true, mode: 0o700 });
+const indexDirectory = resolve(root, freshNeo ? '.artifacts/fresh' : '.artifacts');
 const coreRoot = resolve(root, '../footprint-iac');
 const neo = freshNeo ? await loadFreshNeoTarget(coreRoot) : enableNeo ? await loadNeoTarget(coreRoot) : undefined;
+const directory = freshNeo && neo ? resolve(indexDirectory, neo.context) : indexDirectory;
+await mkdir(directory, { recursive: true, mode: 0o700 });
 const app = await startDashboard({ directory, staticDirectory: resolve(root, 'dist/web'), port: port ?? (freshNeo ? 15232 : 15231),
   ...(neo ? { neo } : {}), ...(freshNeo ? { initialScenario: 'neo' as const } : {}) });
 const startedAt = execFileSync('ps', ['-p', String(process.pid), '-o', 'lstart='], { encoding: 'utf8' }).trim();
-await writeFile(resolve(directory, 'server.json'), JSON.stringify({ pid: process.pid, startedAt,
-  url: app.url, neoAvailable: !!neo, createdAt: new Date().toISOString() }, null, 2) + '\n', { mode: 0o600 });
+const metadata = JSON.stringify({ pid: process.pid, startedAt, directory,
+  url: app.url, neoAvailable: !!neo, createdAt: new Date().toISOString() }, null, 2) + '\n';
+await writeFile(resolve(directory, 'server.json'), metadata, { mode: 0o600 });
+if (directory !== indexDirectory) await writeFile(resolve(indexDirectory, 'server.json'), metadata, { mode: 0o600 });
 console.log(`IaC Lens: ${app.url}`);
 console.log(`Native recorder progress; ${neo ? 'prepared local Neo fixture enabled' : 'simulator only'}. Automatic CI is off.`);
 for (const signal of ['SIGTERM', 'SIGINT'] as const) process.once(signal, () => { void app.close().then(() => process.exit(0)); });

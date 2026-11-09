@@ -50,6 +50,7 @@
 .iac-lens .eyebrow { font-size: 9px; color: #94a2b3; font-weight: 600; letter-spacing: 1.1px; margin-bottom: 8px; }
 .iac-lens h1 { font-size: 25px; letter-spacing: -.7px; line-height: 1.2; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
 .iac-lens .page-heading p { margin: 8px 0 0; font-size: 11px; color: #91a0b2; }
+.iac-lens .page-heading .app-access-url { color: #3478db; text-decoration: underline; text-underline-offset: 2px; }
 .iac-lens .page-actions { display: flex; align-items: center; gap: 12px; }
 .iac-lens .run-status { display: inline-flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 500; color: #8493a7; white-space: nowrap; }
 .iac-lens .run-status > span { width: 6px; height: 6px; border-radius: 50%; background: #aeb8c6; }

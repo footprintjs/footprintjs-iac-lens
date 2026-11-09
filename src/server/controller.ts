@@ -7,6 +7,7 @@ import { graphArtifacts, cloudFormationExample } from './artifacts.ts';
 import { demoGraph } from './graphs.ts';
 import { ReviewSimulator, executeRun } from './execute-run.ts';
 import type { NeoTarget } from './neo.ts';
+import { checkNeoForward, startNeoForward, type NeoForward } from './neo-forward.ts';
 
 export class RequestError extends Error {
   readonly status: number;
@@ -19,6 +20,7 @@ export class DashboardController {
   private readonly simulator: ReviewSimulator;
   private completion: Promise<void> = Promise.resolve();
   private activeNeo: NeoTarget | undefined;
+  private neoForward: NeoForward | undefined;
   private readonly options: { directory: string; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number };
 
   constructor(options: { directory: string; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number }) {
@@ -54,6 +56,7 @@ export class DashboardController {
     this.activeNeo = neo;
     this.simulator.faults.failBeforeApply = scenario === 'failure' ? new Set(['persistent-store']) : new Set();
     this.state = { ...this.state, graph, busy: true, mode: neo ? 'kubernetes' : 'simulator',
+      ...(!neo || neo.freshClaimPath ? { neoUrl: undefined, appAccess: undefined } : {}),
       ...(neo ? { design: neo.design, binding: neo.binding } : { design: undefined, binding: undefined }),
       target: neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Prepared local Neo Kubernetes fixture' }
         : { id: 'local-simulator', label: 'Local simulator · provider readiness is deliberately delayed' },
@@ -90,6 +93,7 @@ export class DashboardController {
           tracePath: completed.result.tracePath, traceStatus: completed.result.traceStatus,
           failure: completed.result.failure, results: completed.result.results,
           ...(completed.captureError ? { captureError: completed.captureError } : {}) } };
+      if (completed.result.ok && neo?.freshClaimPath) await this.openNeo(neo);
     } catch (error) {
       this.state.run = { ...this.state.run!, status: 'failed', finishedAt: new Date().toISOString(),
         report: { error: error instanceof Error ? error.message : String(error),
@@ -103,5 +107,23 @@ export class DashboardController {
         this.publish();
       }
     }
+  }
+
+  private async openNeo(neo: NeoTarget): Promise<void> {
+    this.state.appAccess = { status: 'checking' }; this.state.neoUrl = undefined; this.publish();
+    try {
+      if (this.neoForward?.context === neo.context) {
+        try { this.neoForward.checkedAt = await checkNeoForward(this.neoForward); }
+        catch { this.neoForward.stop(); this.neoForward = undefined; }
+      }
+      if (!this.neoForward || this.neoForward.context !== neo.context) {
+        this.neoForward = await startNeoForward({ context: neo.context, kubeconfig: neo.kubeconfig, directory: this.options.directory });
+      }
+      this.state.neoUrl = this.neoForward.baseUrl + '/?test';
+      this.state.appAccess = { status: 'ready', checkedAt: this.neoForward.checkedAt };
+    } catch (error) {
+      this.state.appAccess = { status: 'failed', message: error instanceof Error ? error.message : String(error) };
+    }
+    this.publish();
   }
 }

@@ -54,6 +54,7 @@ export interface DashboardState {
   target?: { id?: string; context?: string; namespace?: string; label?: string };
   neoAvailable?: boolean;
   neoUrl?: string;
+  appAccess?: { status: 'checking' | 'ready' | 'failed'; checkedAt?: string; message?: string };
   run?: DashboardRun;
   recording?: Recording;
   artifacts?: OutputArtifact[];
