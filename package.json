@@ -1,0 +1,80 @@
+{
+  "name": "footprint-iac-lens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Live infrastructure system view and native FootPrint execution evidence",
+  "engines": {
+    "node": ">=24"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/footprintjs/footprint-iac-lens.git"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --test test/*.test.ts",
+    "build": "tsc -p tsconfig.build.json && node web/build.mjs && node scripts/build-react.mjs",
+    "start": "node src/cli.ts",
+    "build:core": "tsc -p tsconfig.core.json",
+    "build:server": "tsc -p tsconfig.server.json"
+  },
+  "dependencies": {
+    "footprint-iac": "file:../footprint-iac"
+  },
+  "devDependencies": {
+    "@types/node": "24.9.1",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "typescript": "5.9.3",
+    "esbuild": "0.28.2",
+    "footprint-explainable-ui": "0.41.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "@xyflow/react": "12.12.1"
+  },
+  "peerDependencies": {
+    "footprint-explainable-ui": "^0.41.0",
+    "react": ">=18 <20",
+    "react-dom": ">=18 <20",
+    "@xyflow/react": "^12.0.0"
+  },
+  "peerDependenciesMeta": {
+    "footprint-explainable-ui": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "@xyflow/react": {
+      "optional": true
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/modules/src/core/index.d.ts",
+      "import": "./dist/modules/src/core/index.js"
+    },
+    "./core": {
+      "types": "./dist/modules/src/core/index.d.ts",
+      "import": "./dist/modules/src/core/index.js"
+    },
+    "./react": {
+      "types": "./dist/modules/src/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./react/style.css": "./dist/react/index.css",
+    "./server": {
+      "types": "./dist/modules/src/server/index.d.ts",
+      "import": "./dist/modules/src/server/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "AGENTS.md"
+  ]
+}

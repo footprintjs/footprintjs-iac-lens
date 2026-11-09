@@ -1,0 +1,61 @@
+import { createServer, type Server } from 'node:http';
+import { resolve } from 'node:path';
+import type { Scenario } from '../core/types.ts';
+import { DashboardController, RequestError } from './controller.ts';
+import type { NeoTarget } from './neo.ts';
+import { admitRequest, json, readRunRequest } from './request.ts';
+import { serveStatic } from './static.ts';
+import { streamState } from './events.ts';
+
+export interface DashboardOptions {
+  directory: string; staticDirectory: string; port?: number; neo?: NeoTarget; readinessDelay?: number;
+}
+
+/** Loopback-only consumer server; every resource mutation still belongs to InfraEngine. */
+export async function startDashboard(options: DashboardOptions): Promise<{
+  url: string; server: Server; controller: DashboardController; close(): Promise<void>;
+}> {
+  const controller = new DashboardController(options);
+  await controller.initialize();
+  const streams = new Map<import('node:http').ServerResponse, () => void>();
+  let port = 0;
+  const server = createServer((request, response) => {
+    void (async () => {
+      admitRequest(request, port);
+      const path = new URL(request.url ?? '/', `http://127.0.0.1:${port}`).pathname;
+      if (request.method === 'GET' && path === '/api/state') return json(response, 200, controller.getSnapshot());
+      if (request.method === 'GET' && path === '/api/events') {
+        if (streams.size >= 32) throw new RequestError(429, 'Too many viewer connections');
+        const stop = streamState(response, controller); streams.set(response, stop);
+        response.on('close', () => { stop(); streams.delete(response); }); return;
+      }
+      if (request.method === 'POST' && path === '/api/run') {
+        const scenario = await readRunRequest(request);
+        controller.start(scenario as Scenario); return json(response, 202, { accepted: true });
+      }
+      if (request.method === 'GET' && path === '/health') return json(response, 200, { status: 'ok', service: 'footprint-iac-lens' });
+      if (request.method !== 'GET') throw new RequestError(405, 'Method not allowed');
+      return serveStatic(response, resolve(options.staticDirectory), path);
+    })().catch(error => {
+      if (!response.headersSent) json(response, error instanceof RequestError ? error.status : 500,
+        { error: error instanceof Error ? error.message : String(error) });
+      else response.end();
+    });
+  });
+  server.requestTimeout = 15_000;
+  const listen = (selected: number) => new Promise<void>((accept, reject) => {
+    const ready = () => { server.off('error', fail); accept(); };
+    const fail = (error: Error) => { server.off('listening', ready); reject(error); };
+    server.once('error', fail); server.once('listening', ready); server.listen(selected, '127.0.0.1');
+  });
+  try { await listen(options.port ?? 0); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE' && options.port) await listen(0); else throw error; }
+  port = (server.address() as import('node:net').AddressInfo).port;
+  return { url: `http://127.0.0.1:${port}`, server, controller,
+    async close() {
+      await controller.whenIdle();
+      for (const [response, stop] of streams) { stop(); response.end(); }
+      server.closeIdleConnections();
+      await new Promise<void>((accept, reject) => server.close(error => error ? reject(error) : accept()));
+    } };
+}
