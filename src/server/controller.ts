@@ -145,6 +145,10 @@ export class DashboardController {
 
   private async perform(graph: InfraGraph, neo?: NeoTarget, firstCreate = false): Promise<void> {
     const recorder = createDeploymentRecorder();
+    const unsubscribeChart = recorder.subscribeChart(chart => {
+      this.state.run = { ...this.state.run!, id: chart.runId, chart };
+      this.publish();
+    });
     const unsubscribe = recorder.subscribe(event => {
       const projected = recorder.getSnapshot();
       this.state.run = { ...this.state.run!, id: event.runId,
@@ -175,7 +179,7 @@ export class DashboardController {
         report: { error: error instanceof Error ? error.message : String(error),
           coverage: 'Resource status shows only recorded outcomes; missing outcomes remain unknown.' } };
     } finally {
-      unsubscribe(); this.state.busy = false; this.publish();
+      unsubscribe(); unsubscribeChart(); this.state.busy = false; this.publish();
       await this.persist();
     }
   }

@@ -37,7 +37,7 @@ async function fixture(t: { after(fn: () => Promise<void>): void }, options: {
   if (options.providerFailure) provider.faults.failBeforeApply = new Set(['application']);
   const engine = new InfraEngine({ adapters: [provider],
     store: new FileStateStore(join(directory, 'state')), traceDirectory: join(directory, 'traces'),
-    recorders: options.attachRecorder === false ? [] : [recorder] });
+    recorders: options.attachRecorder === false ? [] : [recorder], chartObservers: [recorder] });
   let cached: ApplyResult | undefined;
   const managedReview = { graph, recorder, label: 'Configured test deployment',
     apply: async (): Promise<ApplyResult> => {
@@ -65,6 +65,9 @@ async function fixture(t: { after(fn: () => Promise<void>): void }, options: {
 
 test('managed review starts pending, streams native deployment, and reapply records real no-ops', async t => {
   const running = await fixture(t, { holdReady: true });
+  const updates: ReturnType<typeof running.controller.getSnapshot>[] = [];
+  const stop = running.controller.subscribe(() => { updates.push(running.controller.getSnapshot()); });
+  t.after(stop);
   const initial = running.controller.getSnapshot();
   assert.equal(initial.graph?.digest, running.graph.digest);
   assert.equal(initial.mode, 'managed');
@@ -81,6 +84,12 @@ test('managed review starts pending, streams native deployment, and reapply reco
   assert.ok(inFlight.run?.resources.some(resource => resource.status === 'deploying'));
   assert.ok(inFlight.run?.resources.every(resource => resource.status !== 'ready'));
   assert.ok(inFlight.run?.events.every(event => !!event.runtimeStageId));
+  const chartOnly = updates.find(state => state.run?.chart && state.run.events.length === 0);
+  assert.ok(chartOnly, 'the native chart is published before the first resource event');
+  assert.equal(chartOnly.run!.chart!.runId, chartOnly.run!.id);
+  assert.equal(chartOnly.run!.chart!.graphDigest, running.graph.digest);
+  assert.ok(chartOnly.run!.resources.every(resource => resource.status === 'pending'), 'topology cannot manufacture readiness');
+  assert.deepEqual(chartOnly.run!.chart!.resources.map(resource => resource.resourceId), ['database', 'application']);
   const activeBlocks = projectSystemBlocks(inFlight);
   assert.equal(activeBlocks.find(block => block.id === 'storage')?.counts.deploying, 1);
   assert.equal(activeBlocks.find(block => block.id === 'compute')?.counts.pending, 1);
@@ -91,6 +100,7 @@ test('managed review starts pending, streams native deployment, and reapply reco
   assert.ok(completed.run?.resources.every(resource => resource.status === 'ready' && resource.action === 'create'));
   assert.equal(completed.run?.id, running.recorder.getSnapshot().runId);
   assert.ok(completed.run?.recording?.snapshot);
+  assert.deepEqual(completed.run!.chart!.structure, completed.run!.recording!.structure);
   assert.ok(projectSystemBlocks(completed).every(block => block.counts.ready === 1));
   const firstRun = completed.run!.id;
   assert.equal((await running.post({ scenario: 'review' })).status, 202);
@@ -126,6 +136,7 @@ test('an actual apply without the configured native recorder remains an incomple
   const state = running.controller.getSnapshot();
   assert.equal(state.run?.status, 'failed');
   assert.ok(state.run?.resources.every(resource => resource.status === 'pending'));
+  assert.ok(state.run?.chart, 'a native chart alone is not runtime progress');
   assert.match(JSON.stringify(state.run?.report), /progress/i);
   assert.equal((await running.post({ scenario: 'identity' })).status, 409);
 });

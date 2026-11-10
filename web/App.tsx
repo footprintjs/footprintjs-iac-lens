@@ -6,6 +6,7 @@ import { Sidebar, type View } from './components/Sidebar.tsx';
 import { RunControls } from './components/RunControls.tsx';
 import { Summary } from './components/Summary.tsx';
 import { SystemBlocks } from './components/SystemBlocks.tsx';
+import { DeploymentFlow } from './components/DeploymentFlow.tsx';
 import { ResourceCanvas } from './components/ResourceCanvas.tsx';
 import { Inspector } from './components/Inspector.tsx';
 import { RunFeed } from './components/RunFeed.tsx';
@@ -33,7 +34,8 @@ export function IacLens({ baseUrl = '' }: IacLensProps) {
       {error && <div className="error-banner" role="alert"><Icon name="close" size={17}/><span>{error}</span><button className="icon-button" onClick={dismissError} aria-label="Dismiss error"><Icon name="close" size={15}/></button></div>}
       <div className="target-row"><div className="target-description"><span className={`mode-pill ${state.mode === 'simulator' ? 'mode-simulation' : 'mode-real'}`}>{state.mode === 'kubernetes' ? 'LOCAL KUBERNETES' : state.mode === 'simulator' ? 'SIMULATION' : 'CONFIGURED PROVIDERS'}</span><span className="target-name">{state.target?.context ?? state.target?.label ?? state.target?.id ?? 'Local simulator'}</span></div><RunControls state={state} posting={posting} onRun={scenario => { setSelected(undefined); void run(scenario); }}/></div>
       <Summary state={state}/>
-      <SystemBlocks state={state} onSelect={selectResource}/>
+      <DeploymentFlow state={state} selected={selected} onSelect={selectResource}/>
+      <details className="capability-inventory"><summary>Browse capabilities<small>Groups, not deployment order</small></summary><SystemBlocks state={state} onSelect={selectResource}/></details>
       <ConnectionChecks state={state} selected={selectedConnection} onSelect={selectConnection} onCheck={() => { void run('connections'); }} onEvidence={() => { setEvidenceKind('connections'); setView('evidence'); }}/>
       <IdentityChecks state={state} onCheck={() => { void run('identity'); }} onEvidence={() => { setEvidenceKind('identity'); setView('evidence'); }}/>
       <section className={`workbench${resource && view === 'graph' ? ' with-inspector' : ''}`}><div className="workbench-main"><div className="workbench-toolbar"><div className="view-tabs" role="tablist" aria-label="Infrastructure view">{([{ id: 'graph', label: 'System graph', icon: 'graph' }, { id: 'evidence', label: 'Execution evidence', icon: 'evidence' }, { id: 'artifacts', label: 'Output artifacts', icon: 'file' }] as const).map(tab => <button key={tab.id} role="tab" aria-selected={view === tab.id} onClick={() => setView(tab.id)} className={view === tab.id ? 'view-tab active' : 'view-tab'}><Icon name={tab.icon} size={16}/>{tab.label}</button>)}</div><span className="graph-count">{state.graph?.resources.length ?? 0} resources</span></div>

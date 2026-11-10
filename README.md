@@ -128,12 +128,48 @@ export function openIdentityReview(options: {
 
 `initialReview` shows infrastructure that another trusted host deployed through the core engine. Resource deployment controls are disabled, and this Lens server receives no mutation adapter or state store for that target. It still shows the supplied resource recording, graph and local **Open Neo** URL. It cannot be combined with the built-in managed `neo` target. Without `initialReview`, a configured identity review can run independently; the built-in Neo deployment also runs it automatically after successful resource and connection checks.
 
+## Deployment flow from the native recorder
+
+The main visual is a resource pipeline. Compute, storage and network are labels
+on resources, not a fixed execution sequence. **Browse capabilities** keeps the
+category inventory separate and collapsed by default. A runtime containing
+embedded SQLite appears once, with compute and storage labels; it does not
+become two independently provisioned resources.
+
+The core engine publishes its unchanged FootPrint chart and explicit
+resource-to-stage bindings before traversal. The headless
+`projectNativeDeploymentChart` walks those actual gates, selector branches and
+joins to place the boxes. It checks the run, graph digest and stage bindings;
+it never constructs a second execution schedule. `projectDeploymentFlow`
+combines that native topology with the same recorder's resource events.
+
+Start numbers come only from native event sequence. Grey is unstarted, blue
+is reconciling, and green requires a recorded provider-confirmed outcome.
+**Scheduled together** describes a native fork; **Overlapping work** requires
+actual captured overlap. A failed step remains failed and skipped work has no
+invented start number. Existing-resource checks are labelled as such.
+
+Clicking a box reveals its resource ID, recorded runtime stage and mapped
+capabilities. The native execution-evidence view retains the full chart,
+conditions, reads and writes. The pipeline summarizes that same execution;
+resource readiness, network communication and continuing health remain
+separate facts. Solid **then** arrows describe observed completion before the
+next start. **Next** arrows show the native schedule; optional **needs** arrows
+show declared resource prerequisites.
+
+Older recordings without explicit native bindings still show observed event
+order, labelled **Recorded execution**. Without valid ordered events or native
+topology, only prerequisites are shown. Missing or conflicting capture stays
+visible. This implementation adds no new cluster or provider dependency.
+
 ## Managed provider reviews and system blocks
 
 A trusted local composition can instead configure `managedReview` with its
 declared `graph`, a core `DeploymentRecorder`, and an `apply()` callback returning
 the actual `InfraEngine.apply` result. Pass the **same recorder object** to the
-engine and the review. **Deploy system** and **Reapply / check no-op** request
+engine's `recorders` and `chartObservers` options and to the review. The recorder's
+`subscribeChart` channel supplies topology; its `subscribe` channel supplies live
+resource observations. **Deploy system** and **Reapply / check no-op** request
 only `{ scenario: "review" }`; the browser cannot select a graph, adapter, path
 or target. Managed reviews cannot be combined with an initial recorded review
 or the built-in Neo target, and cannot fall back to simulator scenarios.

@@ -1,4 +1,5 @@
 import type { InfraGraph, BindingResult, SystemDesign } from 'footprint-iac';
+import type { DeploymentChart } from 'footprint-iac/progress';
 import type { SystemViewDefinition } from './capabilities.ts';
 
 export type ResourceStatus = 'pending' | 'deploying' | 'ready' | 'failed' | 'skipped' | 'deleted';
@@ -76,6 +77,8 @@ export interface DashboardRun {
   resources: ResourceProgress[];
   events: ProgressEvent[];
   recording?: Recording;
+  /** Native apply-chart topology and explicit resource-stage bindings, published before traversal. */
+  chart?: DeploymentChart;
   report?: unknown;
 }
 export interface OutputArtifact {

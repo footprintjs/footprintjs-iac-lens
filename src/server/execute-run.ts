@@ -27,7 +27,7 @@ export async function executeRun(options: {
       kubeconfig: options.neo.kubeconfig, namespace: 'footprint-iac-neo-test', timeoutMs: 180_000 })] : [options.simulator],
     store: new FileStateStore(options.neo?.stateDirectory ?? resolve(options.directory, 'state')),
     traceDirectory: resolve(options.directory, 'traces'), maxConcurrency: 2,
-    recorders: [options.recorder],
+    recorders: [options.recorder], chartObservers: [options.recorder],
   });
   if (options.requireFreshCreate && options.neo?.freshClaimPath) {
     await claimFreshNeo(options.neo.freshClaimPath, () => engine.plan(options.graph));

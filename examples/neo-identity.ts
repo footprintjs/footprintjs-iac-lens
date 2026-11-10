@@ -15,6 +15,7 @@ const run: DashboardRun = { id: deployment.result.runId, status: 'passed', mode:
   resources: deployment.graph.resources.map(resource => ({ id: resource.id, resourceId: resource.id, status: 'ready',
     action: deployment.result.plan.operations.find(operation => operation.resource.id === resource.id)?.action })),
   events: deployment.events, report: deployment.result,
+  ...(evidence.deploymentChart ? { chart: evidence.deploymentChart } : {}),
   recording: { snapshot: evidence.snapshot, structure: evidence.structure, narrativeEntries: Array.isArray(evidence.narrative) ? evidence.narrative : [] } };
 const directory = join(target.directory, 'lens');
 const app = await startDashboard({ directory, staticDirectory: resolve(import.meta.dirname, '../dist/web'), port: 15237,
