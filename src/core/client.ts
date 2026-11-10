@@ -34,6 +34,22 @@ export function readDashboardState(value: unknown): DashboardState {
       throw new Error('Connection progress has an unsupported shape');
     }
   }
+  if (state.identity) {
+    const identity = state.identity;
+    const kinds = new Set(['login', 'access', 'directory']);
+    const expected = new Set(['authenticated', 'rejected', 'allowed', 'denied', 'available']);
+    const verdicts = new Set([...expected, 'unavailable']);
+    const valid = (check: (typeof identity.checks)[number]) => check && typeof check.checkId === 'string' && typeof check.label === 'string'
+      && kinds.has(check.kind) && expected.has(check.expected) && ['untested', 'checking', 'passed', 'failed'].includes(check.status)
+      && (!check.observation || (verdicts.has(check.observation.verdict) && Number.isFinite(check.observation.observedAt)
+        && Number.isFinite(check.observation.latencyMs) && check.observation.latencyMs >= 0))
+      && (check.status !== 'passed' || check.observation?.verdict === check.expected);
+    if (typeof identity.id !== 'string' || typeof identity.label !== 'string' || !['idle', 'checking', 'passed', 'failed'].includes(identity.status)
+      || !Array.isArray(identity.checks) || !Array.isArray(identity.events) || identity.checks.some(check => !valid(check))
+      || identity.events.some(event => !valid(event) || !['checking', 'passed', 'failed'].includes(event.status))) {
+      throw new Error('Identity progress has an unsupported shape');
+    }
+  }
   return state as DashboardState;
 }
 /** A delayed HTTP snapshot must never replace a newer stream update. */

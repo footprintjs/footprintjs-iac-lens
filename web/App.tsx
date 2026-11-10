@@ -11,6 +11,7 @@ import { RunFeed } from './components/RunFeed.tsx';
 import { ArtifactsView } from './components/ArtifactsView.tsx';
 import { AppAccess } from './components/AppAccess.tsx';
 import { ConnectionChecks } from './components/ConnectionChecks.tsx';
+import { IdentityChecks } from './components/IdentityChecks.tsx';
 import { EvidenceSource, type EvidenceKind } from './components/EvidenceSource.tsx';
 
 export interface IacLensProps { baseUrl?: string }
@@ -32,6 +33,7 @@ export function IacLens({ baseUrl = '' }: IacLensProps) {
       <div className="target-row"><div className="target-description"><span className={`mode-pill ${state.mode === 'kubernetes' ? 'mode-real' : 'mode-simulation'}`}>{state.mode === 'kubernetes' ? 'LOCAL KUBERNETES' : 'SIMULATION'}</span><span className="target-name">{state.target?.context ?? state.target?.label ?? state.target?.id ?? 'Local simulator'}</span></div><RunControls state={state} posting={posting} onRun={scenario => { setSelected(undefined); void run(scenario); }}/></div>
       <Summary state={state}/>
       <ConnectionChecks state={state} selected={selectedConnection} onSelect={selectConnection} onCheck={() => { void run('connections'); }} onEvidence={() => { setEvidenceKind('connections'); setView('evidence'); }}/>
+      <IdentityChecks state={state} onCheck={() => { void run('identity'); }} onEvidence={() => { setEvidenceKind('identity'); setView('evidence'); }}/>
       <section className={`workbench${resource && view === 'graph' ? ' with-inspector' : ''}`}><div className="workbench-main"><div className="workbench-toolbar"><div className="view-tabs" role="tablist" aria-label="Infrastructure view">{([{ id: 'graph', label: 'System graph', icon: 'graph' }, { id: 'evidence', label: 'Execution evidence', icon: 'evidence' }, { id: 'artifacts', label: 'Output artifacts', icon: 'file' }] as const).map(tab => <button key={tab.id} role="tab" aria-selected={view === tab.id} onClick={() => setView(tab.id)} className={view === tab.id ? 'view-tab active' : 'view-tab'}><Icon name={tab.icon} size={16}/>{tab.label}</button>)}</div><span className="graph-count">{state.graph?.resources.length ?? 0} resources</span></div>
         {view === 'graph' ? <><div className="canvas-context"><span><span className="tiny-square"/>Deployment dependency graph</span><small>Select a resource to inspect its evidence</small></div><ResourceCanvas key={state.graph?.digest ?? 'none'} state={state} selected={selected} onSelect={selectResource} onConnectionSelect={selectConnection}/><div className="canvas-legend">{['pending', 'deploying', 'ready', 'failed', 'skipped'].map(status => <span key={status}><i className={`legend-dot mark-${status}`}/>{status.charAt(0).toUpperCase() + status.slice(1)}</span>)}<small>Solid: deployment order · Dashed: recorded connection status</small></div></>
           : view === 'evidence' ? <EvidenceSource state={state} kind={evidenceKind} onKind={setEvidenceKind}/>

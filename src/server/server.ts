@@ -1,15 +1,12 @@
 import { createServer, type Server } from 'node:http';
 import { resolve } from 'node:path';
 import type { Scenario } from '../core/types.ts';
-import { DashboardController, RequestError } from './controller.ts';
-import type { NeoTarget } from './neo.ts';
+import { DashboardController, RequestError, type ControllerOptions } from './controller.ts';
 import { admitRequest, json, readRunRequest } from './request.ts';
 import { serveStatic } from './static.ts';
 import { streamState } from './events.ts';
 
-export interface DashboardOptions {
-  directory: string; staticDirectory: string; port?: number; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number;
-}
+export interface DashboardOptions extends ControllerOptions { staticDirectory: string; port?: number }
 
 /** Loopback-only consumer server; every resource mutation still belongs to InfraEngine. */
 export async function startDashboard(options: DashboardOptions): Promise<{

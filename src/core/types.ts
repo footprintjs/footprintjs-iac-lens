@@ -43,6 +43,29 @@ export interface ConnectionRun {
   checks: ConnectionProgress[]; events: ConnectionEvent[]; checkedAt?: number;
   recording?: Recording; report?: { evidencePath?: string; tracePath?: string; error?: string; captureError?: string; traceStatus?: unknown };
 }
+export type IdentityVerdict = 'authenticated' | 'rejected' | 'allowed' | 'denied' | 'available' | 'unavailable';
+export interface IdentityObservationDetails {
+  code?: string; httpStatus?: number; sourceId?: string; subjectId?: string; policyId?: string;
+  matchedRuleIds?: readonly string[]; action?: string; resource?: string;
+  protocol?: 'ldap' | 'ldaps' | 'oidc' | 'http' | 'https'; phase?: 'directory' | 'authentication' | 'authorization' | 'transport';
+}
+export interface IdentityObservation {
+  verdict: IdentityVerdict; observedAt: number; latencyMs: number; details?: IdentityObservationDetails;
+}
+export interface IdentityProgress {
+  checkId: string; label: string; kind: 'login' | 'access' | 'directory';
+  expected: Exclude<IdentityVerdict, 'unavailable'>; status: 'untested' | 'checking' | 'passed' | 'failed';
+  timestamp?: number; runtimeStageId?: string; observation?: IdentityObservation; message?: string;
+}
+export interface IdentityEvent extends IdentityProgress {
+  version: 1; runId: string; sequence: number; timestamp: number; runtimeStageId: string;
+  status: 'checking' | 'passed' | 'failed';
+}
+export interface IdentityRun {
+  id: string; label: string; status: 'idle' | 'checking' | 'passed' | 'failed';
+  checks: IdentityProgress[]; events: IdentityEvent[]; checkedAt?: number;
+  recording?: Recording; report?: { evidencePath?: string; tracePath?: string; error?: string; captureError?: string; traceStatus?: unknown };
+}
 export interface DashboardRun {
   id: string;
   status: 'idle' | 'running' | 'passed' | 'failed';
@@ -71,11 +94,13 @@ export interface DashboardState {
   mode?: 'simulator' | 'kubernetes';
   target?: { id?: string; context?: string; namespace?: string; label?: string };
   neoAvailable?: boolean;
+  deploymentReadOnly?: boolean;
   neoUrl?: string;
   appAccess?: { status: 'checking' | 'ready' | 'failed'; checkedAt?: string; message?: string };
   run?: DashboardRun;
   recording?: Recording;
   artifacts?: OutputArtifact[];
   connections?: ConnectionRun;
+  identity?: IdentityRun;
 }
-export type Scenario = 'demo' | 'failure' | 'noop' | 'neo' | 'connections';
+export type Scenario = 'demo' | 'failure' | 'noop' | 'neo' | 'connections' | 'identity';

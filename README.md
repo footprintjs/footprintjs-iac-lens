@@ -89,8 +89,49 @@ Communication edges now start **Not checked**, become **Checking** while a real 
 
 The Kubernetes check sends DNS and HTTP traffic from an existing ready Neo pod through the Service's real ClusterIP, verifying that its advertised backends belong to the expected Deployment before and after the request. A successful response requires HTTP 200 with JSON `status: "ok"`. This is a point-in-time check from the recorded pod, not continuous traffic monitoring or proof of every client's access. Results do not come from node colours or display timers; a connection failure leaves the last successful deployment verdict intact. **Open Neo** uses a separate deployment port-forward and can remain usable when the Service route fails.
 
+## Identity and access reviews
+
+A trusted local host can supply `identityReview` to `startDashboard`. **Check identity and access** runs those declared checks through the core's native FootPrint chart and streams actual **Checking → Passed / Failed** events. A negative test can pass: an expected denial must observe `denied`, and a wrong-password test must observe `rejected`. An unavailable identity service fails either test. Identity failures retain the successful resource deployment and its original recording.
+
+The adapter owns the actual authentication and application requests. It keeps test credentials and tokens in its server-side closure and returns the core's allowlisted diagnostic metadata. Neither `/api/run` nor the dashboard receives a username, password, token, provider URL or arbitrary request body. The browser can request only the configured `identity` scenario. Checks are point-in-time; they do not enable continuous login monitoring or prove that an untested route enforces a policy.
+
+This complete starter function accepts your measured adapter and an already-recorded deployment snapshot. Paths and credentials are supplied on your own laptop:
+
+```ts
+import type { AccessCheckAdapter } from 'footprint-iac/identity';
+import { startDashboard, type InitialReview } from 'footprint-iac-lens/server';
+
+export function openIdentityReview(options: {
+  directory: string;
+  staticDirectory: string; // Built Lens web assets.
+  review: InitialReview;  // graph, native DashboardRun, target and optional neoUrl.
+  adapter: AccessCheckAdapter;
+}) {
+  return startDashboard({
+    directory: options.directory,
+    staticDirectory: options.staticDirectory,
+    initialReview: options.review,
+    identityReview: {
+      stack: options.review.graph.name,
+      label: 'Neo identity and access',
+      checks: [
+        { id: 'reader-login', label: 'Reader signs in', kind: 'login', expected: 'authenticated' },
+        { id: 'reader-chat', label: 'Reader can chat', kind: 'access', expected: 'allowed' },
+        { id: 'guest-chat', label: 'Guest cannot chat', kind: 'access', expected: 'denied' },
+        { id: 'wrong-password', label: 'Wrong password is rejected', kind: 'login', expected: 'rejected' },
+      ],
+      adapter: options.adapter,
+    },
+  });
+}
+```
+
+`initialReview` shows infrastructure that another trusted host deployed through the core engine. Resource deployment controls are disabled, and this Lens server receives no mutation adapter or state store for that target. It still shows the supplied resource recording, graph and local **Open Neo** URL. It cannot be combined with the built-in managed `neo` target. Without `initialReview`, a configured identity review can run independently; the built-in Neo deployment also runs it automatically after successful resource and connection checks.
+
+Select **Inspect identity recording** or **Recorded flow → Identity and access checks** for the native chart. Each run writes private `identity/<runId>.json` evidence and `identity-traces/<runId>.jsonl` beneath the host's viewer directory. Recovery creates another run and preserves the earlier failure. Resource, connection and identity recordings remain separate views of their respective operations.
+
 Kubernetes runs expose generated JSON/YAML from the complete desired graph. The CloudFormation object-storage files are a separate, labelled export-only example using a synthetic account ID; no AWS deployment occurs. Artifact generation has structural validation and does not prove that a cloud deployment would succeed. Native resource mappings and compilation evidence are available from the core synthesis API.
 
 Replay reconstructs recorded state. Backwalking traverses captured dependencies, with missing evidence and external uncertainty retained. Live snapshots survive SSE reconnects while the server runs; the viewer saves the final state under `.artifacts/latest.json`, and the core retains its durable inventory and execution evidence. Keep `.artifacts/` local because it contains infrastructure and execution data.
 
-The server accepts only named demo/failure/no-op/Neo scenarios. It has no arbitrary command, graph upload, path or cloud-target execution endpoint. Keep this prototype local; remote hosting and authentication require a separate design.
+The server accepts only named demo/failure/no-op/Neo/connection scenarios and the host-configured identity review. It has no arbitrary command, graph upload, path or cloud-target execution endpoint. Keep this prototype local; remote hosting and authentication require a separate design.

@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createDeploymentRecorder } from 'footprint-iac/progress';
 import type { InfraGraph } from 'footprint-iac';
-import type { DashboardState, Scenario } from '../core/types.ts';
+import type { DashboardRun, DashboardState, Scenario } from '../core/types.ts';
 import { graphArtifacts, cloudFormationExample } from './artifacts.ts';
 import { demoGraph } from './graphs.ts';
 import { ReviewSimulator, executeRun } from './execute-run.ts';
@@ -11,6 +11,16 @@ import { checkNeoForward, startNeoForward, type NeoForward } from './neo-forward
 import { KubernetesConnectionAdapter } from 'footprint-iac/connections';
 import { untestedConnections } from '../core/connections.ts';
 import { runConnectionReview } from './run-connections.ts';
+import { pendingIdentity, runIdentityReview, type IdentityReviewOptions } from './run-identity.ts';
+
+/** Already-recorded infrastructure supplied by the host; this server does not acquire its mutation credentials. */
+export interface InitialReview {
+  graph: InfraGraph; run: DashboardRun; target?: DashboardState['target']; neoUrl?: string;
+}
+export interface ControllerOptions {
+  directory: string; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number;
+  identityReview?: IdentityReviewOptions; initialReview?: InitialReview;
+}
 
 export class RequestError extends Error {
   readonly status: number;
@@ -24,20 +34,26 @@ export class DashboardController {
   private completion: Promise<void> = Promise.resolve();
   private activeNeo: NeoTarget | undefined;
   private neoForward: NeoForward | undefined;
-  private readonly options: { directory: string; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number };
+  private readonly options: ControllerOptions;
 
-  constructor(options: { directory: string; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number }) {
-    this.options = options;
+  constructor(options: ControllerOptions) {
+    if (options.initialReview && (options.neo || options.initialScenario)) throw new Error('Choose an initial recorded review or a managed Neo target');
+    const identityReview = options.identityReview && { ...options.identityReview, checks: structuredClone(options.identityReview.checks),
+      adapter: Object.freeze({ check: options.identityReview.adapter.check.bind(options.identityReview.adapter) }) };
+    this.options = { ...options, identityReview, initialReview: options.initialReview && structuredClone(options.initialReview) };
     this.simulator = new ReviewSimulator(resolve(options.directory, 'provider.json'), options.readinessDelay);
     if (options.initialScenario === 'neo' && !options.neo) throw new Error('An initial Neo graph requires a prepared target');
     const neo = options.initialScenario === 'neo' ? options.neo : undefined;
-    const graph = neo?.binding.graph ?? demoGraph();
-    this.state = { revision: 0, graph, busy: false, mode: neo ? 'kubernetes' : 'simulator', neoAvailable: !!options.neo,
+    const initialReview = this.options.initialReview;
+    const graph = initialReview?.graph ?? neo?.binding.graph ?? demoGraph();
+    this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? (neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
+      ...(initialReview ? { deploymentReadOnly: true } : {}),
       ...(neo ? { design: neo.design, binding: neo.binding } : {}),
-      ...(options.neo?.url ? { neoUrl: options.neo.url } : {}),
-      target: neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Fresh local Neo Kubernetes target' }
-        : { id: 'local-simulator', label: 'Local simulator · no cloud resources' },
-      run: { id: '', status: 'idle', mode: neo ? 'kubernetes' : 'simulator', resources: this.pending(graph), events: [] }, connections: untestedConnections(graph), artifacts: [] };
+      ...(initialReview?.neoUrl ? { neoUrl: initialReview.neoUrl } : options.neo?.url ? { neoUrl: options.neo.url } : {}),
+      target: initialReview?.target ?? (neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Fresh local Neo Kubernetes target' }
+        : { id: 'local-simulator', label: 'Local simulator · no cloud resources' }),
+      run: initialReview?.run ?? { id: '', status: 'idle', mode: neo ? 'kubernetes' : 'simulator', resources: this.pending(graph), events: [] },
+      connections: untestedConnections(graph), ...(identityReview ? { identity: pendingIdentity(identityReview) } : {}), artifacts: [] };
   }
 
   async initialize(): Promise<void> {
@@ -50,8 +66,17 @@ export class DashboardController {
   whenIdle(): Promise<void> { return this.completion; }
 
   start(scenario: Scenario): void {
-    if (!['demo', 'failure', 'neo', 'noop', 'connections'].includes(scenario)) throw new RequestError(400, 'Unknown review scenario');
+    if (!['demo', 'failure', 'neo', 'noop', 'connections', 'identity'].includes(scenario)) throw new RequestError(400, 'Unknown review scenario');
     if (this.state.busy) throw new RequestError(409, 'A deployment is already running');
+    if (scenario === 'identity') {
+      if (!this.options.identityReview) throw new RequestError(409, 'Identity checks were not configured by this local dashboard host');
+      this.state.busy = true; this.state.identity = pendingIdentity(this.options.identityReview); this.publish();
+      this.completion = this.performIdentity().finally(async () => {
+        this.state.busy = false; this.publish(); await this.persist();
+      });
+      return;
+    }
+    if (this.options.initialReview) throw new RequestError(409, 'This dashboard displays read-only deployment evidence; infrastructure changes belong to its host');
     if (scenario === 'connections') {
       if (!this.activeNeo || this.state.mode !== 'kubernetes' || this.state.run?.status !== 'passed') {
         throw new RequestError(409, 'Deploy the prepared local Neo target successfully before checking connections');
@@ -109,6 +134,7 @@ export class DashboardController {
           ...(completed.captureError ? { captureError: completed.captureError } : {}) } };
       if (completed.result.ok && neo) {
         await this.performConnections(graph, neo);
+        if (this.options.identityReview) await this.performIdentity();
         if (neo.freshClaimPath) await this.openNeo(neo);
       }
     } catch (error) {
@@ -140,6 +166,12 @@ export class DashboardController {
       this.state.connections = { ...untestedConnections(graph), status: 'failed', checkedAt: Date.now(),
         report: { error: error instanceof Error ? error.message : String(error) } }; this.publish();
     }
+  }
+
+  private async performIdentity(): Promise<void> {
+    if (!this.options.identityReview) return;
+    await runIdentityReview({ ...this.options.identityReview, directory: this.options.directory,
+      update: identity => { this.state.identity = identity; this.publish(); } });
   }
 
   private async openNeo(neo: NeoTarget): Promise<void> {

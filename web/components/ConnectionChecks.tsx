@@ -17,7 +17,7 @@ export function ConnectionChecks({ state, selected, onSelect, onCheck, onEvidenc
   return <section className="connection-checks" aria-label="Connection checks">
     <div className="connection-checks-bar"><div className="connection-checks-heading"><Icon name="network" size={16}/><strong>Connection checks</strong>
       <span className="connection-checks-time">Point-in-time{run.checkedAt ? ` · checked ${eventTime(run.checkedAt)}` : ' · not checked yet'}</span></div>
-      <button className="button button-secondary" disabled={state.busy || state.mode !== 'kubernetes' || state.run?.status !== 'passed'}
+      <button className="button button-secondary" disabled={state.busy || !state.neoAvailable || state.mode !== 'kubernetes' || state.run?.status !== 'passed'}
         title="Check the admitted Neo Service from its running pod through in-cluster DNS and HTTP" onClick={onCheck}>
         {run.status === 'checking' ? 'Checking connections…' : 'Check connections'}</button></div>
     <div className="connection-check-list">{run.checks.map(check => <button key={check.connectionId} className={`connection-check-row connection-${check.status}`}
