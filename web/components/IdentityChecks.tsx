@@ -15,7 +15,7 @@ export function IdentityChecks({ state, onCheck, onEvidence }: {
     <div className="identity-checks-bar"><div className="identity-checks-heading"><Icon name="identity" size={17}/><strong>{run.label}</strong>
       <span className="identity-checks-time">{run.status === 'checking' ? 'Checking actual access' : run.checkedAt ? `Checked ${eventTime(run.checkedAt)}` : 'Not checked yet'}</span></div>
       <div className="identity-checks-actions"><button className="text-button" disabled={!run.recording} onClick={onEvidence}>Inspect identity recording</button>
-        <button className="button button-secondary" disabled={state.busy} onClick={onCheck}>{run.status === 'checking' ? 'Checking identity and access…' : 'Check identity and access'}</button></div></div>
+        <button className="button button-secondary" disabled={state.busy || (state.managedReviewAvailable && state.run?.status !== 'passed')} onClick={onCheck}>{run.status === 'checking' ? 'Checking identity and access…' : 'Check identity and access'}</button></div></div>
     <p className="identity-checks-scope">Expected rejection or denial passes only when it is observed. An unavailable identity service fails the check.</p>
     <div className="identity-check-list">{run.checks.map(check => <button key={check.checkId}
       className={`identity-check-row identity-${check.status}`} aria-expanded={focused?.checkId === check.checkId}

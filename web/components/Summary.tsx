@@ -5,7 +5,7 @@ import { Icon } from './Icon.tsx';
 export function Summary({ state }: { state: DashboardState }) {
   const counts = statusCounts(state);
   const cards = [{ label: 'Resources', value: state.graph?.resources.length ?? 0, className: 'total', detail: 'in the desired graph', icon: 'graph' },
-    { label: 'Ready', value: counts.ready, className: 'ready', detail: state.mode === 'kubernetes' ? 'provider confirmed' : 'simulator confirmed', icon: 'check' },
+    { label: 'Ready', value: counts.ready, className: 'ready', detail: state.mode === 'simulator' ? 'simulator confirmed' : 'provider confirmed', icon: 'check' },
     { label: 'Deploying', value: counts.deploying, className: 'deploying', detail: 'reconciliation started', icon: 'clock' },
     { label: 'Waiting', value: counts.pending, className: 'pending', detail: counts.skipped ? `${counts.skipped} skipped after failure` : 'not started in this run', icon: 'clock' }];
   if (counts.failed) cards[3] = { label: 'Failed', value: counts.failed, className: 'failed', detail: `${counts.pending} pending · ${counts.skipped} skipped`, icon: 'close' };

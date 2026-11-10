@@ -1,4 +1,5 @@
 import type { DashboardState, Scenario } from './types.ts';
+import { readSystemViewDefinition } from './capabilities.ts';
 
 export interface JsonResponse { ok: boolean; status: number; json(): Promise<unknown> }
 export interface RequestOptions { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal }
@@ -25,6 +26,7 @@ export function readDashboardState(value: unknown): DashboardState {
       throw new Error('Deployment progress has an unsupported shape');
     }
   }
+  if (state.systemView !== undefined) readSystemViewDefinition(state.systemView);
   if (state.connections) {
     const connections = state.connections;
     if (!['idle', 'checking', 'passed', 'failed'].includes(connections.status) || !Array.isArray(connections.checks) || !Array.isArray(connections.events)

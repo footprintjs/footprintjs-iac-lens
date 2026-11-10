@@ -2,7 +2,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createDeploymentRecorder } from 'footprint-iac/progress';
 import type { InfraGraph } from 'footprint-iac';
+import { validateInfraGraph } from 'footprint-iac/graph';
 import type { DashboardRun, DashboardState, Scenario } from '../core/types.ts';
+import { readSystemViewDefinition, type SystemViewDefinition } from '../core/capabilities.ts';
 import { graphArtifacts, cloudFormationExample } from './artifacts.ts';
 import { demoGraph } from './graphs.ts';
 import { ReviewSimulator, executeRun } from './execute-run.ts';
@@ -12,6 +14,7 @@ import { KubernetesConnectionAdapter } from 'footprint-iac/connections';
 import { untestedConnections } from '../core/connections.ts';
 import { runConnectionReview } from './run-connections.ts';
 import { pendingIdentity, runIdentityReview, type IdentityReviewOptions } from './run-identity.ts';
+import { executeManagedReview, pendingManagedResources, type ManagedReviewOptions } from './execute-managed-review.ts';
 
 /** Already-recorded infrastructure supplied by the host; this server does not acquire its mutation credentials. */
 export interface InitialReview {
@@ -20,6 +23,7 @@ export interface InitialReview {
 export interface ControllerOptions {
   directory: string; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number;
   identityReview?: IdentityReviewOptions; initialReview?: InitialReview;
+  managedReview?: ManagedReviewOptions; systemView?: SystemViewDefinition;
 }
 
 export class RequestError extends Error {
@@ -38,21 +42,31 @@ export class DashboardController {
 
   constructor(options: ControllerOptions) {
     if (options.initialReview && (options.neo || options.initialScenario)) throw new Error('Choose an initial recorded review or a managed Neo target');
+    if (options.managedReview && (options.neo || options.initialReview || options.initialScenario)) {
+      throw new Error('Choose one configured managed review, recorded review or Neo target');
+    }
+    const managedReview = options.managedReview && { ...options.managedReview,
+      graph: validateInfraGraph(options.managedReview.graph) };
+    if (managedReview && managedReview.graph.resources.length === 0) throw Error('A managed review needs declared resources');
     const identityReview = options.identityReview && { ...options.identityReview, checks: structuredClone(options.identityReview.checks),
       adapter: Object.freeze({ check: options.identityReview.adapter.check.bind(options.identityReview.adapter) }) };
-    this.options = { ...options, identityReview, initialReview: options.initialReview && structuredClone(options.initialReview) };
+    this.options = { ...options, identityReview, managedReview,
+      ...(options.systemView ? { systemView: readSystemViewDefinition(options.systemView) } : {}),
+      initialReview: options.initialReview && structuredClone(options.initialReview) };
     this.simulator = new ReviewSimulator(resolve(options.directory, 'provider.json'), options.readinessDelay);
     if (options.initialScenario === 'neo' && !options.neo) throw new Error('An initial Neo graph requires a prepared target');
     const neo = options.initialScenario === 'neo' ? options.neo : undefined;
     const initialReview = this.options.initialReview;
-    const graph = initialReview?.graph ?? neo?.binding.graph ?? demoGraph();
-    this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? (neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
+    const graph = initialReview?.graph ?? managedReview?.graph ?? neo?.binding.graph ?? demoGraph();
+    this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? managedReview?.mode ?? (managedReview ? 'managed' : neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
+      ...(managedReview ? { managedReviewAvailable: true, managedReviewLabel: managedReview.label ?? 'Configured system deployment' } : {}),
+      ...(this.options.systemView ? { systemView: this.options.systemView } : {}),
       ...(initialReview ? { deploymentReadOnly: true } : {}),
       ...(neo ? { design: neo.design, binding: neo.binding } : {}),
       ...(initialReview?.neoUrl ? { neoUrl: initialReview.neoUrl } : options.neo?.url ? { neoUrl: options.neo.url } : {}),
-      target: initialReview?.target ?? (neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Fresh local Neo Kubernetes target' }
+      target: initialReview?.target ?? managedReview?.target ?? (managedReview ? { id: 'managed-review', label: managedReview.label ?? 'Configured local providers' } : neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Fresh local Neo Kubernetes target' }
         : { id: 'local-simulator', label: 'Local simulator · no cloud resources' }),
-      run: initialReview?.run ?? { id: '', status: 'idle', mode: neo ? 'kubernetes' : 'simulator', resources: this.pending(graph), events: [] },
+      run: initialReview?.run ?? { id: '', status: 'idle', mode: managedReview?.mode ?? (managedReview ? 'managed' : neo ? 'kubernetes' : 'simulator'), resources: this.pending(graph), events: [] },
       connections: untestedConnections(graph), ...(identityReview ? { identity: pendingIdentity(identityReview) } : {}), artifacts: [] };
   }
 
@@ -66,16 +80,29 @@ export class DashboardController {
   whenIdle(): Promise<void> { return this.completion; }
 
   start(scenario: Scenario): void {
-    if (!['demo', 'failure', 'neo', 'noop', 'connections', 'identity'].includes(scenario)) throw new RequestError(400, 'Unknown review scenario');
+    if (!['demo', 'failure', 'neo', 'noop', 'connections', 'identity', 'review'].includes(scenario)) throw new RequestError(400, 'Unknown review scenario');
     if (this.state.busy) throw new RequestError(409, 'A deployment is already running');
     if (scenario === 'identity') {
       if (!this.options.identityReview) throw new RequestError(409, 'Identity checks were not configured by this local dashboard host');
+      if (this.options.managedReview && this.state.run?.status !== 'passed') throw new RequestError(409, 'Complete the configured deployment review before checking identity');
       this.state.busy = true; this.state.identity = pendingIdentity(this.options.identityReview); this.publish();
       this.completion = this.performIdentity().finally(async () => {
         this.state.busy = false; this.publish(); await this.persist();
       });
       return;
     }
+    if (this.options.managedReview) {
+      if (scenario !== 'review') throw new RequestError(409, 'This dashboard deploys only its configured managed review');
+      const managed = this.options.managedReview;
+      this.state = { ...this.state, busy: true, neoUrl: undefined, appAccess: undefined,
+        run: { id: '', status: 'running', mode: managed.mode ?? 'managed', resources: pendingManagedResources(managed.graph), events: [] },
+        connections: untestedConnections(managed.graph),
+        ...(this.options.identityReview ? { identity: pendingIdentity(this.options.identityReview) } : {}) };
+      this.publish();
+      this.completion = this.performManaged(managed);
+      return;
+    }
+    if (scenario === 'review') throw new RequestError(409, 'A managed review was not configured by this local dashboard host');
     if (this.options.initialReview) throw new RequestError(409, 'This dashboard displays read-only deployment evidence; infrastructure changes belong to its host');
     if (scenario === 'connections') {
       if (!this.activeNeo || this.state.mode !== 'kubernetes' || this.state.run?.status !== 'passed') {
@@ -105,6 +132,12 @@ export class DashboardController {
   }
 
   private pending(graph: InfraGraph) { return graph.resources.map(resource => ({ id: resource.id, resourceId: resource.id, status: 'pending' as const })); }
+  private async performManaged(options: ManagedReviewOptions): Promise<void> {
+    try {
+      this.state.run = await executeManagedReview(options, run => { this.state.run = run; this.publish(); });
+      if (this.state.run.status === 'passed' && options.neoUrl) this.state.neoUrl = options.neoUrl;
+    } finally { this.state.busy = false; this.publish(); await this.persist(); }
+  }
   private publish(): void {
     this.state.revision++;
     for (const listener of this.listeners) { try { listener(); } catch { /* A disconnected viewer cannot change a deployment. */ } }

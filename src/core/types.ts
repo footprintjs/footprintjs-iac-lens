@@ -1,4 +1,5 @@
 import type { InfraGraph, BindingResult, SystemDesign } from 'footprint-iac';
+import type { SystemViewDefinition } from './capabilities.ts';
 
 export type ResourceStatus = 'pending' | 'deploying' | 'ready' | 'failed' | 'skipped' | 'deleted';
 export interface ResourceProgress {
@@ -69,7 +70,7 @@ export interface IdentityRun {
 export interface DashboardRun {
   id: string;
   status: 'idle' | 'running' | 'passed' | 'failed';
-  mode?: 'simulator' | 'kubernetes';
+  mode?: 'simulator' | 'kubernetes' | 'managed';
   startedAt?: string | number;
   finishedAt?: string | number;
   resources: ResourceProgress[];
@@ -91,7 +92,10 @@ export interface DashboardState {
   design?: SystemDesign;
   binding?: BindingResult;
   busy: boolean;
-  mode?: 'simulator' | 'kubernetes';
+  mode?: 'simulator' | 'kubernetes' | 'managed';
+  systemView?: SystemViewDefinition;
+  managedReviewAvailable?: boolean;
+  managedReviewLabel?: string;
   target?: { id?: string; context?: string; namespace?: string; label?: string };
   neoAvailable?: boolean;
   deploymentReadOnly?: boolean;
@@ -103,4 +107,4 @@ export interface DashboardState {
   connections?: ConnectionRun;
   identity?: IdentityRun;
 }
-export type Scenario = 'demo' | 'failure' | 'noop' | 'neo' | 'connections' | 'identity';
+export type Scenario = 'demo' | 'failure' | 'noop' | 'neo' | 'connections' | 'identity' | 'review';

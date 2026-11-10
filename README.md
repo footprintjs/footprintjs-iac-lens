@@ -128,10 +128,62 @@ export function openIdentityReview(options: {
 
 `initialReview` shows infrastructure that another trusted host deployed through the core engine. Resource deployment controls are disabled, and this Lens server receives no mutation adapter or state store for that target. It still shows the supplied resource recording, graph and local **Open Neo** URL. It cannot be combined with the built-in managed `neo` target. Without `initialReview`, a configured identity review can run independently; the built-in Neo deployment also runs it automatically after successful resource and connection checks.
 
+## Managed provider reviews and system blocks
+
+A trusted local composition can instead configure `managedReview` with its
+declared `graph`, a core `DeploymentRecorder`, and an `apply()` callback returning
+the actual `InfraEngine.apply` result. Pass the **same recorder object** to the
+engine and the review. **Deploy system** and **Reapply / check no-op** request
+only `{ scenario: "review" }`; the browser cannot select a graph, adapter, path
+or target. Managed reviews cannot be combined with an initial recorded review
+or the built-in Neo target, and cannot fall back to simulator scenarios.
+
+The initial view is pending. Started and ready statuses come from the native
+recorder while the configured provider operation runs. Each reapply clears the
+view and captures a new actual execution, including real no-op operations.
+Run IDs, the recorded graph digest, resource outcomes and saved native evidence
+must agree before the review passes. Missing, rejected or mismatched capture
+remains visible as a failed/incomplete review; a callback's success result alone
+cannot manufacture ready resources. Configured identity checks stay unavailable
+until the managed resource review passes. Application links are host-selected;
+resource readiness does not independently prove that a local port-forward exists.
+
+`systemView` optionally supplies trusted high-level blocks such as compute,
+storage, network and identity. Each block has named units mapped to actual
+resource IDs. Headless `projectSystemBlocks` derives unit and block status from
+the native resource outcomes. Without an explicit definition it can use the
+current `SystemDesign` and binding. Existing prerequisites are labelled and
+excluded from provisioning counts. An embedded unit borrows the readiness of
+its declared runtime resource; it does not invent another database, container
+or volume resource. Unknown or empty managed mappings remain **unmapped**,
+and failures and skipped dependencies remain visible. Unit lists expand inline;
+the started animation respects reduced-motion settings and never changes status.
+
+The complete local identity example uses two honest stages:
+
+```sh
+node examples/neo-identity-live.ts /printed/target.json --identity-only --port=15238
+```
+
+The first **Deploy system** creates the owned directory and sign-in provider,
+then observes the provider address from its durable physical identity. Build
+the reviewed Neo images using the core identity guide, then start the second
+viewer:
+
+```sh
+node examples/neo-identity-live.ts /printed/target.json --full --port=15239
+```
+
+Its first apply creates the four application resources and records the two
+identity resources as real no-ops. Start the descriptor's explicit loopback
+forward before opening Neo. Access checks use private server-side credential
+closures. These staged bindings do not claim automatic provider-output
+interpolation or continuous connection monitoring.
+
 Select **Inspect identity recording** or **Recorded flow → Identity and access checks** for the native chart. Each run writes private `identity/<runId>.json` evidence and `identity-traces/<runId>.jsonl` beneath the host's viewer directory. Recovery creates another run and preserves the earlier failure. Resource, connection and identity recordings remain separate views of their respective operations.
 
 Kubernetes runs expose generated JSON/YAML from the complete desired graph. The CloudFormation object-storage files are a separate, labelled export-only example using a synthetic account ID; no AWS deployment occurs. Artifact generation has structural validation and does not prove that a cloud deployment would succeed. Native resource mappings and compilation evidence are available from the core synthesis API.
 
 Replay reconstructs recorded state. Backwalking traverses captured dependencies, with missing evidence and external uncertainty retained. Live snapshots survive SSE reconnects while the server runs; the viewer saves the final state under `.artifacts/latest.json`, and the core retains its durable inventory and execution evidence. Keep `.artifacts/` local because it contains infrastructure and execution data.
 
-The server accepts only named demo/failure/no-op/Neo/connection scenarios and the host-configured identity review. It has no arbitrary command, graph upload, path or cloud-target execution endpoint. Keep this prototype local; remote hosting and authentication require a separate design.
+The server accepts only named demo/failure/no-op/Neo/connection scenarios, the host-configured managed review and identity checks. It has no arbitrary command, graph upload, path or cloud-target execution endpoint. Keep this prototype local; remote hosting and authentication require a separate design.
