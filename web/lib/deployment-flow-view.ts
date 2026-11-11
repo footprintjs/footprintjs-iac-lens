@@ -1,4 +1,4 @@
-import { MarkerType, type Edge, type Node } from '@xyflow/react';
+import { MarkerType, Position, type Edge, type Node } from '@xyflow/react';
 import { projectDeploymentFlow, type DeploymentFlowNode } from '../../src/core/deployment-flow.ts';
 import type { DashboardState } from '../../src/core/types.ts';
 
@@ -37,6 +37,12 @@ export function buildDeploymentFlowView(state: DashboardState, selected?: string
       ...(step.row === 0 && (flow.columns.find(column => column.index === step.column)?.resourceIds.length ?? 0) > 1
         ? { columnLabel: flow.columns.find(column => column.index === step.column)!.label } : {}) },
     style: { width: STEP_WIDTH, height: STEP_HEIGHT },
+    width: STEP_WIDTH, height: STEP_HEIGHT,
+    // Controlled snapshots must retain ports before the browser measures a node.
+    handles: [
+      { type: 'target', position: Position.Left, x: -4, y: STEP_HEIGHT / 2 - 4, width: 8, height: 8 },
+      { type: 'source', position: Position.Right, x: STEP_WIDTH - 4, y: STEP_HEIGHT / 2 - 4, width: 8, height: 8 },
+    ],
     ariaLabel: `${step.observed ? `Recorded step ${step.observed.step}` : 'Not started'}: ${titles.get(step.id)}, ${step.progress.status}`,
   }));
   const nodeById = new Map(flow.nodes.map(node => [node.id, node]));

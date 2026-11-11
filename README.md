@@ -81,13 +81,41 @@ const IacLens = lazy(() => import('footprint-iac-lens/react')
 
 Use the same origin or a deliberately configured reverse proxy for the embedded UI. The included server refuses cross-origin mutations and binds only to loopback. The `/react` styles do not reset the host document's body. The built-in app loads the evidence surface lazily as well.
 
+The default `fitWindow` layout keeps the selected graph, deployment counts and
+live connection/access summaries within the viewport. The graph refits when its
+canvas changes size. Resource, connection and access details open in focused
+panels; long evidence can scroll inside its panel. Embedded consumers that want
+the document layout can use `<IacLens fitWindow={false} />`.
+
 ## Graph, evidence and artifacts
 
 The system graph describes infrastructure resources and their declared dependencies. The execution view shows the different graph of stages and decisions that reconciled those resources. Select a resource for its desired specification and recorded outcomes; inspect execution evidence for captured reads, writes and governing decisions.
 
+**Deployment flow** follows declared prerequisites and the native chart/event
+sequence. **Running system** arranges resources by their communication topology,
+independently of creation order. Both views share the selected resource. Its
+details combine declaration and adapter information, the recorded provider
+operation, and only the connection/access checks explicitly bound to that
+resource. Embedded storage borrows its runtime's readiness; it does not become a
+separately provisioned database. Missing bindings or native capture stay visible.
+
 Communication edges now start **Not checked**, become **Checking** while a real probe runs, and finish **Connected** or **Failed** from native FootPrint connection events. A passed Neo deployment automatically runs the checks; **Check connections** repeats them for the same admitted target. Each run retains its own native evidence and JSONL trace. Select an edge or its status row for the HTTP target, observation time, latency, source pod and recorded route/error details. **Inspect connection recording**, or the execution view's **Recorded flow** selector, opens the separate connection-check chart in Flow Lens.
 
 The Kubernetes check sends DNS and HTTP traffic from an existing ready Neo pod through the Service's real ClusterIP, verifying that its advertised backends belong to the expected Deployment before and after the request. A successful response requires HTTP 200 with JSON `status: "ok"`. This is a point-in-time check from the recorded pod, not continuous traffic monitoring or proof of every client's access. Results do not come from node colours or display timers; a connection failure leaves the last successful deployment verdict intact. **Open Neo** uses a separate deployment port-forward and can remain usable when the Service route fails.
+
+Other hosts can provide `connectionReview: { adapter, label, description, scopes }`
+to `startDashboard`. It works alongside `managedReview` or `initialReview` and
+binds probes to the configured graph digest. A managed deployment runs these
+checks after successful reconciliation; **Check connections** makes another
+recorded observation. `scopes` keys are the actual compiled relation IDs,
+`communication:${relationIndex}`, including intervening non-communication
+relations. They describe the measured path without changing its recorded verdict.
+
+The full Neo identity example configures the public
+`neoIdentityConnectionAdapter(target)`: a credential grant through uncached
+LDAPS federation, a signing-key request from the Ready owned Neo Pod, and the
+in-cluster Service health request. Target, ownership and routing checks remain
+inside the adapters. Viewer requests cannot choose a destination or credentials.
 
 ## Identity and access reviews
 

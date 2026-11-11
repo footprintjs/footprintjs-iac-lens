@@ -23,6 +23,7 @@ export default function EvidenceView({ recording, running, title = 'Deployment e
   return <div className="evidence-view"><div className="evidence-notice"><Icon name="evidence" size={16}/><span>Native recorded execution · move the cursor to inspect captured state. Recorded dependencies describe this run; external gaps remain unknown.</span></div>
     <EvidenceBoundary key={String((recording.snapshot as { runId?: unknown }).runId ?? 'recording')}>
       <ExplainableShell runtimeSnapshot={recording.snapshot as ShellProps['runtimeSnapshot']} traceGraph={graph}
+        showStageId
         narrativeEntries={recording.narrativeEntries as ShellProps['narrativeEntries']} title={title}
         traceTheme={{ mode: 'light', visited: '#317b68', current: '#3478db' }}
         panelLabels={{ topology: 'Execution structure', details: 'Recorded evidence', timeline: 'Stage timeline' }}

@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { FileStateStore } from 'footprint-iac';
 import { createIdentityGraph, identityEngine, loadIdentityTarget, neoIdentityCheckAdapter,
-  neoIdentityChecks, type IdentityTarget } from 'footprint-iac/integration/identity';
+  neoIdentityChecks, neoIdentityConnectionAdapter, type IdentityTarget } from 'footprint-iac/integration/identity';
 import type { SystemBlockDefinition, SystemViewDefinition } from '../src/core/index.ts';
 import { startDashboard } from '../src/server/index.ts';
 
@@ -84,7 +84,27 @@ const app = await startDashboard({ directory, staticDirectory: resolve(import.me
       return result;
     } },
   ...(includeNeo ? { identityReview: { stack: graph.name, label: 'Real LDAP login and Neo access checks', checks: neoIdentityChecks,
+    resourceBindings: {
+      'directory-available': ['identity-directory'],
+      'login-alice': ['identity-provider', 'identity-directory'],
+      'login-wrong-password': ['identity-provider', 'identity-directory'],
+      'anonymous-refused': ['neo-app'],
+      'reader-allowed': ['neo-app', 'neo-access-policy', 'identity-provider'],
+      'guest-denied': ['neo-app', 'neo-access-policy', 'identity-provider'],
+      'tampered-token-refused': ['neo-app'],
+    },
     adapter: await neoIdentityCheckAdapter(target) } } : {}),
+  ...(includeNeo ? { connectionReview: { adapter: await neoIdentityConnectionAdapter(target),
+    label: 'Real Neo identity connections',
+    description: 'Measured connection checks over this prepared local system. These are point-in-time probes; resource readiness and continuous traffic are separate.',
+    scopes: Object.fromEntries(graph.relations.flatMap((relation, index) => relation.kind !== 'communicatesWith' ? [] : [[`communication:${index}`,
+      relation.from === 'identity-provider' && relation.to === 'identity-directory'
+        ? 'An actual OIDC credential grant through the owned broker and its sealed, uncached LDAPS directory federation.'
+        : relation.from === 'neo-app' && relation.to === 'identity-provider'
+          ? 'An HTTP signing-key request from a Ready owned Neo Pod to its declared owned broker address.'
+          : 'An in-cluster Service DNS/ClusterIP health request from a Ready owned Neo Pod to its owned Neo backends.',
+    ]])),
+  } } : {}),
 });
 await mkdir(directory, { recursive: true, mode: 0o700 });
 await writeFile(join(directory, 'server.json'), JSON.stringify({ pid: process.pid, url: app.url, directory,

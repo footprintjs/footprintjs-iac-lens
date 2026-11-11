@@ -7,3 +7,4 @@ export * from './identity.ts';
 export * from './capabilities.ts';
 export * from './deployment-flow.ts';
 export * from './native-deployment-chart.ts';
+export * from './resource-evidence.ts';

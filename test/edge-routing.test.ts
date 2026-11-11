@@ -92,3 +92,64 @@ test('SVG paths remain finite for aligned, coincident and empty geometry', () =>
     assert.doesNotMatch(path, /NaN|Infinity|undefined/);
   }
 });
+
+test('running-system layout follows communication topology independently of deployment prerequisites', () => {
+  const input = neo(), before = structuredClone(input);
+  const running = layoutResources(input, 'running-system');
+  assert.deepEqual(running.nodes.map(node => node.id), input.graph!.resources.map(resource => resource.id));
+  assert.ok(running.edges.length > 0);
+  assert.ok(running.edges.every(edge => edge.kind === 'communication'));
+  assert.deepEqual(running.edges.map(edge => [edge.source, edge.target, edge.connectionStatus]), [[ids.service, ids.deployment, 'untested']]);
+  assert.ok(running.nodes.find(node => node.id === ids.service)!.position.x < running.nodes.find(node => node.id === ids.deployment)!.position.x,
+    'the Service communicates with the Deployment even though their deployment prerequisite points the other way');
+  input.graph!.resources = input.graph!.resources.map(resource => ({ ...resource, dependsOn: [] }));
+  assert.deepEqual(layoutResources(input, 'running-system').nodes.map(node => [node.id, node.position]), running.nodes.map(node => [node.id, node.position]));
+  assert.deepEqual(before.graph!.relations, input.graph!.relations);
+  assert.ok(layoutResources(before).edges.some(edge => edge.kind === 'order'), 'existing layout callers retain dependency edges');
+});
+
+test('running-system layout retains isolated resources, handles communication cycles and keeps paths outside nodes', () => {
+  const input = neo();
+  input.graph!.relations.push({ from: ids.deployment, to: ids.service, kind: 'communicatesWith' });
+  input.graph!.resources.push({ id: 'other', provider: 'kubernetes', spec: { kind: 'ConfigMap' } });
+  const before = structuredClone(input), running = layoutResources(input, 'running-system');
+  assert.equal(running.nodes.length, 4);
+  assert.ok(running.nodes.every(node => Number.isFinite(node.position.x) && Number.isFinite(node.position.y)));
+  assert.equal(running.edges.length, 2);
+  for (const edge of running.edges) for (let index = 1; index < edge.route.points.length; index++) {
+    for (const node of running.nodes) assert.equal(crossesInterior(edge.route.points[index - 1]!, edge.route.points[index]!, node), false);
+  }
+  const reversed = { ...input, graph: { ...input.graph!, resources: [...input.graph!.resources].reverse() } };
+  assert.deepEqual(new Map(layoutResources(reversed, 'running-system').nodes.map(node => [node.id, node.position])),
+    new Map(running.nodes.map(node => [node.id, node.position])));
+  assert.deepEqual(input, before);
+});
+
+test('six-resource Neo keeps communication above a separate compact row of supporting resources', () => {
+  const input = state([
+    { id: 'identity-directory', provider: 'local-identity-fixture', spec: {} },
+    { id: 'identity-provider', provider: 'local-identity-fixture', dependsOn: ['identity-directory'], spec: {} },
+    { id: 'neo-namespace', provider: 'kubernetes', spec: { kind: 'Namespace', metadata: { name: 'footprint-iac-identity-a00c7859' } } },
+    { id: 'neo-access-policy', provider: 'kubernetes', dependsOn: ['neo-namespace'], spec: { kind: 'ConfigMap', metadata: { name: 'neo-access-policy' } } },
+    { id: 'neo-app', provider: 'kubernetes', dependsOn: ['neo-access-policy', 'identity-provider'], spec: { kind: 'Deployment', metadata: { name: 'neo' } } },
+    { id: 'neo-service', provider: 'kubernetes', dependsOn: ['neo-app'], spec: { kind: 'Service', metadata: { name: 'neo' } } },
+  ], [
+    { from: 'identity-provider', to: 'identity-directory', kind: 'communicatesWith' },
+    { from: 'neo-app', to: 'identity-provider', kind: 'communicatesWith' },
+    { from: 'neo-service', to: 'neo-app', kind: 'communicatesWith' },
+  ]);
+  const view = layoutResources(input, 'running-system');
+  const support = view.nodes.filter(node => ['neo-namespace', 'neo-access-policy'].includes(node.id));
+  assert.equal(support[0]!.position.y, support[1]!.position.y);
+  assert.notEqual(support[0]!.position.x, support[1]!.position.x);
+  const routeBottom = Math.max(...view.edges.flatMap(edge => edge.route.points.map(point => point.y)));
+  assert.ok(support.every(node => node.position.y >= routeBottom + 40));
+  for (const edge of view.edges) for (let index = 1; index < edge.route.points.length; index++) {
+    for (const node of view.nodes) assert.equal(crossesInterior(edge.route.points[index - 1]!, edge.route.points[index]!, node), false);
+  }
+  const width = Math.max(...view.nodes.map(node => node.position.x + node.size.width)) - Math.min(...view.nodes.map(node => node.position.x));
+  const height = Math.max(...view.nodes.map(node => node.position.y + node.size.height)) - Math.min(...view.nodes.map(node => node.position.y));
+  assert.ok(width <= 1100, `Neo width ${width} should fit without shrinking node labels`);
+  assert.ok(height <= 540, `Neo height ${height} should fit a 510px canvas at readable zoom`);
+  assert.ok(height * .8 + 50 <= 510, 'node bounds leave room for canvas padding at 0.8 zoom');
+});

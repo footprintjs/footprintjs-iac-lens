@@ -29,10 +29,13 @@ export function readDashboardState(value: unknown): DashboardState {
   if (state.systemView !== undefined) readSystemViewDefinition(state.systemView);
   if (state.connections) {
     const connections = state.connections;
+    const scopeText = (value: unknown) => value === undefined || (typeof value === 'string' && value.length <= 2000);
     if (!['idle', 'checking', 'passed', 'failed'].includes(connections.status) || !Array.isArray(connections.checks) || !Array.isArray(connections.events)
+      || !scopeText(connections.label) || !scopeText(connections.scopeDescription)
+      || (state.connectionReviewAvailable !== undefined && typeof state.connectionReviewAvailable !== 'boolean')
       || connections.checks.some(check => !check || !['untested', 'checking', 'connected', 'failed'].includes(check.status)
-        || typeof check.connectionId !== 'string' || typeof check.from !== 'string' || typeof check.to !== 'string')
-      || connections.events.some(event => !event || !['checking', 'connected', 'failed'].includes(event.status))) {
+        || typeof check.connectionId !== 'string' || typeof check.from !== 'string' || typeof check.to !== 'string' || !scopeText(check.scopeDescription))
+      || connections.events.some(event => !event || !['checking', 'connected', 'failed'].includes(event.status) || !scopeText(event.scopeDescription))) {
       throw new Error('Connection progress has an unsupported shape');
     }
   }
@@ -41,8 +44,11 @@ export function readDashboardState(value: unknown): DashboardState {
     const kinds = new Set(['login', 'access', 'directory']);
     const expected = new Set(['authenticated', 'rejected', 'allowed', 'denied', 'available']);
     const verdicts = new Set([...expected, 'unavailable']);
+    const resources = new Set(state.graph?.resources.map(resource => resource.id));
     const valid = (check: (typeof identity.checks)[number]) => check && typeof check.checkId === 'string' && typeof check.label === 'string'
       && kinds.has(check.kind) && expected.has(check.expected) && ['untested', 'checking', 'passed', 'failed'].includes(check.status)
+      && (check.resourceIds === undefined || (Array.isArray(check.resourceIds) && new Set(check.resourceIds).size === check.resourceIds.length
+        && check.resourceIds.every(id => typeof id === 'string' && resources.has(id))))
       && (!check.observation || (verdicts.has(check.observation.verdict) && Number.isFinite(check.observation.observedAt)
         && Number.isFinite(check.observation.latencyMs) && check.observation.latencyMs >= 0))
       && (check.status !== 'passed' || check.observation?.verdict === check.expected);

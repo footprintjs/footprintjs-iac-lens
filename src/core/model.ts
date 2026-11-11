@@ -41,7 +41,9 @@ export function localAppUrl(value?: string): string | undefined {
 export function describeResource(state: DashboardState, resource: Resource): ResourceDescription {
   const group = state.graph?.memberships.filter(m => m.resourceId === resource.id)
     .map(m => state.graph?.boundaries.find(b => b.id === m.boundaryId)).find(b => b?.attributes?.origin === 'capability');
-  const mapping = state.binding?.mappings.find(m => m.resourceIds.includes(resource.id));
+  const bindingMatches = state.design && state.binding?.designDigest === state.design.digest
+    && state.binding.graph.digest === state.graph?.digest;
+  const mapping = bindingMatches ? state.binding?.mappings.find(m => m.resourceIds.includes(resource.id)) : undefined;
   const metadata = object(resource.spec.metadata);
   const kind = String(resource.spec.kind ?? resource.spec.Type ?? 'Resource');
   const family = familyValue(group?.attributes?.capabilityFamily) ?? familyValue(resource.spec.family)

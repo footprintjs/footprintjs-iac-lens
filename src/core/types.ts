@@ -33,6 +33,8 @@ export interface ConnectionObservation {
 }
 export interface ConnectionProgress {
   connectionId: string; from: string; to: string; status: ConnectionStatus;
+  /** Probe scope supplied by the trusted dashboard host. */
+  scopeDescription?: string;
   timestamp?: number; message?: string; runtimeStageId?: string;
   observation?: ConnectionObservation; details?: Record<string, unknown>;
 }
@@ -42,6 +44,7 @@ export interface ConnectionEvent extends ConnectionProgress {
 }
 export interface ConnectionRun {
   id: string; status: 'idle' | 'checking' | 'passed' | 'failed';
+  label?: string; scopeDescription?: string;
   checks: ConnectionProgress[]; events: ConnectionEvent[]; checkedAt?: number;
   recording?: Recording; report?: { evidencePath?: string; tracePath?: string; error?: string; captureError?: string; traceStatus?: unknown };
 }
@@ -56,6 +59,8 @@ export interface IdentityObservation {
 }
 export interface IdentityProgress {
   checkId: string; label: string; kind: 'login' | 'access' | 'directory';
+  /** Resource associations supplied by the trusted host, independent of the recorded verdict. */
+  resourceIds?: readonly string[];
   expected: Exclude<IdentityVerdict, 'unavailable'>; status: 'untested' | 'checking' | 'passed' | 'failed';
   timestamp?: number; runtimeStageId?: string; observation?: IdentityObservation; message?: string;
 }
@@ -99,6 +104,7 @@ export interface DashboardState {
   systemView?: SystemViewDefinition;
   managedReviewAvailable?: boolean;
   managedReviewLabel?: string;
+  connectionReviewAvailable?: boolean;
   target?: { id?: string; context?: string; namespace?: string; label?: string };
   neoAvailable?: boolean;
   deploymentReadOnly?: boolean;
