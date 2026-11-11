@@ -1,4 +1,5 @@
-import { readDeploymentChart, type DeploymentChart, type DeploymentResourceStages } from 'footprint-iac/progress';
+import { readDeploymentChart, readDeploymentSchedulePreview, type DeploymentChart, type DeploymentResourceStages } from 'footprint-iac/progress';
+import type { InfraGraph } from 'footprint-iac';
 import type { DashboardState } from './types.ts';
 
 export interface NativeDeploymentBatch {
@@ -14,6 +15,8 @@ export interface NativeDeploymentChartView {
   runId: string; batches: NativeDeploymentBatch[]; nodes: NativeDeploymentNode[]; edges: NativeDeploymentScheduleEdge[];
 }
 export interface NativeDeploymentChartAdmission { chart?: NativeDeploymentChartView; warnings: string[] }
+export type DeploymentSchedulePreviewView = Omit<NativeDeploymentChartView, 'runId'>;
+export interface DeploymentSchedulePreviewAdmission { chart?: DeploymentSchedulePreviewView; warnings: string[] }
 
 type NativeStage = DeploymentChart['structure'];
 const unavailable = 'The native deployment chart could not be matched to this run and resource graph; its planned positions are unavailable.';
@@ -26,10 +29,22 @@ export function projectNativeDeploymentChart(state: DashboardState, input: unkno
   catch { return { warnings: [unavailable] }; }
 }
 
+/** The same bounded topology reader admits preview positions without inventing a run. */
+export function projectDeploymentSchedulePreview(state: DashboardState, input: unknown = state.schedulePreview): DeploymentSchedulePreviewAdmission {
+  if (input === undefined) return { warnings: [] };
+  try { return { chart: admitTopology(state.graph, readDeploymentSchedulePreview(input)), warnings: [] }; }
+  catch { return { warnings: ['The planned deployment schedule could not be matched to this resource graph.'] }; }
+}
+
 function admit(state: DashboardState, chart: DeploymentChart): NativeDeploymentChartView {
   const graph = state.graph, run = state.run;
   require(graph && run && !!run.id && chart.runId === run.id && chart.stack === graph.name
     && chart.graphDigest === graph.digest);
+  return { runId: chart.runId, ...admitTopology(graph, chart) };
+}
+
+function admitTopology(graph: InfraGraph | null, chart: Pick<DeploymentChart, 'stack' | 'graphDigest' | 'resources' | 'structure'>): DeploymentSchedulePreviewView {
+  require(graph && chart.stack === graph.name && chart.graphDigest === graph.digest);
   require(chart.resources.length > 0 && chart.resources.length <= MAX_RESOURCES
     && chart.resources.length === graph.resources.length);
   const desired = new Set(graph.resources.map(resource => resource.id));
@@ -81,7 +96,7 @@ function admit(state: DashboardState, chart: DeploymentChart): NativeDeploymentC
       id: `native-schedule:${source}:${target}`, source, target, kind: 'native-schedule', label: 'Next scheduled batch',
     });
   }
-  return { runId: chart.runId, batches, nodes, edges };
+  return { batches, nodes, edges };
 }
 
 /** Walking is bounded and iterative; stage names never participate in binding or ordering. */

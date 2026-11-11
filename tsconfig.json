@@ -13,5 +13,5 @@
     "types": ["node", "react", "react-dom"],
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "web/**/*.ts", "web/**/*.tsx", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "web/**/*.ts", "web/**/*.tsx", "test/**/*.ts", "examples/**/*.ts"]
 }

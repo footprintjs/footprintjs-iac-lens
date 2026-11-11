@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createDeploymentRecorder } from 'footprint-iac/progress';
+import { createDeploymentRecorder, readDeploymentSchedulePreview } from 'footprint-iac/progress';
 import type { InfraGraph } from 'footprint-iac';
 import { validateInfraGraph } from 'footprint-iac/graph';
 import type { DashboardRun, DashboardState, Scenario } from '../core/types.ts';
@@ -15,6 +15,7 @@ import { untestedConnections } from '../core/connections.ts';
 import { pendingConnectionReview, readConnectionReview, runConnectionReview, type ConnectionReviewOptions } from './run-connections.ts';
 import { pendingIdentity, readIdentityResourceBindings, runIdentityReview, type IdentityReviewOptions } from './run-identity.ts';
 import { executeManagedReview, pendingManagedResources, type ManagedReviewOptions } from './execute-managed-review.ts';
+import { projectDeploymentSchedulePreview } from '../core/native-deployment-chart.ts';
 
 /** Already-recorded infrastructure supplied by the host; this server does not acquire its mutation credentials. */
 export interface InitialReview {
@@ -51,6 +52,12 @@ export class DashboardController {
     const managedReview = options.managedReview && { ...options.managedReview,
       graph: validateInfraGraph(options.managedReview.graph) };
     if (managedReview && managedReview.graph.resources.length === 0) throw Error('A managed review needs declared resources');
+    if (managedReview?.schedulePreview) {
+      managedReview.schedulePreview = readDeploymentSchedulePreview(managedReview.schedulePreview);
+      const admitted = projectDeploymentSchedulePreview({ revision: 0, busy: false, graph: managedReview.graph,
+        schedulePreview: managedReview.schedulePreview });
+      if (!admitted.chart) throw Error('The schedule preview must match the configured resource graph');
+    }
     const identityReview = options.identityReview && { ...options.identityReview, checks: structuredClone(options.identityReview.checks),
       resourceBindings: structuredClone(options.identityReview.resourceBindings),
       adapter: Object.freeze({ check: options.identityReview.adapter.check.bind(options.identityReview.adapter) }) };
@@ -75,6 +82,7 @@ export class DashboardController {
       ...(managedReview ? { managedReviewAvailable: true, managedReviewLabel: managedReview.label ?? 'Configured system deployment' } : {}),
       ...(this.options.connectionReview ? { connectionReviewAvailable: true } : {}),
       ...(this.options.systemView ? { systemView: this.options.systemView } : {}),
+      ...(managedReview?.schedulePreview ? { schedulePreview: managedReview.schedulePreview } : {}),
       ...(initialReview ? { deploymentReadOnly: true } : {}),
       ...(neo ? { design: neo.design, binding: neo.binding } : {}),
       ...(initialReview?.neoUrl ? { neoUrl: initialReview.neoUrl } : options.neo?.url ? { neoUrl: options.neo.url } : {}),

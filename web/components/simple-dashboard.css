@@ -1,0 +1,71 @@
+.iac-lens .display-modes { display: flex; gap: 3px; padding: 3px; border: 1px solid #dce5ed; background: #f5f7fa; border-radius: 9px; }
+.iac-lens .display-modes button { border: 0; padding: 6px 14px; border-radius: 6px; background: transparent; color: #6c7d91; font: inherit; font-size: 12px; cursor: pointer; }
+.iac-lens .display-modes button[aria-pressed="true"] { background: white; color: #253d56; box-shadow: 0 1px 4px #203c5814; font-weight: 650; }
+.iac-lens.lens-simple { height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: #f6f8fb; }
+.iac-lens.lens-simple .topbar { height: 58px; min-height: 58px; padding: 0 30px; }
+.iac-lens.lens-simple .topbar-right { gap: 20px; }
+.iac-lens.lens-simple .connection-pill { font-size: 11px; }
+.iac-lens .simple-dashboard { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 18px; padding: 24px 32px 20px; color: #253d56; }
+.iac-lens .simple-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-shrink: 0; }
+.iac-lens .simple-eyebrow { color: #64788b; font-size: 11px; font-weight: 600; margin-bottom: 5px; }
+.iac-lens .simple-heading h1 { font-size: 23px; letter-spacing: -.6px; font-weight: 650; margin: 0; }
+.iac-lens .simple-actions { display: flex; align-items: center; gap: 10px; }
+.iac-lens .simple-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; font: inherit; font-size: 12px; font-weight: 600; border-radius: 9px; padding: 11px 17px; border: 1px solid transparent; cursor: pointer; white-space: nowrap; text-decoration: none; }
+.iac-lens .simple-primary { color: white; background: #487ede; box-shadow: 0 3px 7px #487ede24; }
+.iac-lens .simple-secondary { color: #456079; border-color: #dce5ed; background: white; }
+.iac-lens .simple-dashboard button:disabled { opacity: .5; cursor: default; }
+.iac-lens .simple-stage { display: flex; flex-direction: column; flex: 1; min-height: 0; border: 1px solid #e0e8f0; border-radius: 20px; background: #fff; box-shadow: 0 4px 24px #263e5910; overflow: hidden; }
+.iac-lens .simple-stage-heading { display: flex; align-items: center; justify-content: space-between; padding: 25px 30px 0; flex-shrink: 0; }
+.iac-lens .simple-stage h2 { margin: 0; font-size: 23px; letter-spacing: -.5px; font-weight: 600; }
+.iac-lens .simple-stage-heading p { color: #67798b; font-size: 12px; margin: 6px 0 0; }
+.iac-lens .simple-count { font-size: 25px; font-weight: 600; color: #3b9b80; }
+.iac-lens .simple-count > span { font-size: 12px; color: #67798b; font-weight: 400; }
+.iac-lens .simple-scene { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0 20px; position: relative; }
+.iac-lens .simple-scene-canvas { width: 100%; flex: 1; min-height: 0; overflow: visible; }
+.iac-lens .simple-object { display: flex; align-items: center; flex-direction: column; color: #64768c; text-align: center; padding: 6px 0 0; font-family: inherit; }
+.iac-lens .simple-object > .bg-glyph { width: 126px; }
+.iac-lens .simple-object > strong { color: #51667c; font-size: 14px; line-height: 19px; font-weight: 600; max-width: 152px; }
+.iac-lens .simple-object-caption { font-size: 11px; line-height: 19px; }
+.iac-lens .simple-step { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: #71859b; line-height: 19px; }
+.iac-lens .simple-object.object-active { color: #366bbb; }
+.iac-lens .simple-object.object-active > strong { color: #366bbb; }
+.iac-lens .simple-object.object-ready { color: #267b66; }
+.iac-lens .simple-object.object-failed { color: #a64e4b; }
+.iac-lens .simple-object.object-uncertain { color: #87652e; }
+.iac-lens .simple-embedded { display: flex; align-items: center; gap: 2px; font-size: 9px; color: #62786c; height: 26px; margin-top: 0; }
+.iac-lens .simple-embedded > .bg-glyph { width: 27px; }
+.iac-lens .simple-code > .bg-glyph { width: 100px; margin: 12px 0; }
+.iac-lens .simple-code > strong { font-size: 12px; }
+.iac-lens .simple-build-link { color: #cdd8e3; stroke: currentColor; fill: none; stroke-width: 1.5; }
+.iac-lens .simple-build-link.build-link-dependency { stroke-dasharray: 3 5; }
+.iac-lens .simple-wire { color: #d4dfe8; }
+.iac-lens .simple-wire > path { stroke: currentColor; stroke-width: 1.7; stroke-dasharray: 4 6; fill: none; }
+.iac-lens .simple-wire > circle { fill: #fff; stroke: currentColor; stroke-width: 2; }
+.iac-lens .simple-wire.wire-connected { color: #7dc6ad; }
+.iac-lens .simple-wire.wire-connected > path { stroke-dasharray: none; }
+.iac-lens .simple-wire.wire-checking { color: #689ded; }
+.iac-lens .simple-wire.wire-checking > path { animation: simple-wire-move 1.3s linear infinite; }
+.iac-lens .simple-wire.wire-failed { color: #d78880; }
+.iac-lens .simple-scene-key { display: flex; align-items: center; justify-content: center; gap: 24px; font-size: 10px; color: #65798d; padding: 0 0 19px; flex-shrink: 0; }
+.iac-lens .simple-scene-key > span { display: flex; align-items: center; gap: 7px; }
+.iac-lens .simple-scene-key i { display: inline-block; width: 20px; border-top: 2px solid #cdd8e3; }
+.iac-lens .simple-scene-key .key-connection { border-color: #7dc6ad; border-top-style: dashed; }
+.iac-lens .simple-checks { display: flex; align-items: center; gap: 32px; flex-shrink: 0; min-height: 45px; }
+.iac-lens .simple-check { display: flex; align-items: center; gap: 11px; color: #62778b; }
+.iac-lens .simple-check-symbol { display: grid; place-items: center; width: 35px; height: 35px; border-radius: 10px; background: #edf1f6; }
+.iac-lens .simple-check > div { display: flex; flex-direction: column; gap: 3px; font-size: 10px; min-width: 96px; }
+.iac-lens .simple-check strong { color: #50677f; font-size: 11px; font-weight: 600; }
+.iac-lens .simple-check.check-passed .simple-check-symbol { background: #e6f3ed; color: #379c7d; }
+.iac-lens .simple-check.check-failed .simple-check-symbol { background: #f9ebe9; color: #bd7368; }
+.iac-lens .simple-check.check-checking .simple-check-symbol { background: #eaf1ff; color: #487ede; }
+.iac-lens .simple-check button { font: inherit; font-size: 11px; color: #657e98; border: 1px solid #dce5ed; padding: 6px 11px; background: white; border-radius: 7px; cursor: pointer; }
+.iac-lens .simple-recorded { margin-left: auto; color: #65798d; font-size: 10px; display: inline-flex; align-items: center; gap: 6px; }
+.iac-lens .simple-recorded > span { width: 5px; height: 5px; background: #8bbba8; border-radius: 50%; }
+.iac-lens .simple-error, .iac-lens .simple-warning { display: flex; align-items: center; justify-content: space-between; gap: 15px; color: #a17753; background: #fff8ee; font-size: 12px; padding: 10px 18px; border-radius: 9px; flex-shrink: 0; }
+.iac-lens .simple-warning { background: #fffaf3; border-radius: 0; padding: 9px 28px; }
+.iac-lens .simple-error button, .iac-lens .simple-warning button { color: inherit; display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; cursor: pointer; font: inherit; }
+.iac-lens .simple-dashboard button:focus-visible, .iac-lens .display-modes button:focus-visible, .iac-lens .simple-button:focus-visible { outline: 2px solid #6b9cec; outline-offset: 3px; }
+@keyframes simple-wire-move { to { stroke-dashoffset: -20; } }
+@media (prefers-reduced-motion: reduce) { .iac-lens .simple-wire.wire-checking > path { animation: none; } }
+@media (max-height: 740px) { .iac-lens .simple-dashboard { gap: 13px; padding-top: 18px; padding-bottom: 14px; } .iac-lens .simple-stage-heading { padding-top: 19px; } .iac-lens .simple-heading h1, .iac-lens .simple-stage h2 { font-size: 21px; } }
+@media (max-width: 760px) { .iac-lens.lens-simple .topbar { padding: 0 14px; } .iac-lens .simple-dashboard { padding: 15px 12px; } .iac-lens.lens-simple .connection-pill { display: none; } .iac-lens .simple-heading h1 { font-size: 17px; } .iac-lens .simple-stage-heading { padding-left: 17px; padding-right: 17px; } .iac-lens .simple-checks { gap: 13px; } .iac-lens .simple-recorded { display: none; } .iac-lens .simple-check { gap: 6px; } .iac-lens .simple-actions { gap: 5px; } .iac-lens .simple-button { padding: 9px; } }

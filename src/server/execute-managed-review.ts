@@ -1,11 +1,12 @@
 import { loadEvidence, type ApplyResult, type InfraGraph } from 'footprint-iac';
-import type { DeploymentRecorder, DeploymentSnapshot } from 'footprint-iac/progress';
+import type { DeploymentRecorder, DeploymentSnapshot, DeploymentSchedulePreview } from 'footprint-iac/progress';
 import type { DashboardRun, DashboardState } from '../core/types.ts';
 
 /** Trusted composition only: no graph, callback, credentials or target comes from HTTP. */
 export interface ManagedReviewOptions {
   graph: InfraGraph;
   recorder: DeploymentRecorder;
+  schedulePreview?: DeploymentSchedulePreview;
   apply(): Promise<ApplyResult>;
   label?: string;
   mode?: 'managed' | 'kubernetes';

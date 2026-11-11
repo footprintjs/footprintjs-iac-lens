@@ -1,5 +1,5 @@
 import type { InfraGraph, BindingResult, SystemDesign } from 'footprint-iac';
-import type { DeploymentChart } from 'footprint-iac/progress';
+import type { DeploymentChart, DeploymentSchedulePreview } from 'footprint-iac/progress';
 import type { SystemViewDefinition } from './capabilities.ts';
 
 export type ResourceStatus = 'pending' | 'deploying' | 'ready' | 'failed' | 'skipped' | 'deleted';
@@ -102,6 +102,8 @@ export interface DashboardState {
   busy: boolean;
   mode?: 'simulator' | 'kubernetes' | 'managed';
   systemView?: SystemViewDefinition;
+  /** Pure native schedule preview. Supplies positions only; never a run or progress evidence. */
+  schedulePreview?: DeploymentSchedulePreview;
   managedReviewAvailable?: boolean;
   managedReviewLabel?: string;
   connectionReviewAvailable?: boolean;

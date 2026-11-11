@@ -26,7 +26,11 @@ npm start
 
 Open the printed URL. The preferred port is `15231`; an occupied port falls back to an available loopback port. Server details are in `.artifacts/server.json`. Automatic CI is off. These commands run locally and do not publish packages.
 
-The default is explicitly labelled **simulation**. Choose a successful simulation, an injected failure, or reapply a successful run to check no-op behavior. The simulator deliberately delays its readiness promise so progress is visible; the UI never manufactures deployment outcomes using animation timers. Requests run serially. A failure leaves earlier successful resources managed so the next successful simulation can reconcile them.
+Lens opens in **Simple**: a build scene with large resource pictures, short labels and **Build system**. Grey resources wait, blue resources animate only while recorded work is running, and green resources have a recorded ready outcome. Steps follow the captured deployment flow; work that runs together can animate together. Switch to **Details** for the deployment pipeline, running system, resource panels and full FootPrint evidence.
+
+After a successful run, **Check setup** reapplies the same setup. A recorded no-op or verification keeps the resource picture solid with a checking scan instead of showing it being built again. Communication links show **Not checked → Checking → Connected / Failed** from real connection checks. Sign-in and access checks have their own result. These observations stay separate from resource readiness; animation cannot turn an unchecked or failed result green. Reduced-motion preferences stop the repeating animation while keeping every status visible.
+
+The built-in server starts with an explicitly labelled **Simulation** fixture. In **Details**, choose a successful simulation, an injected failure, or reapply a successful run to check no-op behavior. The simulator deliberately delays its readiness promise so progress is visible; the UI never manufactures deployment outcomes using animation timers. Requests run serially. A failure leaves earlier successful resources managed so the next successful simulation can reconcile them.
 
 ## Show the actual Neo fixture
 
@@ -56,14 +60,16 @@ After a successful fresh Neo deployment, Lens opens two random loopback ports fo
 ## Reuse the headless API
 
 ```ts
-import { createDashboardClient, layoutResources, statusCounts } from 'footprint-iac-lens/core';
+import { createDashboardClient, layoutResources, projectBuildScene, statusCounts } from 'footprint-iac-lens/core';
 
 const client = createDashboardClient({ fetch: yourFetch, openStream: yourStream });
 // Feed its state into your framework's rendering mechanism.
 // layoutResources(state) returns plain node/edge descriptors.
+// projectBuildScene(state) returns the Simple scene: resource pictures,
+// captured flow, active steps, measured connection states and missing-evidence warnings.
 ```
 
-The transport is injected so the core needs neither React nor a browser DOM. The server sends versioned snapshots over `/api/state` and `/api/events`; monotonically increasing revisions prevent an older initial fetch from overwriting a newer stream update. Resource events retain their full IDs, run IDs and native runtime-stage attribution.
+The transport is injected so the core needs neither React nor a browser DOM. `projectBuildScene` is a pure projection of the same recorded state, with no timers, deployment scheduler or provider calls. The server sends versioned snapshots over `/api/state` and `/api/events`; monotonically increasing revisions prevent an older initial fetch from overwriting a newer stream update. Resource events retain their full IDs, run IDs and native runtime-stage attribution.
 
 `npm run build:core` compiles only the framework-neutral TypeScript. `npm run build:server` adds the Node server, with no React/UI source in either build. The full `npm run build` also creates the optional React adapter and the standalone web app.
 
@@ -158,7 +164,8 @@ export function openIdentityReview(options: {
 
 ## Deployment flow from the native recorder
 
-The main visual is a resource pipeline. Compute, storage and network are labels
+In **Details**, **Deployment flow** is a resource pipeline. Simple uses the same
+captured flow for its build scene. Compute, storage and network are labels
 on resources, not a fixed execution sequence. **Browse capabilities** keeps the
 category inventory separate and collapsed by default. A runtime containing
 embedded SQLite appears once, with compute and storage labels; it does not
@@ -223,26 +230,30 @@ or volume resource. Unknown or empty managed mappings remain **unmapped**,
 and failures and skipped dependencies remain visible. Unit lists expand inline;
 the started animation respects reduced-motion settings and never changes status.
 
-The complete local identity example uses two honest stages:
+Build the reviewed Neo images first using the core
+[identity guide](https://github.com/footprintjs/footprint-iac/blob/main/integration/identity/README.md). Then start one
+viewer against the newly prepared, empty target:
 
 ```sh
-node examples/neo-identity-live.ts /printed/target.json --identity-only --port=15238
+node examples/neo-identity-live.ts /printed/target.json --port=0
 ```
 
-The first **Deploy system** creates the owned directory and sign-in provider,
-then observes the provider address from its durable physical identity. Build
-the reviewed Neo images using the core identity guide, then start the second
-viewer:
+Open the printed URL in **Simple** mode. Directory, Sign-in, Space, Access,
+Program and Network are all grey before clicking **Build system** once. A fresh
+target produces six real creates in one native FootPrint deployment run, on the
+same chart. A separately labelled native schedule preview supplies initial
+positions only; recorded starts and provider confirmations drive progress.
 
-```sh
-node examples/neo-identity-live.ts /printed/target.json --full --port=15239
-```
+Fresh targets use the owned sign-in service's stable name, so no bootstrap
+viewer or manual address handoff is required. The viewer rejects
+`--identity-only`; `--full` remains an optional alias for the same single build.
+Existing targets with a recorded provider IP remain supported.
 
-Its first apply creates the four application resources and records the two
-identity resources as real no-ops. Start the descriptor's explicit loopback
-forward before opening Neo. Access checks use private server-side credential
-closures. These staged bindings do not claim automatic provider-output
-interpolation or continuous connection monitoring.
+After readiness, start the target's explicit loopback forward before opening
+Neo. Connection checks run automatically after the deployment and verify the
+owned endpoint, DNS answer and HTTP peer. Access checks use private server-side
+credential closures. These are measured point-in-time checks, not continuous
+connection monitoring.
 
 Select **Inspect identity recording** or **Recorded flow → Identity and access checks** for the native chart. Each run writes private `identity/<runId>.json` evidence and `identity-traces/<runId>.jsonl` beneath the host's viewer directory. Recovery creates another run and preserves the earlier failure. Resource, connection and identity recordings remain separate views of their respective operations.
 

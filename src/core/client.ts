@@ -1,5 +1,6 @@
 import type { DashboardState, Scenario } from './types.ts';
 import { readSystemViewDefinition } from './capabilities.ts';
+import { projectDeploymentSchedulePreview } from './native-deployment-chart.ts';
 
 export interface JsonResponse { ok: boolean; status: number; json(): Promise<unknown> }
 export interface RequestOptions { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal }
@@ -27,6 +28,9 @@ export function readDashboardState(value: unknown): DashboardState {
     }
   }
   if (state.systemView !== undefined) readSystemViewDefinition(state.systemView);
+  if (state.schedulePreview !== undefined && !projectDeploymentSchedulePreview(state as DashboardState).chart) {
+    throw new Error('Deployment schedule preview does not match the resource graph');
+  }
   if (state.connections) {
     const connections = state.connections;
     const scopeText = (value: unknown) => value === undefined || (typeof value === 'string' && value.length <= 2000);

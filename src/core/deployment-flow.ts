@@ -2,7 +2,7 @@ import type { Resource } from 'footprint-iac';
 import { projectSystemBlocks, type SystemBlockFamily, type SystemUnitMode } from './capabilities.ts';
 import { describeResource, resourceProgress, type ResourceDescription } from './model.ts';
 import type { DashboardState, ProgressEvent, ResourceProgress } from './types.ts';
-import { projectNativeDeploymentChart } from './native-deployment-chart.ts';
+import { projectNativeDeploymentChart, projectDeploymentSchedulePreview } from './native-deployment-chart.ts';
 
 export interface DeploymentFlowCapability {
   blockId: string; unitId: string; label: string; family: SystemBlockFamily; mode: SystemUnitMode;
@@ -23,12 +23,12 @@ export interface DeploymentFlowEdge {
   id: string; source: string; target: string; kind: 'dependency' | 'observed-order' | 'native-schedule'; label: string;
 }
 export interface DeploymentFlowColumn {
-  index: number; kind: 'recorded' | 'prerequisites' | 'unstarted' | 'native'; label: string;
+  index: number; kind: 'recorded' | 'prerequisites' | 'unstarted' | 'native' | 'planned'; label: string;
   resourceIds: string[]; overlapping: boolean;
 }
 export interface DeploymentFlow {
   basis: 'recorded' | 'prerequisites'; nodes: DeploymentFlowNode[]; edges: DeploymentFlowEdge[];
-  layoutSource: 'native-chart' | 'native-events' | 'prerequisites';
+  layoutSource: 'native-chart' | 'native-events' | 'prerequisites' | 'schedule-preview';
   columns: DeploymentFlowColumn[]; existingPrerequisites: { id: string; label: string; description?: string }[];
   warnings: string[];
 }
@@ -71,17 +71,20 @@ export function projectDeploymentFlow(state: DashboardState): DeploymentFlow {
   appendObservedEdges(started, edges);
   const native = projectNativeDeploymentChart(state);
   warnings.push(...native.warnings);
-  if (native.chart) {
-    for (const binding of native.chart.nodes) {
+  const preview = !native.chart && state.run?.chart === undefined && started.length === 0 ? projectDeploymentSchedulePreview(state) : undefined;
+  if (preview) warnings.push(...preview.warnings);
+  const topology = native.chart ?? preview?.chart;
+  if (topology) {
+    for (const binding of topology.nodes) {
       const node = byId.get(binding.resourceId)!;
       node.column = binding.column; node.row = binding.row;
     }
-    columns = native.chart.batches.map(batch => {
+    columns = topology.batches.map(batch => {
       const overlapping = batch.resourceIds.some(id => byId.get(id)!.observed?.overlapsWith.some(other => batch.resourceIds.includes(other)));
-      return { index: batch.index, kind: 'native' as const, resourceIds: batch.resourceIds, overlapping,
-        label: overlapping ? 'Overlapping work' : batch.scheduledParallel ? 'Scheduled together' : 'Native chart step' };
+      return { index: batch.index, kind: native.chart ? 'native' as const : 'planned' as const, resourceIds: batch.resourceIds, overlapping,
+        label: overlapping ? 'Overlapping work' : batch.scheduledParallel ? 'Scheduled together' : native.chart ? 'Native chart step' : 'Planned build step' };
     });
-    edges.push(...native.chart.edges);
+    edges.push(...topology.edges);
   }
   for (const node of nodes) {
     if (node.dependsOn.some(id => !byId.has(id))) warnings.push(`Some prerequisites of ${node.id} are missing from this graph.`);
@@ -91,7 +94,7 @@ export function projectDeploymentFlow(state: DashboardState): DeploymentFlow {
     }
   }
   return { basis: started.length ? 'recorded' : 'prerequisites',
-    layoutSource: native.chart ? 'native-chart' : started.length ? 'native-events' : 'prerequisites', nodes, edges, columns,
+    layoutSource: native.chart ? 'native-chart' : preview?.chart ? 'schedule-preview' : started.length ? 'native-events' : 'prerequisites', nodes, edges, columns,
     existingPrerequisites: blocks.flatMap(block => block.units.filter(unit => unit.mode === 'existing').map(unit => ({
       id: `${block.id}:${unit.id}`, label: unit.label, ...(unit.description && { description: unit.description }),
     }))), warnings: [...new Set(warnings)] };
