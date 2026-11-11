@@ -9,3 +9,4 @@ export * from './deployment-flow.ts';
 export * from './native-deployment-chart.ts';
 export * from './resource-evidence.ts';
 export * from './build-scene.ts';
+export * from './revision-review.ts';

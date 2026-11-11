@@ -69,8 +69,9 @@ function sceneMessage(state: DashboardState, scene: BuildScene): Pick<BuildScene
   const active = scene.nodes.filter(node => scene.activeIds.includes(node.id));
   if (active.length) {
     const verifying = active.every(node => /^(?:noop|no-op|verify|check|read|observe)$/i.test(node.action ?? ''));
+    const updating = active.every(node => node.action === 'update');
     return { phase: 'building', headline: active.length === 1
-      ? `${verifying ? 'Checking' : 'Building'} ${active[0]!.title}` : verifying ? 'Checking together' : 'Building together' };
+      ? `${verifying ? 'Checking' : updating ? 'Updating' : 'Building'} ${active[0]!.title}` : verifying ? 'Checking together' : updating ? 'Updating together' : 'Building together' };
   }
   if (scene.edges.some(edge => edge.status === 'checking') || state.connections?.status === 'checking') return { phase: 'checking', headline: 'Connecting' };
   if (state.identity?.status === 'checking' || state.identity?.checks.some(check => check.status === 'checking')) return { phase: 'checking', headline: 'Checking access' };

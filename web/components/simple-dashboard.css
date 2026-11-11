@@ -27,6 +27,10 @@
 .iac-lens .simple-object > strong { color: #51667c; font-size: 14px; line-height: 19px; font-weight: 600; max-width: 152px; }
 .iac-lens .simple-object-caption { font-size: 11px; line-height: 19px; }
 .iac-lens .simple-step { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: #71859b; line-height: 19px; }
+.iac-lens .simple-step > .simple-change-label { margin-left: 7px; font-size: 9px; letter-spacing: 0; font-weight: 500; color: #5f7692; }
+.iac-lens .simple-object.revision-affected .simple-change-label { color: #366bbb; font-weight: 650; }
+.iac-lens .simple-object.revision-affected .bg-halo { stroke: #7da7e7; stroke-width: 1.8; stroke-dasharray: 4 5; }
+.iac-lens .simple-object.revision-unchanged > .bg-glyph { opacity: .48; }
 .iac-lens .simple-object.object-active { color: #366bbb; }
 .iac-lens .simple-object.object-active > strong { color: #366bbb; }
 .iac-lens .simple-object.object-ready { color: #267b66; }

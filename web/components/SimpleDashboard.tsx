@@ -1,7 +1,9 @@
 import { projectBuildScene } from '../../src/core/build-scene.ts';
+import { projectRevisionReview } from '../../src/core/revision-review.ts';
 import type { DashboardState, Scenario } from '../../src/core/types.ts';
 import { BuildScene } from './BuildScene.tsx';
 import { Icon } from './Icon.tsx';
+import { ChangeReview } from './ChangeReview.tsx';
 import './simple-dashboard.css';
 
 function checkLabel(status: string | undefined, passed: number, total: number) {
@@ -13,11 +15,12 @@ function checkLabel(status: string | undefined, passed: number, total: number) {
 
 export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onDismissError, onDetails }: {
   state: DashboardState; posting: boolean; error?: string; neoUrl?: string;
-  onRun: (scenario: Scenario) => void; onDismissError: () => void; onDetails: () => void;
+  onRun: (scenario: Scenario, reviewId?: string) => void; onDismissError: () => void; onDetails: () => void;
 }) {
   const scene = projectBuildScene(state);
+  const revision = projectRevisionReview(state);
   const disabled = state.busy || posting;
-  const checksDisabled = disabled || Boolean(state.managedReviewAvailable && state.run?.status !== 'passed');
+  const checksDisabled = disabled || Boolean((state.managedReviewAvailable || state.revisionReview) && state.run?.status !== 'passed');
   const scenario: Scenario | undefined = state.managedReviewAvailable ? 'review'
     : state.mode === 'kubernetes' && state.neoAvailable ? 'neo' : scene.simulation ? 'demo' : undefined;
   const connectionChecks = state.connections?.checks ?? [];
@@ -25,14 +28,16 @@ export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onDismis
   const connectionText = checkLabel(state.connections?.status, connectionChecks.filter(check => check.status === 'connected').length, connectionChecks.length);
   const accessText = checkLabel(state.identity?.status, identityChecks.filter(check => check.status === 'passed').length, identityChecks.length);
   return <main className="simple-dashboard">
-    <section className="simple-heading"><div><div className="simple-eyebrow">{scene.simulation ? 'Simulation' : state.deploymentReadOnly ? 'Recorded view' : 'Your system'}</div><h1>{state.design?.name ?? (state.managedReviewAvailable ? state.target?.label : undefined) ?? (neoUrl ? 'Neo' : 'Your system')}</h1></div><div className="simple-actions">
+    <section className="simple-heading"><div><div className="simple-eyebrow">{scene.simulation ? 'Simulation' : state.deploymentReadOnly ? 'Recorded view' : 'Your system'}</div><h1>{state.design?.name ?? (state.managedReviewAvailable || revision ? state.target?.label : undefined) ?? (neoUrl ? 'Neo' : 'Your system')}</h1></div><div className="simple-actions">
       {neoUrl && <a href={neoUrl} target="_blank" rel="noreferrer" className="simple-button simple-secondary">Open Neo<Icon name="external" size={16}/></a>}
-      {!state.deploymentReadOnly && scenario && <button className="simple-button simple-primary" disabled={disabled} onClick={() => onRun(scenario)}><Icon name="play" size={16}/>{disabled ? 'Working…' : state.run?.status === 'passed' ? 'Check setup' : 'Build system'}</button>}
+      {!revision && !state.deploymentReadOnly && scenario && <button className="simple-button simple-primary" disabled={disabled} onClick={() => onRun(scenario)}><Icon name="play" size={16}/>{disabled ? 'Working…' : state.run?.status === 'passed' ? 'Check setup' : 'Build system'}</button>}
     </div></section>
+    {revision && <ChangeReview view={revision} disabled={disabled}
+      onReview={() => onRun('revision-review')} onApply={() => onRun('revision-apply', revision.state.reviewId)}/>}
     {error && <div className="simple-error" role="alert"><span>That didn’t finish. <button onClick={onDetails}>See details</button></span><button onClick={onDismissError} aria-label="Dismiss error"><Icon name="close" size={17}/></button></div>}
     <section className={`simple-stage phase-${scene.phase}`}>
       <div className="simple-stage-heading"><div><h2 aria-live="polite">{scene.headline}</h2>{scene.subline && <p>{scene.subline}</p>}</div><span className="simple-count">{scene.counts.ready}<span> / {scene.counts.total} ready</span></span></div>
-      <BuildScene scene={scene} execution={state.run?.status}/>
+      <BuildScene scene={scene} execution={state.run?.status} changes={revision?.resources}/>
       {scene.warnings.length > 0 && <div className="simple-warning"><span>Some results need a closer look.</span><button onClick={onDetails}>Details<Icon name="arrow" size={14}/></button></div>}
     </section>
     <footer className="simple-checks">

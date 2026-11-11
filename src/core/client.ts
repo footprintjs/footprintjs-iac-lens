@@ -1,6 +1,7 @@
 import type { DashboardState, Scenario } from './types.ts';
 import { readSystemViewDefinition } from './capabilities.ts';
 import { projectDeploymentSchedulePreview } from './native-deployment-chart.ts';
+import { readRevisionReview } from './revision-review.ts';
 
 export interface JsonResponse { ok: boolean; status: number; json(): Promise<unknown> }
 export interface RequestOptions { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal }
@@ -28,6 +29,7 @@ export function readDashboardState(value: unknown): DashboardState {
     }
   }
   if (state.systemView !== undefined) readSystemViewDefinition(state.systemView);
+  if (state.revisionReview !== undefined) readRevisionReview(state.revisionReview);
   if (state.schedulePreview !== undefined && !projectDeploymentSchedulePreview(state as DashboardState).chart) {
     throw new Error('Deployment schedule preview does not match the resource graph');
   }
@@ -76,8 +78,10 @@ export function createDashboardClient(options: { baseUrl?: string; fetch?: JsonF
     if (!response.ok) throw new Error(`Unable to load deployment state (${response.status})`);
     return readDashboardState(await response.json());
   }
-  async function run(scenario: Scenario): Promise<void> {
-    const response = await request(endpoint('/api/run'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenario }) });
+  async function run(scenario: Scenario, reviewId?: string): Promise<void> {
+    if (scenario === 'revision-apply' && (!reviewId || !/^[a-f0-9]{64}$/.test(reviewId))) throw Error('Apply needs the exact completed revision review');
+    if (scenario !== 'revision-apply' && reviewId !== undefined) throw Error('A review ID belongs only to revision-apply');
+    const response = await request(endpoint('/api/run'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenario, ...(reviewId !== undefined ? { reviewId } : {}) }) });
     if (!response.ok) {
       const result = await response.json().catch(() => ({})) as { error?: string; message?: string };
       throw new Error(result.error ?? result.message ?? `Run was refused (${response.status})`);

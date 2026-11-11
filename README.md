@@ -160,7 +160,96 @@ export function openIdentityReview(options: {
 }
 ```
 
-`initialReview` shows infrastructure that another trusted host deployed through the core engine. Resource deployment controls are disabled, and this Lens server receives no mutation adapter or state store for that target. It still shows the supplied resource recording, graph and local **Open Neo** URL. It cannot be combined with the built-in managed `neo` target. Without `initialReview`, a configured identity review can run independently; the built-in Neo deployment also runs it automatically after successful resource and connection checks.
+`initialReview` shows infrastructure that another trusted host deployed through the core engine. By itself, it disables resource deployment controls and supplies no mutation adapter or state store for that target. It still shows the supplied resource recording, graph and local **Open Neo** URL. A host can explicitly add the versioned workflow below to authorize reviewed updates. It cannot be combined with the built-in managed `neo` target. Without `initialReview`, a configured identity review can run independently; the built-in Neo deployment also runs it automatically after successful resource and connection checks.
+
+## Review and apply a versioned master JSON
+
+The core's `footprint-iac/master` API keeps immutable desired-system revisions,
+their parent revision, the applied and staged heads, and every recorded apply
+attempt. This history is separate from the provider inventory. A release's
+revision ID and content digest are also separate from Lens's increasing snapshot
+`revision` number and a native deployment's run ID.
+
+A trusted host can supply `initialReview` together with `revisionWorkflow` to
+`startDashboard`. Its `snapshot()` reads the durable master state; `review()`
+returns the candidate summary and fixed provider configuration;
+`completed(prepared, run)` rereads the resulting master history. Optional
+`artifacts()` exposes the host-selected JSON documents. This mode requires an
+existing recorded deployment and cannot be combined with `managedReview` or the
+built-in Neo target.
+
+In **Simple**, **Review changes** keeps the existing deployment recording and
+app link visible while the host reads and plans the candidate. Lens shows the
+current and candidate versions, highlights affected resources, and dims
+unchanged ones. **Details** reveals the exact resource actions and JSON field
+differences. A semantic JSON difference does not imply a provider update: the
+actual plan decides whether a resource needs creation, update, verification or
+no change. The viewer does not expose an implicit prune or deletion action.
+
+**Apply update** echoes the exact completed review ID. Missing, stale or already
+used reviews are refused. The browser supplies only
+`{ scenario: "revision-review" }` or
+`{ scenario: "revision-apply", reviewId }`; it cannot upload a graph, choose a
+target or run a command. Admission preserves the existing target binding. When
+the host uses the core master workflow, the engine checks the reviewed plan
+against current provider state before mutation; a changed plan requires a fresh
+review.
+
+Applying captures one new native FootPrint run. Only affected resources receive
+provider mutations; unchanged resources can have recorded no-op or readiness
+checks. Those checks remain distinct from building a resource. Progress and
+terminal outcomes come from the native recorder, including failures and missing
+evidence. A failed apply retains the previous applied master and its earlier
+recordings. Review again before retrying the candidate on the same deployment.
+
+After infrastructure convergence, the host can restore owned local app access
+with `afterApply()` and run configured connection and identity/access checks.
+These checks have their own FootPrint recordings. An unavailable app connection
+or failed access check does not roll back a proven infrastructure revision:
+Simple retains the applied version and shows **Checks need attention**. Inspect
+the separate results, recover the service and rerun its checks. The applied
+master proves the recorded infrastructure outcome; it does not assert that every
+later connection or application request succeeded.
+
+### Upgrade the existing real Neo deployment
+
+First complete the six-resource Neo identity deployment using the core
+[identity guide](https://github.com/footprintjs/footprint-iac/blob/main/integration/identity/README.md).
+Keep its printed canonical `target.json` path and successful native recording.
+For the next application version, review and stage the intended source changes
+in the Neo checkout and obtain its exact 40-character `git write-tree` value.
+From the core repository, build and load those images into the same cluster
+without replacing the applied target:
+
+```sh
+node integration/identity/build-neo.ts --stage-only /path/to/Neo REVIEWED_TREE_HASH /prepared/target.json
+```
+
+The command prints a new `targetPath` beneath that prepared target's
+`candidates/<source-tree>/` directory. Pass that exact path to Lens:
+
+```sh
+cd ../footprint-iac-lens
+node examples/neo-identity-versioned.ts /prepared/target.json /prepared/candidates/SOURCE_TREE_HASH/target.json --port=0
+```
+
+Open the printed URL in **Simple**. Starting the viewer adopts the matching
+successful baseline and stages the candidate; it does not deploy infrastructure.
+Click **Review changes**, inspect **Details** if needed, then **Apply update**.
+An application-image-only change shows **Update Program**, with the other five
+resources unchanged. One actual FootPrint run records the update and existing
+resource checks, followed by measured connections and login/access checks.
+**Open Neo** retains its original local address after the owned forward is
+restored. Test the reader's allowed route and guest's denied route in the app;
+the automatic checks and their recordings are also available in Lens.
+
+The target's `master/master.json` retains revision and attempt history;
+`master/runs/` retains native deployment results. Only a proven applied revision
+publishes the new canonical target. Restarting the same command after success
+opens the applied version and its recording without redeploying it. If startup
+reports that canonical bindings and recorded history disagree, inspect the
+retained publication evidence before continuing. Keep this private local state
+with the prepared target rather than copying it into Git.
 
 ## Deployment flow from the native recorder
 
@@ -261,4 +350,4 @@ Kubernetes runs expose generated JSON/YAML from the complete desired graph. The 
 
 Replay reconstructs recorded state. Backwalking traverses captured dependencies, with missing evidence and external uncertainty retained. Live snapshots survive SSE reconnects while the server runs; the viewer saves the final state under `.artifacts/latest.json`, and the core retains its durable inventory and execution evidence. Keep `.artifacts/` local because it contains infrastructure and execution data.
 
-The server accepts only named demo/failure/no-op/Neo/connection scenarios, the host-configured managed review and identity checks. It has no arbitrary command, graph upload, path or cloud-target execution endpoint. Keep this prototype local; remote hosting and authentication require a separate design.
+The server accepts only named demo/failure/no-op/Neo/connection scenarios, host-configured managed or versioned reviews, and identity checks. It has no arbitrary command, graph upload, path or cloud-target execution endpoint. Keep this prototype local; remote hosting and authentication require a separate design.

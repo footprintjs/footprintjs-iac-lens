@@ -27,8 +27,8 @@ export async function startDashboard(options: DashboardOptions): Promise<{
         response.on('close', () => { stop(); streams.delete(response); }); return;
       }
       if (request.method === 'POST' && path === '/api/run') {
-        const scenario = await readRunRequest(request);
-        controller.start(scenario as Scenario); return json(response, 202, { accepted: true });
+        const body = await readRunRequest(request);
+        controller.start(body.scenario as Scenario, body.reviewId); return json(response, 202, { accepted: true });
       }
       if (request.method === 'GET' && path === '/health') return json(response, 200, { status: 'ok', service: 'footprint-iac-lens' });
       if (request.method !== 'GET') throw new RequestError(405, 'Method not allowed');

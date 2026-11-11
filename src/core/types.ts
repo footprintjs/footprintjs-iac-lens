@@ -1,6 +1,7 @@
 import type { InfraGraph, BindingResult, SystemDesign } from 'footprint-iac';
 import type { DeploymentChart, DeploymentSchedulePreview } from 'footprint-iac/progress';
 import type { SystemViewDefinition } from './capabilities.ts';
+import type { RevisionReviewState } from './revision-review.ts';
 
 export type ResourceStatus = 'pending' | 'deploying' | 'ready' | 'failed' | 'skipped' | 'deleted';
 export interface ResourceProgress {
@@ -117,5 +118,6 @@ export interface DashboardState {
   artifacts?: OutputArtifact[];
   connections?: ConnectionRun;
   identity?: IdentityRun;
+  revisionReview?: RevisionReviewState;
 }
-export type Scenario = 'demo' | 'failure' | 'noop' | 'neo' | 'connections' | 'identity' | 'review';
+export type Scenario = 'demo' | 'failure' | 'noop' | 'neo' | 'connections' | 'identity' | 'review' | 'revision-review' | 'revision-apply';

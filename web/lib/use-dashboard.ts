@@ -18,10 +18,10 @@ export function useDashboard(baseUrl = '') {
     setState(undefined); setConnected(false);
     return client.subscribe({ state: setState, connected: setConnected, error: error => setError(error.message) });
   }, [client]);
-  const run = useCallback(async (scenario: Scenario) => {
+  const run = useCallback(async (scenario: Scenario, reviewId?: string) => {
     setPosting(true); setError(undefined);
     try {
-      await client.run(scenario);
+      await client.run(scenario, reviewId);
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
     finally { setPosting(false); }
   }, [client]);
