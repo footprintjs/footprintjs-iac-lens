@@ -20,6 +20,7 @@ import { readRevisionReview, type RevisionReviewState } from '../core/revision-r
 import { readRevisionPreparation, type RevisionWorkflowOptions, type RevisionPreparation } from './revision-workflow.ts';
 import type { ResourceFlowAction } from '../core/resource-flow.ts';
 import { ResourceFlowReview, ResourceFlowRequestError, type ResourceFlowReviewOptions } from './resource-flow.ts';
+import { readWorkspaceOptions } from './resource-flow-workspace.ts';
 
 const verificationAttention = 'The version was applied. Connection or access checks need attention; recorded results are available.';
 
@@ -55,6 +56,8 @@ export class DashboardController {
   private resourceFlowReview?: ResourceFlowReview;
 
   constructor(options: ControllerOptions) {
+    if (options.resourceFlow?.workspace) options = { ...options, resourceFlow: { ...options.resourceFlow,
+      workspace: readWorkspaceOptions(options.resourceFlow.workspace) } };
     if (options.resourceFlow && (options.neo || options.initialScenario || options.managedReview || options.revisionWorkflow
       || options.identityReview || options.connectionReview)) throw Error('Choose one configured resource workflow host');
     if (options.revisionWorkflow && (!options.initialReview || options.managedReview || options.neo)) {
@@ -83,7 +86,8 @@ export class DashboardController {
     if (options.initialScenario === 'neo' && !options.neo) throw new Error('An initial Neo graph requires a prepared target');
     const neo = options.initialScenario === 'neo' ? options.neo : undefined;
     const initialReview = this.options.initialReview;
-    const graph = initialReview?.graph ?? managedReview?.graph ?? neo?.binding.graph ?? (options.resourceFlow ? null : demoGraph());
+    const workspace = options.resourceFlow?.workspace;
+    const graph = workspace?.graph ?? initialReview?.graph ?? managedReview?.graph ?? neo?.binding.graph ?? (options.resourceFlow ? null : demoGraph());
     if (options.connectionReview) {
       validateInfraGraph(graph!);
       this.options.connectionReview = readConnectionReview(options.connectionReview, graph!);
@@ -95,15 +99,18 @@ export class DashboardController {
     }
     this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? managedReview?.mode ?? (managedReview || options.resourceFlow ? 'managed' : neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
       ...(managedReview ? { managedReviewAvailable: true, managedReviewLabel: managedReview.label ?? 'Configured system deployment' } : {}),
-      ...(this.options.connectionReview ? { connectionReviewAvailable: true } : {}),
-      ...(this.options.systemView ? { systemView: this.options.systemView } : {}),
-      ...(managedReview?.schedulePreview ? { schedulePreview: managedReview.schedulePreview } : {}),
+      ...(this.options.connectionReview || workspace ? { connectionReviewAvailable: !!this.options.connectionReview } : {}),
+      ...(identityReview || workspace ? { identityReviewAvailable: !!identityReview } : {}),
+      ...(workspace?.systemView || this.options.systemView ? { systemView: workspace?.systemView ?? this.options.systemView } : {}),
+      ...(workspace?.schedulePreview || managedReview?.schedulePreview ? { schedulePreview: workspace?.schedulePreview ?? managedReview?.schedulePreview } : {}),
+      ...(workspace?.design ? { design: workspace.design } : {}), ...(workspace?.binding ? { binding: workspace.binding } : {}),
+      ...(workspace?.revisionReview ? { revisionReview: workspace.revisionReview } : {}),
       ...(initialReview && !options.revisionWorkflow && !options.resourceFlow ? { deploymentReadOnly: true } : {}),
       ...(neo ? { design: neo.design, binding: neo.binding } : {}),
       ...(initialReview?.neoUrl ? { neoUrl: initialReview.neoUrl } : options.neo?.url ? { neoUrl: options.neo.url } : {}),
       target: options.resourceFlow?.target ?? initialReview?.target ?? managedReview?.target ?? (managedReview ? { id: 'managed-review', label: managedReview.label ?? 'Configured local providers' } : neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Fresh local Neo Kubernetes target' }
         : { id: 'local-simulator', label: 'Local simulator · no cloud resources' }),
-      run: initialReview?.run ?? (graph ? { id: '', status: 'idle', mode: managedReview?.mode ?? (managedReview ? 'managed' : neo ? 'kubernetes' : 'simulator'), resources: this.pending(graph), events: [] } : undefined),
+      run: options.resourceFlow ? undefined : initialReview?.run ?? (graph ? { id: '', status: 'idle', mode: managedReview?.mode ?? (managedReview ? 'managed' : neo ? 'kubernetes' : 'simulator'), resources: this.pending(graph), events: [] } : undefined),
       connections: graph ? this.pendingConnections(graph) : undefined, ...(identityReview ? { identity: pendingIdentity(identityReview) } : {}), artifacts: [] };
   }
 
@@ -112,12 +119,30 @@ export class DashboardController {
     this.state.artifacts = this.state.graph ? [...await graphArtifacts(this.state.graph), ...await cloudFormationExample()] : [];
     if (this.options.resourceFlow) {
       const options = this.options.resourceFlow;
+      const workspaceArtifacts = options.workspace ? this.state.artifacts : undefined;
       this.resourceFlowReview = new ResourceFlowReview(options, publication => {
         this.state.resourceFlow = publication.state; this.state.busy = publication.busy;
         this.state.resourceFlowError = publication.error;
+        if (options.workspace) {
+          const available = publication.state.status === 'passed' && !publication.busy && !publication.error;
+          this.state.connectionReviewAvailable = available && !!options.workspace.recheckConnections;
+          this.state.identityReviewAvailable = available && !!options.workspace.recheckIdentity;
+        }
         this.state.neoUrl = publication.state.status === 'passed' ? options.neoUrl : undefined;
-        if (publication.artifacts) this.state.artifacts = publication.artifacts;
-        if (publication.recording) this.state.recording = publication.recording;
+        if (publication.artifacts) this.state.artifacts = workspaceArtifacts
+          ? [...new Map([...workspaceArtifacts, ...publication.artifacts].map(artifact => [artifact.id, artifact])).values()]
+          : publication.artifacts;
+        if (publication.recording) {
+          this.state.resourceFlowRecording = publication.recording;
+          if (!options.workspace) this.state.recording = publication.recording;
+        }
+        if (publication.workspace) {
+          this.state.resourceFlowWorkspace = publication.workspace;
+          this.state.run = publication.workspace.children.at(-1)?.run;
+          this.state.recording = this.state.run?.recording;
+          this.state.connections = publication.workspace.connections ?? this.pendingConnections(options.workspace!.graph);
+          this.state.identity = publication.workspace.identity;
+        }
         this.publish();
       });
       await this.resourceFlowReview.initialize();
@@ -140,7 +165,12 @@ export class DashboardController {
   }
 
   start(scenario: Scenario, reviewId?: string): void {
-    if (this.options.resourceFlow) throw new RequestError(409, 'This viewer runs only its configured resource workflow');
+    if (this.options.resourceFlow) {
+      if (reviewId !== undefined || (scenario !== 'connections' && scenario !== 'identity')) throw new RequestError(409, 'This viewer runs only its configured resource workflow');
+      try { this.resourceFlowReview!.recheck(scenario); this.completion = this.resourceFlowReview!.whenIdle().then(() => this.persist()); }
+      catch (error) { if (error instanceof ResourceFlowRequestError) throw new RequestError(error.status, error.message); throw error; }
+      return;
+    }
     if (!['demo', 'failure', 'neo', 'noop', 'connections', 'identity', 'review', 'revision-review', 'revision-apply'].includes(scenario)) throw new RequestError(400, 'Unknown review scenario');
     if (this.state.busy) throw new RequestError(409, 'A deployment is already running');
     if (scenario === 'revision-review' || scenario === 'revision-apply') {

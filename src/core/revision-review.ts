@@ -45,8 +45,8 @@ export function projectRevisionReview(state: DashboardState): RevisionReviewView
   return { state: review, resources, affected, unchanged,
     headline: headline(review, affected), currentLabel: revisionLabel(review.current),
     candidateLabel: review.status === 'applied' && review.current?.digest === review.candidate?.digest ? undefined : revisionLabel(review.candidate),
-    canReview: !state.busy && !active,
-    canApply: !state.busy && ready && review.canApply === true && !!review.reviewId,
+    canReview: !state.resourceFlow && !state.busy && !active,
+    canApply: !state.resourceFlow && !state.busy && ready && review.canApply === true && !!review.reviewId,
     applyLabel: !review.current ? 'Build system' : affected.some(row => row.action !== 'verify') ? 'Apply update' : 'Check version',
   };
 }

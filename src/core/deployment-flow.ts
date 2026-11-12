@@ -3,6 +3,7 @@ import { projectSystemBlocks, type SystemBlockFamily, type SystemUnitMode } from
 import { describeResource, resourceProgress, type ResourceDescription } from './model.ts';
 import type { DashboardState, ProgressEvent, ResourceProgress } from './types.ts';
 import { projectNativeDeploymentChart, projectDeploymentSchedulePreview } from './native-deployment-chart.ts';
+import { resourceFlowWorkspace, type ResourceFlowWorkspaceState } from './resource-flow-workspace.ts';
 
 export interface DeploymentFlowCapability {
   blockId: string; unitId: string; label: string; family: SystemBlockFamily; mode: SystemUnitMode;
@@ -10,6 +11,8 @@ export interface DeploymentFlowCapability {
   description?: string;
 }
 export interface DeploymentFlowObservation {
+  /** Native sequences are local to this child run; they are never merged into an invented run. */
+  runId?: string;
   /** The recorded start ordinal, not a completion order or a planned step. */
   step: number; startSequence: number; endSequence?: number;
   startedAt?: string | number; finishedAt?: string | number; overlapsWith: string[];
@@ -28,7 +31,7 @@ export interface DeploymentFlowColumn {
 }
 export interface DeploymentFlow {
   basis: 'recorded' | 'prerequisites'; nodes: DeploymentFlowNode[]; edges: DeploymentFlowEdge[];
-  layoutSource: 'native-chart' | 'native-events' | 'prerequisites' | 'schedule-preview';
+  layoutSource: 'native-chart' | 'native-events' | 'native-children' | 'phase-plan' | 'prerequisites' | 'schedule-preview';
   columns: DeploymentFlowColumn[]; existingPrerequisites: { id: string; label: string; description?: string }[];
   warnings: string[];
 }
@@ -48,6 +51,12 @@ export function projectDeploymentFlow(state: DashboardState): DeploymentFlow {
     }))), column: 0, row: 0,
   }));
   const byId = new Map(nodes.map(node => [node.id, node]));
+  if (state.resourceFlowWorkspace) {
+    const workspace = resourceFlowWorkspace(state);
+    if (workspace) return workspaceFlow(state, workspace, nodes);
+    const unknown = projectDeploymentFlow({ ...state, resourceFlowWorkspace: undefined, run: undefined });
+    return { ...unknown, warnings: [...unknown.warnings, 'The resource workflow evidence could not be admitted; physical resource progress remains unknown.'] };
+  }
   const events = orderedEvents(state, byId, warnings);
   let step = 0;
   for (const event of events) {
@@ -98,6 +107,58 @@ export function projectDeploymentFlow(state: DashboardState): DeploymentFlow {
     existingPrerequisites: blocks.flatMap(block => block.units.filter(unit => unit.mode === 'existing').map(unit => ({
       id: `${block.id}:${unit.id}`, label: unit.label, ...(unit.description && { description: unit.description }),
     }))), warnings: [...new Set(warnings)] };
+}
+
+/** Compose layouts and observations while preserving each child's local sequence and actual chart. */
+function workspaceFlow(state: DashboardState, workspace: ResourceFlowWorkspaceState, nodes: DeploymentFlowNode[]): DeploymentFlow {
+  const warnings: string[] = workspace.error ? [workspace.error] : [], byId = new Map(nodes.map(node => [node.id, node]));
+  const columns: DeploymentFlowColumn[] = [], edges: DeploymentFlowEdge[] = nodes.flatMap(node => node.dependsOn.filter(id => byId.has(id)).map(id => ({
+    id: `dependency:${id}:${node.id}`, source: id, target: node.id, kind: 'dependency' as const, label: 'Must be ready first',
+  })));
+  const positioned = new Set<string>();
+  const found = workspace.found ?? [];
+  for (const phase of ['acquire', 'connect'] as const) {
+    const child = workspace.children.find(child => child.phase === phase);
+    const phaseGraph = workspace.phaseGraphs?.[phase] ?? child?.graph;
+    if (phase === 'acquire' && state.resourceFlow?.mode === 'existing') {
+      const sourceIds = phaseGraph?.resources.map(resource => resource.id) ?? found.map(resource => resource.resourceId);
+      if (sourceIds.length) {
+        for (const [row, id] of sourceIds.entries()) { const node = byId.get(id)!; node.column = columns.length; node.row = row; positioned.add(id); }
+        columns.push({ index: columns.length, kind: 'prerequisites',
+          label: sourceIds.every(id => found.some(resource => resource.resourceId === id)) ? 'Found existing resources' : 'Existing sources · waiting for lookup',
+          resourceIds: sourceIds, overlapping: false });
+      }
+      continue;
+    }
+    if (!phaseGraph) continue;
+    const childFlow = projectDeploymentFlow({ ...state, graph: phaseGraph, run: child?.run,
+      resourceFlowWorkspace: undefined, schedulePreview: undefined, systemView: undefined, design: undefined, binding: undefined });
+    const offset = columns.length;
+    for (const childNode of childFlow.nodes) {
+      const node = byId.get(childNode.id)!;
+      node.column = offset + childNode.column; node.row = childNode.row;
+      if (childNode.observed && child) node.observed = { ...childNode.observed, runId: child.run.id };
+      positioned.add(node.id);
+    }
+    columns.push(...childFlow.columns.map(column => ({ ...column, index: offset + column.index,
+      kind: !child ? 'planned' as const : column.kind,
+      label: `${phase === 'acquire' ? 'Create' : 'Connect'} · ${!child ? 'Planned prerequisites' : column.label}` })));
+    if (child) edges.push(...childFlow.edges.filter(edge => edge.kind !== 'dependency').map(edge => ({ ...edge, id: `${child.run.id}:${edge.id}` })));
+    warnings.push(...childFlow.warnings);
+  }
+  appendPrerequisites(nodes.filter(node => !positioned.has(node.id)), byId, columns, positioned.size > 0, warnings);
+  if (!workspace.phaseGraphs && !workspace.children.length && !found.length && state.schedulePreview) {
+    const preview = projectDeploymentSchedulePreview(state); warnings.push(...preview.warnings);
+    if (preview.chart) {
+      for (const binding of preview.chart.nodes) { const node = byId.get(binding.resourceId)!; node.column = binding.column; node.row = binding.row; }
+      columns.splice(0, columns.length, ...preview.chart.batches.map(batch => ({ index: batch.index, kind: 'planned' as const,
+        label: batch.scheduledParallel ? 'Scheduled together' : 'Planned build step', resourceIds: batch.resourceIds, overlapping: false })));
+      edges.push(...preview.chart.edges);
+    }
+  }
+  return { basis: workspace.children.some(child => child.run.events.length) ? 'recorded' : 'prerequisites',
+    layoutSource: workspace.children.length ? 'native-children' : workspace.phaseGraphs ? 'phase-plan' : state.schedulePreview ? 'schedule-preview' : 'prerequisites',
+    nodes, edges, columns, existingPrerequisites: [], warnings: [...new Set(warnings)] };
 }
 
 /** A native sequence establishes order; clocks or array positions cannot resolve missing/tied sequences. */

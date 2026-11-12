@@ -29,7 +29,7 @@ export function projectBuildScene(state: DashboardState): BuildScene {
   if (state.identity?.report?.captureError) warnings.push('The access recording is incomplete; measured outcomes are retained.');
   const nodes: BuildSceneNode[] = flow.nodes.map(node => {
     const purpose = buildScenePurpose(node), status = node.progress.status;
-    const uncertain = status !== 'pending' && status !== 'skipped'
+    const uncertain = node.progress.action !== 'find' && status !== 'pending' && status !== 'skipped'
       && (!node.observed || (status !== 'deploying' && node.observed.endSequence === undefined));
     if (status === 'deploying' && !node.observed) warnings.push(`No start event was captured for ${node.id}; its live progress is unknown.`);
     const embedded = node.capabilities.filter(item => item.mode === 'embedded').map(item => ({
@@ -60,7 +60,7 @@ export function projectBuildScene(state: DashboardState): BuildScene {
 
 function sceneMessage(state: DashboardState, scene: BuildScene): Pick<BuildScene, 'phase' | 'headline' | 'subline'> {
   if (!scene.nodes.length) return { phase: 'idle', headline: state.graph ? 'Nothing to build' : 'Ready to build' };
-  if (scene.nodes.some(node => node.status === 'failed') || state.run?.status === 'failed') return { phase: 'failed', headline: 'Build stopped' };
+  if (scene.nodes.some(node => node.status === 'failed') || state.run?.status === 'failed' || ['failed', 'incomplete'].includes(state.resourceFlow?.status ?? '')) return { phase: 'failed', headline: 'Build stopped' };
   if (scene.edges.some(edge => edge.status === 'failed') || state.connections?.status === 'failed') return { phase: 'failed', headline: 'Connection failed' };
   if (state.identity?.status === 'failed' || state.identity?.checks.some(check => check.status === 'failed')) return { phase: 'failed', headline: 'Access check failed' };
   if (scene.warnings.length || (state.run?.status === 'passed' && scene.counts.ready !== scene.counts.total)) {
@@ -75,6 +75,8 @@ function sceneMessage(state: DashboardState, scene: BuildScene): Pick<BuildScene
   }
   if (scene.edges.some(edge => edge.status === 'checking') || state.connections?.status === 'checking') return { phase: 'checking', headline: 'Connecting' };
   if (state.identity?.status === 'checking' || state.identity?.checks.some(check => check.status === 'checking')) return { phase: 'checking', headline: 'Checking access' };
+  if (state.resourceFlow?.status === 'paused') return { phase: 'idle', headline: 'Choose a connection', subline: 'Your existing resources are retained' };
+  if (state.resourceFlow?.status === 'running') return { phase: scene.counts.ready ? 'building' : 'starting', headline: scene.counts.ready ? 'Connecting your system' : 'Running your code' };
   if (state.run?.status === 'running') return { phase: scene.counts.ready ? 'building' : 'starting',
     headline: scene.counts.ready ? 'Building your system' : 'Running your code' };
   if (state.run?.status === 'passed' && scene.counts.ready === scene.counts.total) {

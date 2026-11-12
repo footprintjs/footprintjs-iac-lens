@@ -164,8 +164,8 @@ export function openIdentityReview(options: {
 
 ## Create or find, then connect and verify
 
-The optional `resourceFlow` host mode displays the base library's native
-resource workflow. It has four explicit tasks: **Create resource** or **Find
+The optional `resourceFlow` host mode composes the base library's native
+resource workflow with the complete Lens workspace. It has four explicit tasks: **Create resource** or **Find
 existing resource**, **Connection details**, **Connect application**, and
 **Verify connection and access**. The same connection and verification stages
 consume details obtained automatically or from an approved profile selected
@@ -182,6 +182,14 @@ await startDashboard({
     workflow,
     target: { id: 'application-storage', label: 'Application storage' },
     neoUrl: 'http://127.0.0.1:5230/?test', // optional, shown after successful verification
+    workspace: {
+      graph: systemGraph,
+      phaseGraphs: { acquire: sourceGraph, connect: consumerGraph },
+      snapshot: workspaceSnapshot,
+      subscribe: subscribeWorkspace,
+      recheckConnections: checkConfiguredConnections,
+      recheckIdentity: checkConfiguredAccess,
+    },
   },
 });
 ```
@@ -192,20 +200,30 @@ supply an `initialReview` for existing deployment evidence. Starting the viewer
 does not run the workflow or create resources. `start()` and `resume()` still
 belong to the configured core workflow; Lens has no provisioning implementation.
 
-Simple shows one continuous four-task pipeline. Pending tasks are grey, working
-tasks blue, confirmed tasks green and a human wait amber. These states come from
-native FootPrint progress events. A completed Create task says **Ready**, since
+Simple keeps the full resource canvas and live communication edges, with a
+compact four-task strip above it. The human profile handoff appears inline.
+Pending objects are grey, working objects blue, confirmed objects green and a
+human wait amber. These states come from native FootPrint progress events.
+A completed Create task says **Ready**, since
 the adapter may have reconciled an already owned resource; Find says **Found**.
 Existing mode leaves the referenced resource's infrastructure lifecycle with its
 owner. Connection checks are measured observations, not evidence that a resource
-was created or that a route was configured.
+was created or that a route was configured. Find resources say **Found**, based
+on their measured lookup; no deployment starts are invented for them. The exact
+phase graphs supply planned positions only, keeping the canvas stable before
+the actual native child charts arrive. Create and Connect retain their own
+graphs, run IDs, event sequences and recordings; the combined canvas is not a
+fabricated six-resource native apply run.
 
 During a pause, the viewer offers only the connection profiles fixed by the host.
 It sends `POST /api/resource-flow` with `{ action: "start" }` or
 `{ action: "resume", pauseToken, profileId }`. The exact current one-use pause
 token and an approved profile ID are required. Missing/stale tokens, unknown
 profiles, extra fields, endpoints, passwords, commands and target paths are
-refused. Ordinary `/api/run` scenarios are unavailable in this host mode. The
+refused. Ordinary deployment and version mutation scenarios are unavailable in
+this host mode. After completion, `/api/run` can invoke only the host's fixed
+connection or access recheck callbacks. Rechecks record new measured outcomes
+without rewriting the historical parent Verify result. The
 headless client's `resourceFlow(action)` method uses the same narrow protocol.
 
 A human pause releases the workflow action and provider/state locks. Restarting
@@ -214,7 +232,11 @@ workflow revalidates the resource before connecting; it does not rerun the
 completed Create task. Private credentials are resolved by trusted adapters,
 outside browser requests and public workflow state.
 
-**Details** exposes the definition and target scope, measured outcomes, safe
+**Details** retains Deployment flow, Running system, capabilities and placement,
+resource inspectors, output artifacts and native evidence. The parent workflow
+and child resource recordings have separate selectors. Existing version history
+can be supplied read-only; this host never stages or applies master revisions.
+The workflow inspector also exposes the definition and target scope, measured outcomes, safe
 failure receipts, and each native segment's run/evidence references. A pause and
 resume retain separate native segment IDs linked under the same logical
 execution. Optional fixed-host `recording(state)` and `artifacts()` callbacks
@@ -244,7 +266,7 @@ provisions only the directory and sign-in service. The flow then pauses at
 **Connection details**, with Connect and Verify still waiting. Choose the
 approved profile and click **Continue**. Connect deploys the four owned Neo
 consumer resources; Verify measures three communication paths and seven
-identity/access checks. **Open Neo** appears after successful verification.
+identity/access checks. **Open app** appears after successful verification.
 Sign in with the local Alice reader and run the zone audit, then separately
 verify that Bob signs in but receives **Access denied**. The app uses the
 documented scripted model and seeded data; this does not claim production

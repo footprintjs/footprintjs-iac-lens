@@ -1,5 +1,6 @@
 import type { Resource } from 'footprint-iac';
 import type { DashboardState, ResourceProgress, ResourceStatus } from './types.ts';
+import { workspaceResourceProgress } from './resource-flow-workspace.ts';
 
 export const STATUS_LABELS: Record<ResourceStatus, string> = {
   pending: 'Pending', deploying: 'Deploying', ready: 'Ready', failed: 'Failed', skipped: 'Skipped', deleted: 'Deleted',
@@ -10,6 +11,7 @@ const object = (value: unknown): Record<string, unknown> => value && typeof valu
 const familyValue = (value: unknown): ResourceFamily | undefined => value === 'compute' || value === 'storage' || value === 'network' ? value : undefined;
 
 export function resourceProgress(state: DashboardState, resourceId: string): ResourceProgress {
+  if (state.resourceFlowWorkspace) return workspaceResourceProgress(state, resourceId) ?? { id: resourceId, status: 'pending' };
   return state.run?.resources.find(resource => (resource.resourceId ?? resource.id) === resourceId)
     ?? { id: resourceId, status: 'pending' };
 }

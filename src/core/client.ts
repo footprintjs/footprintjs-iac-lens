@@ -3,6 +3,7 @@ import { readSystemViewDefinition } from './capabilities.ts';
 import { projectDeploymentSchedulePreview } from './native-deployment-chart.ts';
 import { readRevisionReview } from './revision-review.ts';
 import { readResourceFlowAction, readResourceFlowState, type ResourceFlowAction } from './resource-flow.ts';
+import { readResourceFlowWorkspace } from './resource-flow-workspace.ts';
 
 export interface JsonResponse { ok: boolean; status: number; json(): Promise<unknown> }
 export interface RequestOptions { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal }
@@ -32,6 +33,8 @@ export function readDashboardState(value: unknown): DashboardState {
   if (state.systemView !== undefined) readSystemViewDefinition(state.systemView);
   if (state.revisionReview !== undefined) readRevisionReview(state.revisionReview);
   if (state.resourceFlow !== undefined) readResourceFlowState(state.resourceFlow);
+  if (state.resourceFlowWorkspace !== undefined) readResourceFlowWorkspace(state.resourceFlowWorkspace, state.graph!, state.resourceFlow);
+  if (state.identityReviewAvailable !== undefined && typeof state.identityReviewAvailable !== 'boolean') throw Error('Identity review availability has an unsupported shape');
   if (state.resourceFlowError !== undefined && (typeof state.resourceFlowError !== 'string' || state.resourceFlowError.length > 4000)) throw Error('Workflow display error has an unsupported shape');
   if (state.schedulePreview !== undefined && !projectDeploymentSchedulePreview(state as DashboardState).chart) {
     throw new Error('Deployment schedule preview does not match the resource graph');

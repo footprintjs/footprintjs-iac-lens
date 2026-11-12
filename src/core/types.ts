@@ -3,6 +3,7 @@ import type { DeploymentChart, DeploymentSchedulePreview } from 'footprint-iac/p
 import type { SystemViewDefinition } from './capabilities.ts';
 import type { RevisionReviewState } from './revision-review.ts';
 import type { ResourceFlowState } from './resource-flow.ts';
+import type { ResourceFlowWorkspaceState } from './resource-flow-workspace.ts';
 
 export type ResourceStatus = 'pending' | 'deploying' | 'ready' | 'failed' | 'skipped' | 'deleted';
 export interface ResourceProgress {
@@ -28,6 +29,8 @@ export interface Recording {
   snapshot: unknown;
   structure: unknown;
   narrativeEntries?: unknown[];
+  /** Domain run admitted from its evidence envelope; FootPrint snapshot.runId is a separate runtime ID. */
+  provenance?: { runId: string; stack?: string; graphDigest?: string };
 }
 export type ConnectionStatus = 'untested' | 'checking' | 'connected' | 'failed';
 export interface ConnectionObservation {
@@ -109,6 +112,7 @@ export interface DashboardState {
   managedReviewAvailable?: boolean;
   managedReviewLabel?: string;
   connectionReviewAvailable?: boolean;
+  identityReviewAvailable?: boolean;
   target?: { id?: string; context?: string; namespace?: string; label?: string };
   neoAvailable?: boolean;
   deploymentReadOnly?: boolean;
@@ -122,5 +126,7 @@ export interface DashboardState {
   revisionReview?: RevisionReviewState;
   resourceFlow?: ResourceFlowState;
   resourceFlowError?: string;
+  resourceFlowRecording?: Recording;
+  resourceFlowWorkspace?: ResourceFlowWorkspaceState;
 }
 export type Scenario = 'demo' | 'failure' | 'noop' | 'neo' | 'connections' | 'identity' | 'review' | 'revision-review' | 'revision-apply';

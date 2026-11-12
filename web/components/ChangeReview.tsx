@@ -15,8 +15,8 @@ function summary(view: RevisionReviewView): string {
 function json(value: unknown): string { return value === undefined ? '(not present)' : JSON.stringify(value, null, 2); }
 
 /** Small version bar in Simple; exact resource and JSON differences stay behind Details. */
-export function ChangeReview({ view, disabled, onReview, onApply }: {
-  view: RevisionReviewView; disabled: boolean; onReview(): void; onApply(): void;
+export function ChangeReview({ view, disabled, readOnly = false, onReview, onApply }: {
+  view: RevisionReviewView; disabled: boolean; readOnly?: boolean; onReview(): void; onApply(): void;
 }) {
   const [details, setDetails] = useState(false);
   return <>
@@ -28,30 +28,35 @@ export function ChangeReview({ view, disabled, onReview, onApply }: {
       </div>
       <div className="change-review-summary" aria-live="polite"><strong>{view.headline}</strong><span>{summary(view)}</span></div>
       <div className="change-review-actions">
-        <button className="change-review-details" onClick={() => setDetails(true)}>Details</button>
-        <button className="simple-button simple-secondary" disabled={disabled || !view.canReview} onClick={onReview}>
+        <button className="change-review-details" onClick={() => setDetails(true)}>{readOnly ? 'Inspect history' : 'Details'}</button>
+        {!readOnly && <button className="simple-button simple-secondary" disabled={disabled || !view.canReview} onClick={onReview}>
           {view.state.status === 'reviewing' ? 'Reviewing…' : 'Review changes'}
-        </button>
-        {view.state.candidate && <button className="simple-button simple-primary" disabled={disabled || !view.canApply} onClick={onApply}>
+        </button>}
+        {!readOnly && view.state.candidate && <button className="simple-button simple-primary" disabled={disabled || !view.canApply} onClick={onApply}>
           <Icon name="play" size={14}/>{view.state.status === 'applying' ? 'Updating…' : view.applyLabel}
         </button>}
       </div>
     </section>
     {details && <DetailsPanel title="Version and changes" onClose={() => setDetails(false)}>
-      <div className="revision-details">
-        <p>Only planned changes are highlighted. Resource progress still comes from the native FootPrint recording.</p>
+      <RevisionDetails view={view} readOnly={readOnly}/>
+    </DetailsPanel>}
+  </>;
+}
+
+/** Recorded versions remain inspectable without offering a new deployment review. */
+export function RevisionDetails({ view, readOnly }: { view: RevisionReviewView; readOnly: boolean }) {
+  return <div className="revision-details">
+        <p>{readOnly ? 'This recorded version is shown for reference. Full master history is available in Output artifacts.' : 'Only planned changes are highlighted. Resource progress still comes from the native FootPrint recording.'}</p>
         <dl>{view.state.current && <><dt>Current revision</dt><dd>{view.state.current.label ?? view.state.current.id}<code>{view.state.current.digest}</code></dd></>}
           {view.state.candidate && <><dt>Candidate revision</dt><dd>{view.state.candidate.label ?? view.state.candidate.id}<code>{view.state.candidate.digest}</code></dd></>}
           {view.state.runId && <><dt>Recorded run</dt><dd><code>{view.state.runId}</code></dd></>}
         </dl>
         {view.state.error && <p className="revision-details-error" role="status">{view.state.error}</p>}
-        {view.resources.length === 0 ? <p>Review changes to load the current deployment plan.</p> : <div className="revision-resource-list">{view.resources.map(row => <article key={row.resourceId} className={`revision-resource revision-action-${row.action}`}>
+        {view.resources.length === 0 ? <p>{readOnly ? 'No resource diff is attached to this recorded version.' : 'Review changes to load the current deployment plan.'}</p> : <div className="revision-resource-list">{view.resources.map(row => <article key={row.resourceId} className={`revision-resource revision-action-${row.action}`}>
           <header><strong>{row.title}</strong><span>{row.label}</span><code>{row.resourceId}</code></header>
           {row.changes?.length ? <div className="revision-field-list">{row.changes.map((field, index) => <div key={`${field.path}:${index}`} className="revision-field">
             <code className="revision-field-path">{field.path}</code><div><section><span>Before</span><pre>{json(field.before)}</pre></section><section><span>After</span><pre>{json(field.after)}</pre></section></div>
           </div>)}</div> : row.action !== 'noop' && <p>{row.change === 'drift' ? 'The live resource differs from the desired definition.' : row.action === 'verify' ? 'Readiness will be verified without a planned configuration change.' : 'The host has not supplied field-level differences.'}</p>}
         </article>)}</div>}
-      </div>
-    </DetailsPanel>}
-  </>;
+      </div>;
 }

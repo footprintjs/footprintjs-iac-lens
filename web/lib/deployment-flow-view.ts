@@ -43,7 +43,7 @@ export function buildDeploymentFlowView(state: DashboardState, selected?: string
       { type: 'target', position: Position.Left, x: -4, y: STEP_HEIGHT / 2 - 4, width: 8, height: 8 },
       { type: 'source', position: Position.Right, x: STEP_WIDTH - 4, y: STEP_HEIGHT / 2 - 4, width: 8, height: 8 },
     ],
-    ariaLabel: `${step.observed ? `Recorded step ${step.observed.step}` : 'Not started'}: ${titles.get(step.id)}, ${step.progress.status}`,
+    ariaLabel: `${step.progress.action === 'find' && step.progress.status === 'ready' ? 'Found by read-only lookup' : step.observed ? `Recorded step ${step.observed.step}` : 'Not started'}: ${titles.get(step.id)}, ${step.progress.status}`,
   }));
   const nodeById = new Map(flow.nodes.map(node => [node.id, node]));
   const observedPairs = new Set(flow.edges.filter(edge => edge.kind === 'observed-order').map(edge => JSON.stringify([edge.source, edge.target])));

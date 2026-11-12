@@ -2,6 +2,7 @@ import { useId } from 'react';
 import type { projectBuildScene } from '../../src/core/build-scene.ts';
 import type { RevisionResourceView } from '../../src/core/revision-review.ts';
 import { BuildGlyph } from './BuildGlyph.tsx';
+import type { ResourceFlowState } from '../../src/core/resource-flow.ts';
 
 type Scene = ReturnType<typeof projectBuildScene>;
 type SceneNode = Scene['nodes'][number];
@@ -9,13 +10,14 @@ type SceneNode = Scene['nodes'][number];
 function caption(node: SceneNode) {
   if (node.uncertain) return 'Unconfirmed';
   if (node.status === 'deploying') return isChecking(node) ? 'Checking' : node.action === 'update' ? 'Updating' : 'Building';
+  if (node.status === 'ready' && node.action === 'find') return 'Found';
   return { pending: 'Waiting', ready: 'Ready', failed: 'Needs attention', skipped: 'Skipped', deleted: 'Removed' }[node.status];
 }
 
-function isChecking(node: SceneNode) { return /^(?:noop|no-op|verify|check|read|observe)$/i.test(node.action ?? ''); }
+function isChecking(node: SceneNode) { return /^(?:noop|no-op|verify|check|read|observe|find)$/i.test(node.action ?? ''); }
 
 /** Stable positions come from the native flow; links below show observed communication. */
-export function BuildScene({ scene, execution = 'idle', changes }: { scene: Scene; execution?: 'idle' | 'running' | 'passed' | 'failed'; changes?: readonly RevisionResourceView[] }) {
+export function BuildScene({ scene, execution = 'idle', workflowStatus, changes }: { scene: Scene; execution?: 'idle' | 'running' | 'passed' | 'failed'; workflowStatus?: ResourceFlowState['status']; changes?: readonly RevisionResourceView[] }) {
   const markerId = `build-arrow-${useId().replace(/:/g, '')}`;
   const descriptionId = `${markerId}-description`;
   const changeMap = new Map(changes?.map(change => [change.resourceId, change]));
@@ -28,10 +30,11 @@ export function BuildScene({ scene, execution = 'idle', changes }: { scene: Scen
     y: 42 + node.row * 218,
   }]));
   const captured = scene.nodes.some(node => node.step !== undefined);
-  const codeStatus = execution === 'running' ? 'deploying' : captured && execution === 'passed' ? 'ready' : captured && execution === 'failed' ? 'failed' : 'pending';
+  const codeExecution = workflowStatus === 'running' ? 'running' : workflowStatus === 'passed' ? 'passed' : workflowStatus === 'failed' ? 'failed' : workflowStatus ? 'idle' : execution;
+  const codeStatus = codeExecution === 'running' ? 'deploying' : (captured || workflowStatus) && codeExecution === 'passed' ? 'ready' : (captured || workflowStatus) && codeExecution === 'failed' ? 'failed' : 'pending';
   return <div className="simple-scene" role="group" aria-label="Your system being built">
     <svg className="simple-scene-canvas" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Build flow and live connections" aria-describedby={descriptionId}>
-      <desc id={descriptionId}>{scene.nodes.map(node => `${node.title}: ${caption(node)}${node.step ? `, recorded step ${node.step}` : ''}${changeMap.has(node.id) ? `; planned ${changeMap.get(node.id)!.label.toLowerCase()}` : ''}.`).join(' ')} {scene.edges.map(edge => `${scene.nodes.find(node => node.id === edge.from)?.title ?? edge.from} to ${scene.nodes.find(node => node.id === edge.to)?.title ?? edge.to}: ${edge.status}.`).join(' ')}</desc>
+      <desc id={descriptionId}>{scene.nodes.map(node => `${node.title}: ${caption(node)}${node.step && !workflowStatus ? `, recorded step ${node.step}` : ''}${changeMap.has(node.id) ? `; planned ${changeMap.get(node.id)!.label.toLowerCase()}` : ''}.`).join(' ')} {scene.edges.map(edge => `${scene.nodes.find(node => node.id === edge.from)?.title ?? edge.from} to ${scene.nodes.find(node => node.id === edge.to)?.title ?? edge.to}: ${edge.status}.`).join(' ')}</desc>
       <defs><marker id={markerId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1l8 4-8 4" fill="none" stroke="currentColor" strokeWidth="1.5"/></marker></defs>
       {scene.flowEdges.map(edge => {
         const from = locations.get(edge.from), to = locations.get(edge.to);
@@ -51,7 +54,7 @@ export function BuildScene({ scene, execution = 'idle', changes }: { scene: Scen
         </g>;
       })}
       <foreignObject x="0" y="42" width="142" height="220"><div className={`simple-object simple-code${scene.phase === 'starting' ? ' object-active' : ''}`}>
-        <span className="simple-step">START</span><BuildGlyph kind="code" status={codeStatus}/><strong>Your code</strong><span className="simple-object-caption">{codeStatus === 'deploying' ? 'Running' : codeStatus === 'failed' ? 'Stopped' : codeStatus === 'ready' ? 'Finished' : execution === 'idle' ? 'Ready to run' : 'Unconfirmed'}</span>
+        <span className="simple-step">START</span><BuildGlyph kind="code" status={codeStatus}/><strong>Your code</strong><span className="simple-object-caption">{workflowStatus === 'paused' ? 'Paused' : codeStatus === 'deploying' ? 'Running' : codeStatus === 'failed' ? 'Stopped' : codeStatus === 'ready' ? 'Finished' : codeExecution === 'idle' ? 'Ready to run' : 'Unconfirmed'}</span>
       </div></foreignObject>
       {scene.nodes.map(node => {
         const position = locations.get(node.id)!;
@@ -59,7 +62,7 @@ export function BuildScene({ scene, execution = 'idle', changes }: { scene: Scen
         const embedded = node.embedded.find(unit => unit.kind === 'storage') ?? node.embedded[0];
         const change = changeMap.get(node.id);
         return <foreignObject key={node.id} x={position.x} y={position.y} width="156" height="216"><div className={`simple-object object-${node.status}${active ? ' object-active' : ''}${node.uncertain ? ' object-uncertain' : ''}${change ? change.affected ? ' revision-affected' : ' revision-unchanged' : ''}`} aria-label={`${node.title}: ${caption(node)}${change ? `; planned ${change.label.toLowerCase()}` : ''}`}>
-          <span className="simple-step"><span>{node.step ? String(node.step).padStart(2, '0') : '·'}</span>{change && <span className="simple-change-label">{change.label}</span>}</span>
+          <span className="simple-step"><span>{workflowStatus ? '' : node.step ? String(node.step).padStart(2, '0') : '·'}</span>{change && <span className="simple-change-label">{change.label}</span>}</span>
           <BuildGlyph kind={node.kind} status={node.uncertain && node.status === 'deploying' ? 'pending' : node.status} checking={isChecking(node)}/>
           <strong>{node.title}</strong><span className="simple-object-caption">{caption(node)}</span>
           {embedded && <span className="simple-embedded" aria-label={`Inside ${node.title}: ${node.embedded.map(unit => unit.title).join(', ')}`}><BuildGlyph kind={embedded.kind} status={embedded.status} small/><span>{embedded.kind === 'storage' ? 'Data' : embedded.title} inside</span></span>}

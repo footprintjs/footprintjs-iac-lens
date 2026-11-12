@@ -4,6 +4,8 @@ import { Icon } from './Icon.tsx';
 
 export function RunControls({ state, posting, onRun }: { state: DashboardState; posting: boolean; onRun: (scenario: Scenario) => void }) {
   const [scenario, setScenario] = useState<Scenario>(() => state.mode === 'kubernetes' ? 'neo' : 'demo');
+  if (state.resourceFlow) return <span className="resource-flow-controlled">Controlled by the workflow above</span>;
+  if (state.revisionReview) return <span className="resource-flow-controlled">Use the reviewed version controls</span>;
   if (state.deploymentReadOnly) return <span className="read-only-review">Read-only deployment evidence</span>;
   const disabled = state.busy || posting;
   if (state.managedReviewAvailable) return <div className="run-controls">

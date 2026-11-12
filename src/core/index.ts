@@ -11,3 +11,4 @@ export * from './resource-evidence.ts';
 export * from './build-scene.ts';
 export * from './revision-review.ts';
 export * from './resource-flow.ts';
+export * from './resource-flow-workspace.ts';

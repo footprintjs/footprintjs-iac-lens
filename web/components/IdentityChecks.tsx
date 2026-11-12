@@ -33,7 +33,7 @@ export function IdentityChecks({ state, compact = false, onCheck, onEvidence }: 
     {run.report?.captureError && <p className="identity-run-error" role="status">{run.report.captureError}</p>}
   </>;
   const checkButton = <button className="button button-secondary"
-    disabled={state.busy || (state.managedReviewAvailable && state.run?.status !== 'passed')} onClick={onCheck}>
+    disabled={state.busy || (state.resourceFlow ? state.identityReviewAvailable !== true || state.resourceFlow.status !== 'passed' : state.managedReviewAvailable && state.run?.status !== 'passed')} onClick={onCheck}>
     {run.status === 'checking' ? 'Checking access…' : compact ? 'Check access' : 'Check identity and access'}
   </button>;
   return <section className={`identity-checks${compact ? ' identity-compact' : ''}`} aria-label="Identity and access checks">

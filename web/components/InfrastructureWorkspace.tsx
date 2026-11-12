@@ -56,7 +56,7 @@ export function InfrastructureWorkspace({ state, view, selected, evidenceKind, f
       <div id="infrastructure-panel" role="tabpanel" aria-labelledby={`view-${view}`}>
         {view === 'deployment' ? <DeploymentFlow state={state} selected={selected} fitWindow={fitWindow} onSelect={inspectResource}/>
           : view === 'system' ? <RunningSystem state={state} selected={selected} fitWindow={fitWindow} onSelect={inspectResource} onConnectionSelect={onConnectionSelect}/>
-            : view === 'evidence' ? <EvidenceSource state={state} kind={evidenceKind} onKind={onEvidenceKind}/>
+            : view === 'evidence' ? <EvidenceSource state={state} kind={evidenceKind} selectedResource={selected} onKind={onEvidenceKind}/>
               : <ArtifactsView artifacts={state.artifacts ?? []}/>}
       </div>
       {resource && graphVisible && (fitWindow

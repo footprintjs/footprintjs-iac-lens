@@ -12,7 +12,7 @@ export function ConnectionChecks({ state, selected, compact = false, onSelect, o
   const run = state.connections;
   if (!run?.checks.length) return null;
   const focused = run.checks.find(check => check.connectionId === selected);
-  const available = state.connectionReviewAvailable || (state.neoAvailable && state.mode === 'kubernetes');
+  const available = state.resourceFlow ? state.connectionReviewAvailable === true : state.connectionReviewAvailable || (state.neoAvailable && state.mode === 'kubernetes');
   const name = (id: string) => {
     const resource = state.graph?.resources.find(resource => resource.id === id);
     const metadata = resource?.spec.metadata as { name?: string } | undefined;
@@ -28,7 +28,7 @@ export function ConnectionChecks({ state, selected, compact = false, onSelect, o
       <strong>{compact ? 'Connections' : run.label ?? 'Connection checks'}</strong>
       <span className="connection-checks-time">{run.status === 'checking' ? 'Checking' : run.checkedAt ? eventTime(run.checkedAt) : 'Not checked'}</span>
     </div>
-      <button className="button button-secondary" disabled={state.busy || !available || state.run?.status !== 'passed'}
+      <button className="button button-secondary" disabled={state.busy || !available || (state.resourceFlow ? state.resourceFlow.status !== 'passed' : state.run?.status !== 'passed')}
         title={run.scopeDescription ?? 'Run the configured connection probes'} onClick={onCheck}>
         {run.status === 'checking' ? 'Checking connections…' : 'Check connections'}
       </button>
