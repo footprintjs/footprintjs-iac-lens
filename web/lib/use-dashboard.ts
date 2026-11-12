@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createDashboardClient } from '../../src/core/client.ts';
 import type { DashboardState, Scenario } from '../../src/core/types.ts';
+import type { ResourceFlowAction } from '../../src/core/resource-flow.ts';
 
 export function useDashboard(baseUrl = '') {
   const [state, setState] = useState<DashboardState>();
@@ -25,5 +26,11 @@ export function useDashboard(baseUrl = '') {
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
     finally { setPosting(false); }
   }, [client]);
-  return { state, connected, error, posting, run, dismissError: () => setError(undefined) };
+  const resourceFlow = useCallback(async (input: ResourceFlowAction) => {
+    setPosting(true); setError(undefined);
+    try { await client.resourceFlow(input); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setPosting(false); }
+  }, [client]);
+  return { state, connected, error, posting, run, resourceFlow, dismissError: () => setError(undefined) };
 }

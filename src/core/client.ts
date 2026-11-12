@@ -2,6 +2,7 @@ import type { DashboardState, Scenario } from './types.ts';
 import { readSystemViewDefinition } from './capabilities.ts';
 import { projectDeploymentSchedulePreview } from './native-deployment-chart.ts';
 import { readRevisionReview } from './revision-review.ts';
+import { readResourceFlowAction, readResourceFlowState, type ResourceFlowAction } from './resource-flow.ts';
 
 export interface JsonResponse { ok: boolean; status: number; json(): Promise<unknown> }
 export interface RequestOptions { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal }
@@ -30,6 +31,8 @@ export function readDashboardState(value: unknown): DashboardState {
   }
   if (state.systemView !== undefined) readSystemViewDefinition(state.systemView);
   if (state.revisionReview !== undefined) readRevisionReview(state.revisionReview);
+  if (state.resourceFlow !== undefined) readResourceFlowState(state.resourceFlow);
+  if (state.resourceFlowError !== undefined && (typeof state.resourceFlowError !== 'string' || state.resourceFlowError.length > 4000)) throw Error('Workflow display error has an unsupported shape');
   if (state.schedulePreview !== undefined && !projectDeploymentSchedulePreview(state as DashboardState).chart) {
     throw new Error('Deployment schedule preview does not match the resource graph');
   }
@@ -87,6 +90,14 @@ export function createDashboardClient(options: { baseUrl?: string; fetch?: JsonF
       throw new Error(result.error ?? result.message ?? `Run was refused (${response.status})`);
     }
   }
+  async function resourceFlow(input: ResourceFlowAction): Promise<void> {
+    const body = readResourceFlowAction(input);
+    const response = await request(endpoint('/api/resource-flow'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      throw Error(result.error ?? `Workflow action was refused (${response.status})`);
+    }
+  }
   function subscribe(observer: ClientObserver): () => void {
     const controller = new AbortController();
     let current: DashboardState | undefined;
@@ -107,5 +118,5 @@ export function createDashboardClient(options: { baseUrl?: string; fetch?: JsonF
     });
     return () => { controller.abort(); close?.(); };
   }
-  return { getState, run, subscribe };
+  return { getState, run, resourceFlow, subscribe };
 }

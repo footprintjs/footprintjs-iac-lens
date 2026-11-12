@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http';
 import { resolve } from 'node:path';
 import type { Scenario } from '../core/types.ts';
 import { DashboardController, RequestError, type ControllerOptions } from './controller.ts';
-import { admitRequest, json, readRunRequest } from './request.ts';
+import { admitRequest, json, readRunRequest, readResourceFlowRequest } from './request.ts';
 import { serveStatic } from './static.ts';
 import { streamState } from './events.ts';
 
@@ -30,6 +30,10 @@ export async function startDashboard(options: DashboardOptions): Promise<{
         const body = await readRunRequest(request);
         controller.start(body.scenario as Scenario, body.reviewId); return json(response, 202, { accepted: true });
       }
+      if (request.method === 'POST' && path === '/api/resource-flow') {
+        controller.startResourceFlow(await readResourceFlowRequest(request));
+        return json(response, 202, { accepted: true });
+      }
       if (request.method === 'GET' && path === '/health') return json(response, 200, { status: 'ok', service: 'footprint-iac-lens' });
       if (request.method !== 'GET') throw new RequestError(405, 'Method not allowed');
       return serveStatic(response, resolve(options.staticDirectory), path);
@@ -51,6 +55,7 @@ export async function startDashboard(options: DashboardOptions): Promise<{
   return { url: `http://127.0.0.1:${port}`, server, controller,
     async close() {
       await controller.whenIdle();
+      controller.dispose();
       for (const [response, stop] of streams) { stop(); response.end(); }
       server.closeIdleConnections();
       await new Promise<void>((accept, reject) => server.close(error => error ? reject(error) : accept()));

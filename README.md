@@ -162,6 +162,117 @@ export function openIdentityReview(options: {
 
 `initialReview` shows infrastructure that another trusted host deployed through the core engine. By itself, it disables resource deployment controls and supplies no mutation adapter or state store for that target. It still shows the supplied resource recording, graph and local **Open Neo** URL. A host can explicitly add the versioned workflow below to authorize reviewed updates. It cannot be combined with the built-in managed `neo` target. Without `initialReview`, a configured identity review can run independently; the built-in Neo deployment also runs it automatically after successful resource and connection checks.
 
+## Create or find, then connect and verify
+
+The optional `resourceFlow` host mode displays the base library's native
+resource workflow. It has four explicit tasks: **Create resource** or **Find
+existing resource**, **Connection details**, **Connect application**, and
+**Verify connection and access**. The same connection and verification stages
+consume details obtained automatically or from an approved profile selected
+during a human pause. The workflow remains independent of Neo and cloud brands.
+
+Compose a `ResourceFlowWorkflow` and `FileResourceFlowStore` through
+`footprint-iac/resource-flow/workflow`, then supply that fixed instance:
+
+```ts
+await startDashboard({
+  directory: '/owned/viewer-state',
+  staticDirectory: '/owned/lens/dist/web',
+  resourceFlow: {
+    workflow,
+    target: { id: 'application-storage', label: 'Application storage' },
+    neoUrl: 'http://127.0.0.1:5230/?test', // optional, shown after successful verification
+  },
+});
+```
+
+This mode cannot be combined with the built-in simulator, managed deployment,
+master revision or separate connection/access mutation modes. The host may
+supply an `initialReview` for existing deployment evidence. Starting the viewer
+does not run the workflow or create resources. `start()` and `resume()` still
+belong to the configured core workflow; Lens has no provisioning implementation.
+
+Simple shows one continuous four-task pipeline. Pending tasks are grey, working
+tasks blue, confirmed tasks green and a human wait amber. These states come from
+native FootPrint progress events. A completed Create task says **Ready**, since
+the adapter may have reconciled an already owned resource; Find says **Found**.
+Existing mode leaves the referenced resource's infrastructure lifecycle with its
+owner. Connection checks are measured observations, not evidence that a resource
+was created or that a route was configured.
+
+During a pause, the viewer offers only the connection profiles fixed by the host.
+It sends `POST /api/resource-flow` with `{ action: "start" }` or
+`{ action: "resume", pauseToken, profileId }`. The exact current one-use pause
+token and an approved profile ID are required. Missing/stale tokens, unknown
+profiles, extra fields, endpoints, passwords, commands and target paths are
+refused. Ordinary `/api/run` scenarios are unavailable in this host mode. The
+headless client's `resourceFlow(action)` method uses the same narrow protocol.
+
+A human pause releases the workflow action and provider/state locks. Restarting
+with the same core store restores its pending profile selection. A resumed
+workflow revalidates the resource before connecting; it does not rerun the
+completed Create task. Private credentials are resolved by trusted adapters,
+outside browser requests and public workflow state.
+
+**Details** exposes the definition and target scope, measured outcomes, safe
+failure receipts, and each native segment's run/evidence references. A pause and
+resume retain separate native segment IDs linked under the same logical
+execution. Optional fixed-host `recording(state)` and `artifacts()` callbacks
+provide the admitted native snapshot for lazy Flow Lens inspection and related
+deployment/check evidence. Browser requests cannot select evidence files.
+
+### Run both paths with the real Neo app
+
+Use sibling core and Lens checkouts with Node 24+ and the core identity guide's
+Docker, kind, kubectl and protected Neo source prerequisites. Run `npm ci`,
+`npm run check`, `npm test` and `npm run build` in each library checkout locally.
+Do not enable CI. Prepare this laptop's own target and protected app images using
+the core [identity integration guide](https://github.com/footprintjs/footprint-iac/blob/main/integration/identity/README.md).
+Pin its printed canonical `target.json` path; another laptop's target, ports,
+image cache and credential files are not inputs. Use a separate prepared target
+when existing viewers must continue controlling their own deployments.
+
+For a fresh Create demonstration, leave all six target resources absent and run
+from the Lens checkout:
+
+```sh
+node examples/neo-resource-flow.ts /printed/identity/target.json --mode=create --details=human --flow=create-human --port=0
+```
+
+Open the printed loopback URL in Simple mode and click **Start workflow**. Create
+provisions only the directory and sign-in service. The flow then pauses at
+**Connection details**, with Connect and Verify still waiting. Choose the
+approved profile and click **Continue**. Connect deploys the four owned Neo
+consumer resources; Verify measures three communication paths and seven
+identity/access checks. **Open Neo** appears after successful verification.
+Sign in with the local Alice reader and run the zone audit, then separately
+verify that Bob signs in but receives **Access denied**. The app uses the
+documented scripted model and seeded data; this does not claim production
+storage durability or general model reasoning.
+
+Keep that deployment and select the same pinned target for Find:
+
+```sh
+node examples/neo-resource-flow.ts /printed/identity/target.json --mode=existing --details=human --flow=find-human --port=0
+```
+
+Find reads and validates the exact existing source identities. It does not call
+their creation adapter. After the same human profile handoff, Connect can
+reconcile the already configured consumer as a genuine no-op, then Verify
+records fresh checks. Use `--details=automatic` for either mode when the adapter
+should supply the approved profile without pausing. Each new experiment needs a
+distinct `--flow` ID; an existing ID restores its saved execution instead of
+repeating Create. Restarting the identical command while paused restores the
+same pending token and checkpoint without repeating acquisition.
+
+**Details** shows child resource actions, connection/access receipts and the
+linked paused/resumed native segments. **Inspect segment** opens either segment
+in Flow Lens. Record from before Start through both paths and the application
+tests when an unedited demonstration is needed. Preserve each execution's
+`<target>/resource-flows/<flow-id>/` history privately; do not commit credentials,
+checkpoints, traces or recordings. The viewer accepts profile choices only and
+does not expose a free-form connection editor or arbitrary company LDAP import.
+
 ## Review and apply a versioned master JSON
 
 The core's `footprint-iac/master` API keeps immutable desired-system revisions,

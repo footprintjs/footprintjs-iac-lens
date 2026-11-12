@@ -18,6 +18,8 @@ import { executeManagedReview, pendingManagedResources, type ManagedReviewOption
 import { projectDeploymentSchedulePreview } from '../core/native-deployment-chart.ts';
 import { readRevisionReview, type RevisionReviewState } from '../core/revision-review.ts';
 import { readRevisionPreparation, type RevisionWorkflowOptions, type RevisionPreparation } from './revision-workflow.ts';
+import type { ResourceFlowAction } from '../core/resource-flow.ts';
+import { ResourceFlowReview, ResourceFlowRequestError, type ResourceFlowReviewOptions } from './resource-flow.ts';
 
 const verificationAttention = 'The version was applied. Connection or access checks need attention; recorded results are available.';
 
@@ -31,6 +33,7 @@ export interface ControllerOptions {
   managedReview?: ManagedReviewOptions; systemView?: SystemViewDefinition;
   connectionReview?: ConnectionReviewOptions;
   revisionWorkflow?: RevisionWorkflowOptions;
+  resourceFlow?: ResourceFlowReviewOptions;
 }
 
 export class RequestError extends Error {
@@ -49,8 +52,11 @@ export class DashboardController {
   private identityGraphDigest: string | undefined;
   private connectionGraphDigest: string | undefined;
   private preparedRevision: RevisionPreparation | undefined;
+  private resourceFlowReview?: ResourceFlowReview;
 
   constructor(options: ControllerOptions) {
+    if (options.resourceFlow && (options.neo || options.initialScenario || options.managedReview || options.revisionWorkflow
+      || options.identityReview || options.connectionReview)) throw Error('Choose one configured resource workflow host');
     if (options.revisionWorkflow && (!options.initialReview || options.managedReview || options.neo)) {
       throw Error('A revision workflow requires one existing recorded deployment');
     }
@@ -77,33 +83,45 @@ export class DashboardController {
     if (options.initialScenario === 'neo' && !options.neo) throw new Error('An initial Neo graph requires a prepared target');
     const neo = options.initialScenario === 'neo' ? options.neo : undefined;
     const initialReview = this.options.initialReview;
-    const graph = initialReview?.graph ?? managedReview?.graph ?? neo?.binding.graph ?? demoGraph();
+    const graph = initialReview?.graph ?? managedReview?.graph ?? neo?.binding.graph ?? (options.resourceFlow ? null : demoGraph());
     if (options.connectionReview) {
-      validateInfraGraph(graph);
-      this.options.connectionReview = readConnectionReview(options.connectionReview, graph);
-      this.connectionGraphDigest = graph.digest;
+      validateInfraGraph(graph!);
+      this.options.connectionReview = readConnectionReview(options.connectionReview, graph!);
+      this.connectionGraphDigest = graph!.digest;
     }
     if (identityReview) {
-      identityReview.resourceBindings = readIdentityResourceBindings(identityReview, graph.resources.map(resource => resource.id));
-      if (Object.values(identityReview.resourceBindings ?? {}).some(ids => ids.length > 0)) this.identityGraphDigest = graph.digest;
+      identityReview.resourceBindings = readIdentityResourceBindings(identityReview, graph!.resources.map(resource => resource.id));
+      if (Object.values(identityReview.resourceBindings ?? {}).some(ids => ids.length > 0)) this.identityGraphDigest = graph!.digest;
     }
-    this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? managedReview?.mode ?? (managedReview ? 'managed' : neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
+    this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? managedReview?.mode ?? (managedReview || options.resourceFlow ? 'managed' : neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
       ...(managedReview ? { managedReviewAvailable: true, managedReviewLabel: managedReview.label ?? 'Configured system deployment' } : {}),
       ...(this.options.connectionReview ? { connectionReviewAvailable: true } : {}),
       ...(this.options.systemView ? { systemView: this.options.systemView } : {}),
       ...(managedReview?.schedulePreview ? { schedulePreview: managedReview.schedulePreview } : {}),
-      ...(initialReview && !options.revisionWorkflow ? { deploymentReadOnly: true } : {}),
+      ...(initialReview && !options.revisionWorkflow && !options.resourceFlow ? { deploymentReadOnly: true } : {}),
       ...(neo ? { design: neo.design, binding: neo.binding } : {}),
       ...(initialReview?.neoUrl ? { neoUrl: initialReview.neoUrl } : options.neo?.url ? { neoUrl: options.neo.url } : {}),
-      target: initialReview?.target ?? managedReview?.target ?? (managedReview ? { id: 'managed-review', label: managedReview.label ?? 'Configured local providers' } : neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Fresh local Neo Kubernetes target' }
+      target: options.resourceFlow?.target ?? initialReview?.target ?? managedReview?.target ?? (managedReview ? { id: 'managed-review', label: managedReview.label ?? 'Configured local providers' } : neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Fresh local Neo Kubernetes target' }
         : { id: 'local-simulator', label: 'Local simulator · no cloud resources' }),
-      run: initialReview?.run ?? { id: '', status: 'idle', mode: managedReview?.mode ?? (managedReview ? 'managed' : neo ? 'kubernetes' : 'simulator'), resources: this.pending(graph), events: [] },
-      connections: this.pendingConnections(graph), ...(identityReview ? { identity: pendingIdentity(identityReview) } : {}), artifacts: [] };
+      run: initialReview?.run ?? (graph ? { id: '', status: 'idle', mode: managedReview?.mode ?? (managedReview ? 'managed' : neo ? 'kubernetes' : 'simulator'), resources: this.pending(graph), events: [] } : undefined),
+      connections: graph ? this.pendingConnections(graph) : undefined, ...(identityReview ? { identity: pendingIdentity(identityReview) } : {}), artifacts: [] };
   }
 
   async initialize(): Promise<void> {
     await mkdir(this.options.directory, { recursive: true, mode: 0o700 });
-    this.state.artifacts = [...await graphArtifacts(this.state.graph!), ...await cloudFormationExample()];
+    this.state.artifacts = this.state.graph ? [...await graphArtifacts(this.state.graph), ...await cloudFormationExample()] : [];
+    if (this.options.resourceFlow) {
+      const options = this.options.resourceFlow;
+      this.resourceFlowReview = new ResourceFlowReview(options, publication => {
+        this.state.resourceFlow = publication.state; this.state.busy = publication.busy;
+        this.state.resourceFlowError = publication.error;
+        this.state.neoUrl = publication.state.status === 'passed' ? options.neoUrl : undefined;
+        if (publication.artifacts) this.state.artifacts = publication.artifacts;
+        if (publication.recording) this.state.recording = publication.recording;
+        this.publish();
+      });
+      await this.resourceFlowReview.initialize();
+    }
     if (this.options.revisionWorkflow) {
       this.state.revisionReview = readRevisionReview(await this.options.revisionWorkflow.snapshot());
       if (this.state.revisionReview.current?.graphDigest !== this.state.graph?.digest) throw Error('The recorded deployment does not match the current master revision');
@@ -114,8 +132,15 @@ export class DashboardController {
   getSnapshot(): DashboardState { return structuredClone(this.state); }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   whenIdle(): Promise<void> { return this.completion; }
+  dispose(): void { this.resourceFlowReview?.dispose(); }
+  startResourceFlow(input: ResourceFlowAction): void {
+    if (!this.resourceFlowReview) throw new RequestError(409, 'No resource workflow is configured');
+    try { this.resourceFlowReview.action(input); this.completion = this.resourceFlowReview.whenIdle().then(() => this.persist()); }
+    catch (error) { if (error instanceof ResourceFlowRequestError) throw new RequestError(error.status, error.message); throw error; }
+  }
 
   start(scenario: Scenario, reviewId?: string): void {
+    if (this.options.resourceFlow) throw new RequestError(409, 'This viewer runs only its configured resource workflow');
     if (!['demo', 'failure', 'neo', 'noop', 'connections', 'identity', 'review', 'revision-review', 'revision-apply'].includes(scenario)) throw new RequestError(400, 'Unknown review scenario');
     if (this.state.busy) throw new RequestError(409, 'A deployment is already running');
     if (scenario === 'revision-review' || scenario === 'revision-apply') {
@@ -316,7 +341,8 @@ export class DashboardController {
   private async persist(): Promise<void> {
     try { await writeFile(resolve(this.options.directory, 'latest.json'), JSON.stringify(this.state, null, 2) + '\n', { mode: 0o600 }); }
     catch (error) {
-      this.state.run = { ...this.state.run!, report: { deploymentReport: this.state.run?.report,
+      if (this.state.resourceFlow) this.state.resourceFlowError = 'The viewer snapshot could not be saved. The native workflow store remains authoritative.';
+      else this.state.run = { ...this.state.run!, report: { deploymentReport: this.state.run?.report,
         viewerPersistenceError: error instanceof Error ? error.message : String(error) } };
       this.publish();
     }

@@ -1,0 +1,47 @@
+.iac-lens .resource-flow-dashboard { gap: 18px; }
+.iac-lens .resource-flow-pipeline { flex: 1; min-height: 0; margin: 0; padding: 20px 50px; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); align-items: center; list-style: none; }
+.iac-lens .resource-flow-node { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center; color: #9cabbc; }
+.iac-lens .resource-flow-number { font-size: 10px; letter-spacing: 1px; color: #8595a9; }
+.iac-lens .resource-flow-glyph { position: relative; display: grid; place-items: center; width: 116px; height: 112px; margin: 7px 0; color: #aab7c5; border: 1px solid #e3eaf1; border-radius: 27px; background: #f7f9fc; }
+.iac-lens .resource-flow-node > strong { display: flex; align-items: center; justify-content: center; min-height: 36px; line-height: 18px; font-size: 15px; font-weight: 600; color: #788b9e; }
+.iac-lens .resource-flow-caption { font-size: 12px; min-height: 17px; }
+.iac-lens .resource-flow-arrow { position: absolute; top: 81px; left: -14px; color: #cfdae6; }
+.iac-lens .resource-flow-mark { position: absolute; bottom: -7px; right: -7px; width: 26px; height: 26px; display: grid; place-items: center; border: 3px solid white; border-radius: 50%; background: #6aaf98; color: #fff; }
+.iac-lens .flow-node-running, .iac-lens .flow-node-running > strong { color: #487ede; }
+.iac-lens .flow-node-running .resource-flow-glyph { color: #5d8fe2; background: #eef4ff; border-color: #9dbcf0; box-shadow: 0 0 0 8px #f4f7ff; }
+.iac-lens .flow-node-passed, .iac-lens .flow-node-passed > strong { color: #398b73; }
+.iac-lens .flow-node-passed .resource-flow-glyph { color: #66a791; background: #eef7f3; border-color: #bcdccf; }
+.iac-lens .flow-node-waiting, .iac-lens .flow-node-waiting > strong { color: #a47c43; }
+.iac-lens .flow-node-waiting .resource-flow-glyph { color: #b28d58; background: #fff8ed; border-color: #ead5b7; }
+.iac-lens .flow-node-failed, .iac-lens .flow-node-failed > strong { color: #b66e66; }
+.iac-lens .flow-node-failed .resource-flow-glyph { color: #b97970; background: #fff4f0; border-color: #e8c6bf; }
+.iac-lens .resource-flow-pause { margin: 0 28px 21px; display: flex; align-items: center; gap: 18px; padding: 16px 20px; border: 1px solid #e9d8bd; border-radius: 11px; background: #fffaf2; flex-shrink: 0; }
+.iac-lens .resource-flow-pause > div { flex: 1; min-width: 0; }
+.iac-lens .resource-flow-pause strong { font-size: 13px; color: #876d4c; }
+.iac-lens .resource-flow-pause p { margin: 5px 0 0; font-size: 11px; color: #8c7f6e; }
+.iac-lens .resource-flow-pause label { display: flex; flex-direction: column; gap: 5px; color: #8c7f6e; font-size: 10px; }
+.iac-lens .resource-flow-pause select { min-width: 210px; padding: 7px 10px; border: 1px solid #dccfba; background: white; border-radius: 6px; color: #5b6877; font: inherit; font-size: 12px; }
+.iac-lens .resource-flow-key { display: flex; justify-content: center; gap: 22px; padding: 12px 0 20px; color: #7f8fa1; font-size: 10px; flex-shrink: 0; }
+.iac-lens .resource-flow-key span { display: flex; align-items: center; gap: 6px; }
+.iac-lens .resource-flow-key i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #b7c4d2; }
+.iac-lens .resource-flow-key .key-active { background: #7ca3e6; }
+.iac-lens .resource-flow-key .key-passed { background: #82b7a4; }
+.iac-lens .resource-flow-footer { display: flex; align-items: center; gap: 20px; min-height: 27px; font-size: 11px; color: #6a7f94; flex-shrink: 0; }
+.iac-lens .resource-flow-footer button { display: inline-flex; align-items: center; gap: 7px; color: #557798; background: transparent; border: 0; font: inherit; cursor: pointer; }
+.iac-lens .resource-flow-technical { display: flex; gap: 22px; padding: 6px 28px 12px; color: #7c8da1; font-size: 10px; flex-shrink: 0; }
+.iac-lens .resource-flow-technical code { margin-left: 5px; color: #536d89; }
+.iac-lens .resource-flow-details { color: #526b83; font-size: 12px; }
+.iac-lens .resource-flow-details p { line-height: 1.6; }
+.iac-lens .resource-flow-details dl { display: grid; grid-template-columns: 110px minmax(0,1fr); gap: 12px; margin-bottom: 24px; }
+.iac-lens .resource-flow-details dt { color: #7a8ca0; }
+.iac-lens .resource-flow-details dd { margin: 0; overflow-wrap: anywhere; }
+.iac-lens .resource-flow-details ol { padding-left: 22px; }
+.iac-lens .resource-flow-details li { padding: 7px 0; }
+.iac-lens .resource-flow-details li > button { border: 0; background: transparent; padding: 0; color: #4678b8; font: inherit; font-weight: 600; cursor: pointer; }
+.iac-lens .resource-flow-recording-choice { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; color: #6d8299; font-size: 11px; }
+.iac-lens .resource-flow-recording-choice select { min-width: 0; max-width: 100%; border: 1px solid #d6e0eb; border-radius: 6px; background: white; color: #526e8c; padding: 6px; font: inherit; }
+.iac-lens .resource-flow-details li > code, .iac-lens .resource-flow-details li > span { display: block; margin-top: 4px; overflow-wrap: anywhere; }
+.iac-lens .resource-flow-details li > span { font-size: 10px; color: #7c8ea2; }
+.iac-lens .resource-flow-details pre { background: #f5f8fc; color: #526b83; padding: 14px; border-radius: 8px; font-size: 11px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media(max-height:740px) { .iac-lens .resource-flow-pipeline { padding-top: 12px; padding-bottom: 12px; } .iac-lens .resource-flow-glyph { width: 100px; height: 96px; } .iac-lens .resource-flow-arrow { top: 73px; } }
+@media(max-width:760px) { .iac-lens .resource-flow-pipeline { padding: 15px; gap: 10px; } .iac-lens .resource-flow-glyph { width: 70px; height: 75px; border-radius: 18px; } .iac-lens .resource-flow-glyph > svg { width: 40px; } .iac-lens .resource-flow-node > strong { font-size: 11px; } .iac-lens .resource-flow-caption { font-size: 10px; } .iac-lens .resource-flow-arrow { display: none; } .iac-lens .resource-flow-pause { margin: 0 12px 14px; padding: 12px; flex-wrap: wrap; } .iac-lens .resource-flow-pause select { min-width: 160px; } .iac-lens .resource-flow-footer > span:first-child { display: none; } .iac-lens .resource-flow-technical { overflow: auto; } }
