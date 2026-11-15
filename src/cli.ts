@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -7,7 +8,10 @@ import { loadNeoTarget } from './server/neo.ts';
 import { loadFreshNeoTarget } from './server/fresh-neo.ts';
 
 const args = process.argv.slice(2);
+const usage = 'Usage: footprintjs-iac-lens [--neo | --fresh-neo] [--port 15231] [--directory PATH] [--core-root PATH]';
+if (args.includes('--help') || args.includes('-h')) { console.log(usage); process.exit(0); }
 let port: number | undefined, enableNeo = false, freshNeo = false;
+let stateDirectory: string | undefined, coreDirectory: string | undefined;
 for (let index = 0; index < args.length; index++) {
   if (args[index] === '--neo') enableNeo = true;
   else if (args[index] === '--fresh-neo') { freshNeo = true; enableNeo = true; }
@@ -15,11 +19,16 @@ for (let index = 0; index < args.length; index++) {
     const value = args[++index];
     if (!value || !/^\d+$/.test(value)) throw new Error('--port requires an integer');
     port = Number(value); if (port > 65535) throw new Error('Port is out of range');
-  } else throw new Error('Usage: npm start -- [--neo | --fresh-neo] [--port 15231]');
+  } else if (args[index] === '--directory' || args[index] === '--core-root') {
+    const flag = args[index], value = args[++index];
+    if (!value || value.startsWith('--')) throw new Error(`${flag} requires a path`);
+    if (flag === '--directory') stateDirectory = resolve(value);
+    else coreDirectory = resolve(value);
+  } else throw new Error(usage);
 }
 const root = projectRoot();
-const indexDirectory = resolve(root, freshNeo ? '.artifacts/fresh' : '.artifacts');
-const coreRoot = resolve(root, '../footprint-iac');
+const indexDirectory = stateDirectory ?? resolve(process.cwd(), freshNeo ? '.artifacts/fresh' : '.artifacts');
+const coreRoot = coreDirectory ?? resolve(process.cwd(), '../footprint-iac');
 const neo = freshNeo ? await loadFreshNeoTarget(coreRoot) : enableNeo ? await loadNeoTarget(coreRoot) : undefined;
 const directory = freshNeo && neo ? resolve(indexDirectory, neo.context) : indexDirectory;
 await mkdir(directory, { recursive: true, mode: 0o700 });

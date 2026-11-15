@@ -1,7 +1,6 @@
 {
   "name": "footprintjs-iac-lens",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0-alpha.1",
   "type": "module",
   "description": "InfraChart Lens: live infrastructure views and native FootPrintJS execution evidence",
   "engines": {
@@ -15,29 +14,29 @@
     "check": "tsc --noEmit",
     "test": "node --test test/*.test.ts",
     "build": "tsc -p tsconfig.build.json && node web/build.mjs && node scripts/build-react.mjs",
-    "start": "node src/cli.ts",
+    "start": "node dist/modules/src/cli.js",
     "build:core": "tsc -p tsconfig.core.json",
     "build:server": "tsc -p tsconfig.server.json"
   },
   "dependencies": {
-    "footprintjs-iac": "file:../footprint-iac"
+    "footprintjs-iac": "0.5.0-alpha.1"
   },
   "devDependencies": {
     "@types/node": "24.9.1",
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
-    "typescript": "5.9.3",
+    "@xyflow/react": "12.12.1",
     "esbuild": "0.28.2",
     "footprint-explainable-ui": "0.41.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "@xyflow/react": "12.12.1"
+    "typescript": "5.9.3"
   },
   "peerDependencies": {
+    "@xyflow/react": "^12.0.0",
     "footprint-explainable-ui": "^0.41.0",
     "react": ">=18 <20",
-    "react-dom": ">=18 <20",
-    "@xyflow/react": "^12.0.0"
+    "react-dom": ">=18 <20"
   },
   "peerDependenciesMeta": {
     "footprint-explainable-ui": {
@@ -75,6 +74,17 @@
   "files": [
     "dist",
     "README.md",
-    "AGENTS.md"
-  ]
+    "AGENTS.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "MIT",
+  "bin": {
+    "footprintjs-iac-lens": "./dist/modules/src/cli.js"
+  }
 }

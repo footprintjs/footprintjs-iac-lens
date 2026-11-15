@@ -25,17 +25,27 @@ backlog, and polling/deployment stops when the host exits. Neo's local adapter
 currently keeps rollback disabled; these local stage labels do not configure
 remote production.
 
-Use Node.js 24 or newer. These private repositories need GitHub read access. The explicit checkout names below retain the existing sibling paths used by the local package dependency and prepared recordings; npm package names use `footprintjs-iac` and `footprintjs-iac-lens`:
+Use Node.js 24 or newer. The first npm release is an alpha: its API and deployment integrations may change before a stable release.
+
+Run the packaged dashboard without a source checkout:
 
 ```sh
-git clone https://github.com/footprintjs/footprintjs-iac.git footprint-iac
+npx footprintjs-iac-lens@0.2.0-alpha.1 --port 0
+```
+
+Or install the headless API and optional UI adapter in your application:
+
+```sh
+npm install --save-exact footprintjs-iac-lens@0.2.0-alpha.1
+```
+
+The exact published `footprintjs-iac@0.5.0-alpha.1` dependency is installed automatically. The dashboard and `/core` or `/server` imports work without installing the optional React peers. Embedding `/react` requires the peers shown below. The npm package includes the compiled command and web assets; source examples and integration recipes live in the GitHub repository.
+
+For development, clone and build Lens:
+
+```sh
 git clone https://github.com/footprintjs/footprintjs-iac-lens.git footprint-iac-lens
-cd footprint-iac
-npm ci
-npm run check
-npm test
-npm run build
-cd ../footprint-iac-lens
+cd footprint-iac-lens
 npm ci
 npm run check
 npm test
@@ -43,7 +53,7 @@ npm run build
 npm start
 ```
 
-Open the printed URL. The preferred port is `15231`; an occupied port falls back to an available loopback port. Server details are in `.artifacts/server.json`. Automatic CI is off. These commands run locally and do not publish packages.
+Open the printed URL. The preferred port is `15231`; an occupied port falls back to an available loopback port. State and `server.json` are stored under `.artifacts/` in the current directory. Use `--directory /absolute/operator-state` to choose a different private state directory, and `--help` for command options. Package installation files are not used for writable state. Automatic CI is off; publishing is performed directly with the npm `alpha` tag.
 
 Lens opens in **Simple**: a build scene with large resource pictures, short labels and **Build system**. Grey resources wait, blue resources animate only while recorded work is running, and green resources have a recorded ready outcome. Steps follow the captured deployment flow; work that runs together can animate together. Switch to **Details** for the deployment pipeline, running system, resource panels and full FootPrint evidence.
 
@@ -53,10 +63,10 @@ The built-in server starts with an explicitly labelled **Simulation** fixture. I
 
 ## Show the actual Neo fixture
 
-First prepare Neo from the core checkout using its [setup instructions](https://github.com/footprintjs/footprintjs-iac/blob/main/docs/SHARING.md). Then run Lens with:
+The prepared Neo fixtures additionally require a core source checkout. Clone `https://github.com/footprintjs/footprintjs-iac.git` into a sibling `footprint-iac` directory, and prepare Neo using its [setup instructions](https://github.com/footprintjs/footprintjs-iac/blob/main/docs/SHARING.md). Then run Lens with:
 
 ```sh
-npm start -- --neo
+npm start -- --neo --core-root ../footprint-iac
 ```
 
 Select **Neo · local Kubernetes** and **Deploy Neo locally**. Lens reads the successful review metadata from the sibling core checkout, reuses that target's durable inventory, and reconciles through `InfraEngine`. Only the isolated `kind-footprint-iac-test` or `kind-footprint-iac-review` context is accepted, with a workspace-owned kubeconfig and loopback API endpoint. It does not replace Neo's native development workflow.
@@ -69,7 +79,7 @@ For a first deployment instead of a reapply, prepare a new cluster from the sibl
 cd ../footprint-iac
 npm run neo:prepare-fresh
 cd ../footprint-iac-lens
-npm start -- --fresh-neo
+npm start -- --fresh-neo --core-root ../footprint-iac
 ```
 
 Preparation creates a uniquely named local recording cluster, loads the real Neo images and leaves the app absent. The dashboard starts with Neo's three resources grey; click **Deploy Neo locally** to perform their first creation. Its default port is `15232`, with separate viewer data under `.artifacts/fresh/<context>/`; `.artifacts/fresh/server.json` points to the latest fresh dashboard and its directory. The existing review cluster, dashboard and app server stay available. Fresh startup checks the cluster's actual published API port and refuses an existing namespace or nonempty inventory. An exclusive local claim prevents two dashboards from starting the same fresh take; admission requires every resource to be absent and planned for creation. Use **Reapply / check no-op** afterward, or prepare another target to record another first creation. Keep the same Lens process running for the reapply; restarting fresh mode after creation is intentionally refused.
@@ -654,3 +664,7 @@ becomes **Deployed** and is disabled; failed or incomplete outcomes remain
 inspectable and cannot silently repeat effects. Deploying a later version needs
 a new host-configured definition and store. Source acquisition is independent
 of GitHub Actions; automatic CI remains off.
+
+## License
+
+MIT. See [LICENSE](LICENSE). Bundled dependency notices are in [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).
