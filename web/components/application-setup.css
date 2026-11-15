@@ -10,6 +10,12 @@
 .iac-lens .application-setup-steps li{display:flex;align-items:center;gap:7px;position:relative;font-size:11px;color:#596f85;padding:8px 0;border-bottom:2px solid #e4e9ef}
 .iac-lens .application-setup-steps li>span{height:22px;width:22px;border-radius:50%;display:grid;place-items:center;background:#f0f3f7;flex-shrink:0;font-size:10px}
 .iac-lens .application-setup-steps strong{font-weight:550}
+.iac-lens .application-source{border-top:1px solid #edf1f5;padding-top:8px}
+.iac-lens .application-source>header{display:flex;justify-content:space-between;gap:12px;font-size:10px;color:#60758c}
+.iac-lens .application-source>header strong{font-weight:550;color:#385a78}
+.iac-lens .application-source-steps{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.iac-lens .application-source-steps li{font-size:10px;padding:6px 0}
+.iac-lens .application-source-steps li>span{height:18px;width:18px}
 .iac-lens .application-setup-steps .application-step-selected{color:#4b6c8f;border-color:#a6bdd6}
 .iac-lens .application-setup-steps .application-step-running{color:#3874cb;border-color:#7da8ea}
 .iac-lens .application-step-running>span{box-shadow:0 0 0 4px #5086df18;background:#e6effe!important}

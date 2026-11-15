@@ -3,6 +3,8 @@ import { connectionProfileId } from './connection-profiles.ts';
 export interface ApplicationTarget {
   id: string; label: string; description?: string;
   requiresProfile: boolean;
+  /** This target prepares application code through a host-owned source adapter before review. */
+  requiresSource?: boolean;
   profileAdapterIds?: readonly string[];
   requiredInspectionCheckIds: readonly string[];
   requiredVerificationCheckIds: readonly string[];
@@ -72,11 +74,13 @@ export function readApplicationStrategies(input: unknown): ApplicationStrategy[]
     const value = object(input, ['id', 'label', 'description', 'targets']);
     if (!Array.isArray(value.targets) || value.targets.length === 0 || value.targets.length > 32) throw Error('Configure registered application targets');
     const targets = value.targets.map(input => {
-      const target = object(input, ['id', 'label', 'description', 'requiresProfile', 'profileAdapterIds', 'requiredInspectionCheckIds', 'requiredVerificationCheckIds']);
+      const target = object(input, ['id', 'label', 'description', 'requiresProfile', 'requiresSource', 'profileAdapterIds', 'requiredInspectionCheckIds', 'requiredVerificationCheckIds']);
       if (typeof target.requiresProfile !== 'boolean') throw Error('Declare the target connection policy');
+      if (target.requiresSource !== undefined && typeof target.requiresSource !== 'boolean') throw Error('Declare the target source policy');
       return { id: applicationId(target.id), label: applicationText(target.label, 160),
         ...(target.description !== undefined ? { description: applicationText(target.description, 2000) } : {}),
         requiresProfile: target.requiresProfile,
+        ...(target.requiresSource !== undefined ? { requiresSource: target.requiresSource } : {}),
         ...(target.profileAdapterIds !== undefined ? { profileAdapterIds: identifiers(target.profileAdapterIds, true) } : {}),
         requiredInspectionCheckIds: identifiers(target.requiredInspectionCheckIds, true),
         requiredVerificationCheckIds: identifiers(target.requiredVerificationCheckIds, true) };

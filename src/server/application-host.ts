@@ -4,7 +4,7 @@ import type { DashboardState } from '../core/types.ts';
 import type { AgentPlatformHostProvider } from './agent-platform-host.ts';
 
 export type ApplicationPublication = Partial<Pick<DashboardState,
-  'graph' | 'design' | 'binding' | 'schedulePreview' | 'run' | 'recording' | 'connections' | 'identity' | 'artifacts' | 'target' | 'systemView' | 'changeAssessment' | 'neoUrl' | 'appAccess'>>
+  'graph' | 'design' | 'binding' | 'schedulePreview' | 'run' | 'recording' | 'connections' | 'identity' | 'artifacts' | 'target' | 'systemView' | 'changeAssessment' | 'neoUrl' | 'appAccess' | 'source'>>
   & { phase?: 'verify' };
 export type PublishApplication = (publication: ApplicationPublication) => void;
 export interface ApplicationHostSnapshot {

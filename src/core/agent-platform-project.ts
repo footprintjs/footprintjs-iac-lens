@@ -1,14 +1,19 @@
+import { agentComponentGraphStatus, agentComponentInvocationUnsettled, agentComponentParentUnconfirmed } from './agent-components-project.ts';
 import type { AgentLayerView, AgentPlatformView, AgentStatus, AgentView } from './agent-platform.ts';
 import type { DashboardState } from './types.ts';
+import { applicationSourceIdentity, applicationSourceMatches } from './application-source.ts';
 
-export type AgentProjectionContext = Pick<DashboardState, 'graph' | 'run' | 'target' | 'application'>;
+export type AgentProjectionContext = Pick<DashboardState, 'graph' | 'run' | 'target' | 'application' | 'source'>;
 export function agentContextKey(context: AgentProjectionContext): string {
   return JSON.stringify([context.graph?.digest, context.run?.id, context.run?.status, context.application?.selection ?? context.target?.id,
-    context.application?.phase, context.application?.deployment?.promoted]);
+    context.application?.phase, context.application?.busy, context.application?.deployment?.promoted, applicationSourceIdentity(context.source), context.source?.status]);
 }
 function bindingMatches(agent: AgentView, context: AgentProjectionContext): boolean {
   const targetId = context.application?.selection?.targetId ?? context.target?.id;
   const graph = context.graph;
+  const sourceRequired = context.application?.strategies?.find(strategy => strategy.id === context.application?.selection?.strategyId)?.targets.find(target => target.id === targetId)?.requiresSource;
+  if (sourceRequired && !context.source || agent.binding?.sourceDigest && !context.source
+    || context.source && (context.source.status !== 'ready' || !context.source.receiptDigest || !applicationSourceMatches(context.source, context.application?.selection) || agent.binding?.sourceDigest !== context.source.receiptDigest)) return false;
   return !!graph && !!targetId && agent.binding?.targetId === targetId && agent.binding.graphDigest === graph.digest
     && agent.resourceIds.length > 0 && agent.resourceIds.every(id => graph.resources.some(resource => resource.id === id));
 }
@@ -42,9 +47,17 @@ export function projectAgentPlatformView(view: AgentPlatformView, context: Agent
     const deployment = infrastructure(agent, context), matched = bindingMatches(agent, context);
     const layers = [deployment, ...agent.layers.slice(1).map(layer => !matched && layer.status !== 'pending'
       ? { ...layer, status: 'unknown' as const, detail: 'Check the selected deployment.', recording: undefined, stages: undefined } : layer)];
-    const canCheck = matched && deployment.status === 'ready' && context.application?.phase === 'ready'
+    const components = matched ? agent.components : undefined;
+    const terminalWithoutParent = !!components && ['ready', 'failed'].includes(layers[2]!.status) && !components.recording?.complete;
+    const unsettled = !!components && agentComponentInvocationUnsettled(components) || terminalWithoutParent;
+    const canCheck = !unsettled && matched && deployment.status === 'ready' && context.application?.phase === 'ready'
       && context.application.deployment?.promoted === true && !context.application.busy && agent.canCheck;
-    return { ...agent, layers, status: combined(layers), canCheck,
+    const currentStatus = combined(layers);
+    const componentStatus = components && agentComponentGraphStatus(components);
+    const parentUnconfirmed = !!components && agentComponentParentUnconfirmed(components) || terminalWithoutParent;
+    const projectedStatus = currentStatus !== 'running' && parentUnconfirmed && componentStatus !== 'running' && componentStatus !== 'paused' ? 'incomplete' as const
+      : componentStatus && componentStatus !== 'ready' && currentStatus === 'ready' ? componentStatus : currentStatus;
+    return { ...agent, layers, status: projectedStatus, canCheck, components,
       capabilities: matched ? agent.capabilities : agent.capabilities.map(capability => ({ ...capability, status: 'unknown' as const, proofRef: undefined })),
       conversations: matched ? agent.conversations : [],
     };

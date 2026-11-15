@@ -265,7 +265,7 @@ export class DashboardController {
   }
   dispose(): void { this.agentReview?.dispose(); this.resourceFlowReview?.dispose(); this.deliveryReview?.dispose(); this.pipelineReview?.dispose();this.migrationReview?.dispose();this.releaseAutomationReview?.dispose(); }
   private agentContext(): AgentPlatformContext {
-    return structuredClone({ graph: this.state.graph, application: this.state.application, run: this.state.run, target: this.state.target });
+    return structuredClone({ graph: this.state.graph, application: this.state.application, source: this.state.source, run: this.state.run, target: this.state.target });
   }
   private requireAgentIdle(): void { if (this.agentBusy) throw new RequestError(409, 'Wait for the current agent check'); }
   async agentPlatformAction(input: AgentPlatformAction): Promise<void> {

@@ -1,10 +1,12 @@
 import type { AgentPlatformView } from '../core/agent-platform.ts';
 import type { ApplicationView } from '../core/application.ts';
 import type { DashboardState } from '../core/types.ts';
+import type { ApplicationSourceView } from '../core/application-source.ts';
 
 export interface AgentPlatformContext {
   operationId?: string;
   application?: ApplicationView;
+  source?: ApplicationSourceView;
   graph: DashboardState['graph'];
   run?: DashboardState['run'];
   target?: DashboardState['target'];

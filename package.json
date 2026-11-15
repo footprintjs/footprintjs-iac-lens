@@ -83,7 +83,8 @@
     "AGENTS.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES",
-    "docs/agent-platform.md"
+    "docs/agent-platform.md",
+    "docs/agent-components.md"
   ],
   "publishConfig": {
     "access": "public",

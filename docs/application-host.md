@@ -67,6 +67,7 @@ Each target declares:
 | --- | --- |
 | `id`, `label`, optional `description` | A stable registered choice and safe display text. |
 | `requiresProfile` | Whether inspection needs a saved connection. |
+| `requiresSource` | Optional boolean: require a complete, target-bound native source-preparation receipt before review and promotion. |
 | `profileAdapterIds` | Optional allowlist of connection-adapter IDs offered for this target. |
 | `requiredInspectionCheckIds` | Nonempty IDs that must all pass before review or deployment. |
 | `requiredVerificationCheckIds` | Nonempty IDs that must all pass before promotion and Ready. |
@@ -77,6 +78,64 @@ prepared target the application already admits. Only offer supported targets.
 This interface does not install Kubernetes, create a machine, infer production
 credentials or migrate an application between the two strategies. Core platform
 bootstrap is a separate host integration, not a hidden step in this milestone.
+
+## Optional source input
+
+An application can prepare code from GitHub, another Git host or a local Git
+repository behind the library's `SourceAdapter` interface. Its existing
+`ApplicationHost.inspect` composes the optional
+`footprintjs-iac/source-preparation/node` workflow. The native chart resolves the
+exact version, gets code, builds a package and stores that package. Target
+inspection, review, apply and verification keep the same application host. Do
+not register a second independent delivery host alongside it.
+
+The host supplies the source adapter, allowed repository/version, build recipe,
+artifact store and private credentials. Browser actions keep accepting only the
+registered strategy, target and connection IDs. GitHub Actions are unnecessary.
+GitHub is an input adapter; Kubernetes and systemd remain independent deployment
+adapters. Changing either does not replace the native FootPrint orchestration.
+
+A source-enabled target sets `requiresSource: true`. Live and retained
+`ApplicationPublication.source` values use `ApplicationSourceView`, exported by
+the public Lens core. The bounded projection includes:
+
+- Adapter ID, safe label, credential-free HTTPS repository (or `Configured
+  repository` for private local paths), ref and exact commit/tree once resolved.
+- The selected strategy/target/profile binding, native definition digest, build
+  recipe digest and configuration digest.
+- Four recorded phases: `resolve`, `fetch`, `build`, `publish`.
+- A complete native recording reference and `receiptDigest` for a ready result.
+
+The host computes `receiptDigest` with the library's
+`sourcePreparationReceiptDigest` helper after native state admission. This binds
+the exact revision, packages and recording. A definition digest alone describes
+configured inputs; a mutable branch can later resolve to another commit.
+
+Lens shows **Choose version → Get code → Build package → Store package** in
+Simple mode. Details retains full version identities and the native recording
+run. Source preparation does not mark resources created or an app promoted.
+
+The source receipt is sealed into the application review. Replacing it during
+review or apply invalidates the result. Missing required source proof blocks
+review and promotion; a source for another target/profile is refused. The host
+must also revalidate its private receipt and exact controller inputs before any
+deployment effect. Projection admission does not verify a provider by itself.
+
+Package preparation also does not prove that a running service uses the new
+code. A source-enabled target can require a `source-runtime` verification check
+alongside health, login and access. Its deployment adapter must measure the
+actual image or installed runtime identity against the sealed source receipt.
+A systemd restart alone does not install a package. Missing runtime evidence
+keeps the application unpromoted and its candidate URL unavailable.
+
+Agent hosts receive the same optional read-only `context.source`. Their
+`AgentView.binding.sourceDigest` must match its exact `receiptDigest`. Changing
+source hides old component readiness until the promoted runtime and its native
+checks match the new source. Agents and their component UI remain lazy-loaded.
+
+Opening, refresh and replay read retained receipts only. Source fetching,
+building and publishing run only through explicit inspection. Source checkout
+paths, commands, tokens and opaque adapter metadata never enter the browser DTO.
 
 ## Inspection, review, deployment and verification
 

@@ -25,12 +25,14 @@ function adapters(overrides: Partial<DeliveryAdapters['deployment']> = {}): Deli
       async verify() { return { ok: true,checks: [{ id: 'application-health',passed: true }] }; },...overrides },
   };
 }
-test('delivery HTTP admits only configured ID, streams native stages, preserves system view and hides host handles', async t => {
+test('delivery HTTP admits only configured ID, streams native stages, preserves system view and hides host handles', { timeout: 30000 }, async t => {
   const directory = await mkdtemp(join(tmpdir(),'lens-delivery-')); const staticDirectory = join(directory,'static');
   await mkdir(staticDirectory); await writeFile(join(staticDirectory,'index.html'),'<!doctype html>delivery');
   let release!: () => void, calls = 0; const gate = new Promise<void>(resolve => { release = resolve; });
+  let enteredDeploy!: () => void;
+  const deployed = new Promise<void>(resolve => { enteredDeploy = resolve; });
   const workflow = new DeliveryWorkflow({ definition,store: new FileDeliveryStore(join(directory,'delivery')),adapters: adapters({ async deploy() {
-    calls++; await gate; return { ok: true,runId: 'native-provider-run' };
+    calls++; enteredDeploy(); await gate; return { ok: true,runId: 'native-provider-run' };
   } }) });
   const graph=compileGraph({name:'owned-system',resources:[{id:'program',provider:'fixture',spec:{}},{id:'database',provider:'fixture',spec:{}}],boundaries:[],memberships:[],relations:[]});
   const app = await startDashboard({ directory: join(directory,'viewer'),staticDirectory,initialReview:{graph,target:{id:'owned',label:'Owned system'},
@@ -48,7 +50,7 @@ test('delivery HTTP admits only configured ID, streams native stages, preserves 
   assert.equal((await post({ deliveryId:definition.id,padding:'x'.repeat(2048) })).status,413);
   assert.equal(calls,0);
   assert.equal((await post({ deliveryId:definition.id })).status,202);
-  for (let attempt=0;attempt<100 && calls===0;attempt++) await new Promise(resolve=>setTimeout(resolve,10));
+  await deployed;
   const live = await client.getState();
   assert.equal(live.busy,true);assert.equal(live.delivery?.stages.find(stage=>stage.id==='deploy')?.status,'running');
   assert.equal(live.graph?.digest,graph.digest);assert.ok(live.run?.resources.every(resource=>resource.status==='ready'));

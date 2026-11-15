@@ -1,29 +1,9 @@
 import type { AgentCapabilityView, AgentConversationView, AgentLayerView, AgentPlatformAction, AgentPlatformView, AgentRecordingRef, AgentStageView, AgentStatus, AgentTurnView, AgentView } from './agent-platform.ts';
 
-const statuses = new Set<AgentStatus>(['pending', 'running', 'ready', 'failed', 'paused', 'incomplete', 'unknown', 'unsupported']);
-function fail(): never { throw Error('Invalid agent platform observation'); }
-function row(input: unknown, keys: readonly string[]): Record<string, any> {
-  if (!input || typeof input !== 'object' || Array.isArray(input) || ![Object.prototype, null].includes(Object.getPrototypeOf(input)) || Object.getOwnPropertySymbols(input).length) fail();
-  const descriptors = Object.getOwnPropertyDescriptors(input);
-  if (Object.entries(descriptors).some(([key, value]) => !keys.includes(key) || !value.enumerable || !('value' in value))) fail();
-  return input as Record<string, any>;
-}
-function text(input: unknown, max = 256): string {
-  if (typeof input !== 'string' || !input.trim() || input.length > max || /[\x00-\x1f\x7f]/.test(input)) fail(); return input;
-}
-function id(input: unknown): string { const value = text(input); if (!/^[a-zA-Z0-9][a-zA-Z0-9_.:-]*$/.test(value) || ['__proto__', 'prototype', 'constructor'].includes(value)) fail(); return value; }
-function hex(input: unknown): string { const value = text(input, 64); if (!/^[a-f0-9]{64}$/.test(value)) fail(); return value; }
-function list<T>(input: unknown, max: number, read: (input: unknown) => T): T[] { if (!Array.isArray(input) || input.length > max) fail(); return input.map(read); }
-function unique<T extends { id: string }>(values: T[]): T[] { if (new Set(values.map(value => value.id)).size !== values.length) fail(); return values; }
+import { fail, row, text, id, hex, list, unique, flag, status, optionalText } from './agent-read-data.ts';
+import { readAgentRecordingRef as recording, readAgentStageView as stage } from './agent-evidence-read.ts';
+import { readAgentComponentGraphView } from './agent-components-read.ts';
 function ids(input: unknown): string[] { const values = list(input, 4096, id); if (new Set(values).size !== values.length) fail(); return values; }
-function status(input: unknown): AgentStatus { if (!statuses.has(input as AgentStatus)) fail(); return input as AgentStatus; }
-function flag(input: unknown): boolean { if (typeof input !== 'boolean') fail(); return input; }
-const optionalText = (value: unknown, key: string, max = 256) => value === undefined ? {} : { [key]: text(value, max) };
-function recording(input: unknown, kind?: AgentRecordingRef['kind']): AgentRecordingRef {
-  const value = row(input, ['id', 'kind', 'runId', 'complete', 'source']);
-  if (!['deployment', 'readiness', 'turn'].includes(value.kind) || kind && value.kind !== kind || value.source !== 'native') fail();
-  return { id: id(value.id), kind: value.kind, runId: text(value.runId, 512), complete: flag(value.complete), source: 'native' };
-}
 interface ReadBudget { stages: number; turns: number; conversations: number }
 function stageList(input: unknown, budget: ReadBudget): AgentStageView[] {
   if (!Array.isArray(input) || (budget.stages += input.length) > 16384) fail();
@@ -45,13 +25,6 @@ function capability(input: unknown): AgentCapabilityView {
     ...(value.proofRef === undefined ? {} : { proofRef: recording(value.proofRef) }) };
   if (result.status === 'supported' && !result.proofRef?.complete) fail(); return result;
 }
-function stage(input: unknown): AgentStageView {
-  const value = row(input, ['id', 'label', 'status', 'runtimeStageId', 'kind', 'sequence']);
-  if (value.kind !== undefined && !['stage', 'decision', 'tool', 'model'].includes(value.kind)) fail();
-  if (value.sequence !== undefined && (!Number.isSafeInteger(value.sequence) || value.sequence < 1)) fail();
-  return { id: text(value.id, 512), label: text(value.label, 160), status: status(value.status), ...optionalText(value.runtimeStageId, 'runtimeStageId', 512),
-    ...(value.kind === undefined ? {} : { kind: value.kind }), ...(value.sequence === undefined ? {} : { sequence: value.sequence }) };
-}
 function turn(input: unknown, budget: ReadBudget): AgentTurnView {
   const value = row(input, ['id', 'label', 'status', 'recording', 'stages']);
   const result: AgentTurnView = { id: id(value.id), ...optionalText(value.label, 'label', 160), status: status(value.status),
@@ -65,19 +38,22 @@ function conversation(input: unknown, budget: ReadBudget): AgentConversationView
     status: status(value.status), turns: unique(list(value.turns, 256, input => turn(input, budget))) };
 }
 function agent(input: unknown, budget: ReadBudget): AgentView {
-  const value = row(input, ['id', 'label', 'description', 'revisionId', 'revisionLabel', 'binding', 'status', 'resourceIds', 'layers', 'capabilities', 'conversations', 'limitations', 'canCheck']);
+  const value = row(input, ['id', 'label', 'description', 'revisionId', 'revisionLabel', 'binding', 'status', 'resourceIds', 'layers', 'capabilities', 'conversations', 'limitations', 'canCheck', 'components']);
   if (!Array.isArray(value.conversations) || (budget.conversations += value.conversations.length) > 1024) fail();
   const layers = list(value.layers, 3, input => layer(input, budget));
   if (layers.length !== 3 || layers.some((layer, index) => layer.id !== ['infrastructure', 'environment', 'agent'][index])) fail();
   const resources = ids(value.resourceIds);
   if (layers.some(layer => layer.resourceIds?.some(resource => !resources.includes(resource)))) fail();
-  const binding = value.binding === undefined ? undefined : row(value.binding, ['graphDigest', 'targetId']);
+  const binding = value.binding === undefined ? undefined : row(value.binding, ['graphDigest', 'targetId', 'sourceDigest']);
   const result: AgentView = { id: id(value.id), label: text(value.label, 160), ...optionalText(value.description, 'description', 1000),
     ...(value.revisionId === undefined ? {} : { revisionId: hex(value.revisionId) }), ...optionalText(value.revisionLabel, 'revisionLabel', 160),
-    ...(binding ? { binding: { graphDigest: hex(binding.graphDigest), targetId: id(binding.targetId) } } : {}),
+    ...(binding ? { binding: { graphDigest: hex(binding.graphDigest), targetId: id(binding.targetId), ...(binding.sourceDigest !== undefined ? { sourceDigest: hex(binding.sourceDigest) } : {}) } } : {}),
     status: status(value.status), resourceIds: resources, layers, capabilities: unique(list(value.capabilities, 64, capability)),
-    conversations: unique(list(value.conversations, 256, input => conversation(input, budget))), limitations: list(value.limitations, 32, input => text(input, 1000)), canCheck: flag(value.canCheck) };
+    conversations: unique(list(value.conversations, 256, input => conversation(input, budget))), limitations: list(value.limitations, 32, input => text(input, 1000)), canCheck: flag(value.canCheck),
+    ...(value.components === undefined ? {} : { components: readAgentComponentGraphView(value.components) }) };
   if (layers[2]!.status === 'ready' && (!result.binding || !result.revisionId || resources.length === 0)) fail();
+  if (result.components) { budget.stages += result.components.nodes.reduce((sum, node) => sum + (node.stages?.length ?? 0), 0); if (budget.stages > 16384) fail(); }
+  if (result.components && (result.components.binding.graphDigest !== result.binding?.graphDigest || result.components.binding.targetId !== result.binding?.targetId || result.components.binding.revisionDigest !== result.revisionId)) fail();
   return result;
 }
 export function readAgentPlatformView(input: unknown): AgentPlatformView {

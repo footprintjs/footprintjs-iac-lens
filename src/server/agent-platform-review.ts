@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { readAgentPlatformAction, readAgentPlatformView } from '../core/agent-platform-read.ts';
+import { agentComponentInvocationUnsettled } from '../core/agent-components-project.ts';
 import { agentContextKey, projectAgentPlatformView } from '../core/agent-platform-project.ts';
 import type { AgentPlatformAction, AgentPlatformView, AgentView } from '../core/agent-platform.ts';
 import type { AgentPlatformContext, AgentPlatformHost, AgentPlatformHostProvider } from './agent-platform-host.ts';
@@ -9,10 +10,11 @@ export class AgentPlatformRequestError extends Error {
   constructor(status: number, message: string) { super(message); this.status = status; }
 }
 function scope(agent: AgentView): string {
-  return JSON.stringify([agent.binding?.graphDigest, agent.binding?.targetId, agent.revisionId, agent.id]);
+  return JSON.stringify([agent.binding?.graphDigest, agent.binding?.targetId, agent.binding?.sourceDigest, agent.revisionId, agent.id, agent.components?.digest, agent.components?.binding.deploymentDigest]);
 }
 function settled(agent: AgentView | undefined): boolean {
   const layer = agent?.layers.find(layer => layer.id === 'agent');
+  if (agent?.components && (!agent.components.recording?.complete || agentComponentInvocationUnsettled(agent.components))) return false;
   return !!layer && ['ready', 'failed'].includes(layer.status)
     && layer.recording?.kind === 'readiness' && layer.recording.complete;
 }

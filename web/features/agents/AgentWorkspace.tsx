@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { AgentLayerView, AgentPlatformView } from '../../../src/core/agent-platform.ts';
 import type { DashboardState } from '../../../src/core/types.ts';
 import { DetailsPanel } from '../../components/DetailsPanel.tsx';
@@ -8,6 +8,8 @@ import { AgentDetails, LayerDetails } from './AgentDetails.tsx';
 import { ConversationDetails } from './ConversationDetails.tsx';
 import { recordedTurnRows, selectedAgent, statusLabels } from './model.ts';
 import agentStyles from './agent-platform.css' with { type: 'text' };
+
+const ComponentScene = lazy(() => import('./components/ComponentScene.tsx'));
 
 export interface AgentWorkspaceProps {
   state: DashboardState; view: AgentPlatformView; posting: boolean; technical?: boolean; selectedAgentId?: string;
@@ -42,7 +44,8 @@ export default function AgentWorkspace({ state, view, posting = false, technical
         {agent && <div className="agents-content"><div className="agents-selected-tools"><div><span className="agents-eyebrow">Selected agent</span><strong>{agent.label}</strong></div>
           <div className="agents-actions"><button type="button" className="agents-button" onClick={() => setPanel({ kind: 'agent' })}>{technical ? 'Agent details' : 'Details'}{unavailable > 0 && <span aria-label={`${unavailable} unconfirmed or unsupported capabilities`}> · {unavailable}</span>}</button>
             <button type="button" className="agents-button agents-button-primary" disabled={disabled || !agent.canCheck || agent.status === 'incomplete'} onClick={() => onCheck(agent.id)}>{view.busy ? 'Checking…' : 'Check agent'}</button></div></div>
-          <AgentLayers agent={agent} technical={technical} onLayer={layer => setPanel({ kind: 'layer', id: layer.id })}/>
+          {agent.components ? <Suspense fallback={<section className="agents-scene" aria-label="Opening runtime components"><div className="agent-components-empty">Opening runtime components…</div></section>}><ComponentScene view={agent.components} status={agent.status} technical={technical} description={agent.description}/></Suspense>
+            : <AgentLayers agent={agent} technical={technical} onLayer={layer => setPanel({ kind: 'layer', id: layer.id })}/>}
           <section className="agents-activity" aria-label="Recorded conversations"><header className="agents-activity-header"><h3>Conversation activity</h3><span>{agent.conversations.length} recorded {agent.conversations.length === 1 ? 'conversation' : 'conversations'}</span></header>
             <div className="agents-activity-body">{!agent.conversations.length ? <p className="agents-activity-empty">No recorded conversations yet. Only admitted activity appears here.</p>
               : !visibleTurns.length ? <p className="agents-activity-empty">No recorded turns were supplied for these conversations.</p>

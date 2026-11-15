@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { build } from 'esbuild';
 import test from 'node:test';
 import type { ApplicationView } from '../src/core/application.ts';
+import type { ApplicationSourceView } from '../src/core/application-source.ts';
 import type { DashboardState } from '../src/core/types.ts';
 import type { ConnectionProfilesView } from '../src/core/connection-profiles.ts';
 import { compileGraph } from 'footprintjs-iac/graph';
@@ -131,4 +132,24 @@ test('application resource captions reflect blocked setup and pending review wit
   assert.match(active, /class="simple-stage phase-starting"[^]*?<h2 aria-live="polite">Running your code<\/h2>/);
   const simulator = dashboard({ revision: 1, mode: 'simulator', busy: false, graph });
   assert.match(simulator, /<h2 aria-live="polite">Ready to build<\/h2>/); assert.match(simulator, />Build system<\/button>/);
+});
+
+test('source preparation is visible without a second deployment button and Details retains the full recorded version', () => {
+  const view: ApplicationView = { ...application(), selection: { strategyId: 'cluster', targetId: 'lab' }, phase: 'inspect', busy: true };
+  const source: ApplicationSourceView = { version: 1, id: 'source', label: 'Application code', providerId: 'git-source', binding: view.selection!,
+    definitionDigest: 'a'.repeat(64), recipeDigest: 'b'.repeat(64), configurationDigest: 'c'.repeat(64), repository: 'https://github.com/company/application.git', ref: 'main', status: 'running',
+    commit: 'd'.repeat(40), tree: 'e'.repeat(40), stages: [
+      { id: 'resolve', label: 'Native resolution', status: 'passed' }, { id: 'fetch', label: 'Native acquisition', status: 'passed' },
+      { id: 'build', label: 'Native build', status: 'running' }, { id: 'publish', label: 'Native publication', status: 'pending' },
+    ] };
+  const current = { ...state(view), source };
+  const html = renderToStaticMarkup(createElement(components.ApplicationSetupPanel, { state: current, posting: false, onAction: noop }));
+  assert.match(html, /Preparing application code/); assert.match(html, /Code preparation progress/);
+  assert.match(html, /Choose version: passed/); assert.match(html, /Get code: passed/); assert.match(html, /Build package: running/); assert.match(html, /Store package: pending/);
+  assert.doesNotMatch(html, /Deploy from GitHub|>Deploy<\/button>|Exact commit|dddddddddddddddddddddddddddddddddddddddd/);
+  const details = renderToStaticMarkup(createElement(components.ApplicationSetupDetails, { state: current }));
+  assert.match(details, /Recorded source input/); assert.match(details, /dddddddddddddddddddddddddddddddddddddddd/); assert.match(details, /Not confirmed/);
+  source.status = 'incomplete';
+  const uncertain = renderToStaticMarkup(createElement(components.ApplicationSetupPanel, { state: current, posting: false, onAction: noop }));
+  assert.match(uncertain, /Code result not confirmed/); assert.match(uncertain, /Build package: unknown/); assert.doesNotMatch(uncertain, /Build package: running/);
 });

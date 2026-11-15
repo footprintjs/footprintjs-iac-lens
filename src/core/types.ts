@@ -13,6 +13,7 @@ import type { MigrationView } from './migration.ts';
 import type { PipelineView } from './pipeline.ts';
 import type { DeliveryView } from './delivery.ts';
 import type { ApplicationView } from './application.ts';
+import type { ApplicationSourceView } from './application-source.ts';
 import type { AgentPlatformView } from './agent-platform.ts';
 
 export type ResourceStatus = 'pending' | 'deploying' | 'ready' | 'failed' | 'skipped' | 'deleted';
@@ -117,6 +118,7 @@ export interface DashboardState {
   agentPlatformAvailable?: boolean;
   agentPlatform?: AgentPlatformView;
   application?: ApplicationView;
+  source?: ApplicationSourceView;
   revision: number;
   graph: InfraGraph | null;
   design?: SystemDesign;

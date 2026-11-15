@@ -9,6 +9,8 @@ It separates infrastructure, execution-environment readiness and actual agent
 turns, using native FootPrint evidence. Apps register real agents through a
 trusted lazy host; `/react/agents` is an independent optional UI adapter. Neo's
 skills remain subflows of its one logical triage agent.
+Its lazy [component view](docs/agent-components.md) adds real runtime boundaries,
+shared memory/storage roles, measured connection edges and native outline progress.
 
 ## Run directly
 

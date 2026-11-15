@@ -5,6 +5,7 @@ import { applicationId, applicationText, readApplicationAction, readApplicationD
 import type { ConnectionProfileSummary } from '../core/connection-profiles.ts';
 import type { ApplicationHost, ApplicationHostSnapshot, ApplicationPublication } from './application-host.ts';
 import { readApplicationPublication } from './application-publication.ts';
+import { applicationSourceIdentity, applicationSourceMatches, type ApplicationSourceView } from '../core/application-source.ts';
 
 export class ApplicationRequestError extends Error {
   readonly status: number;
@@ -30,6 +31,8 @@ export class ApplicationReview {
   private review?: ReviewResult;
   private deployment?: ApplicationDeployment;
   private reviewSelection?: ApplicationSelection;
+  private source?: ApplicationSourceView;
+  private reviewSource = '';
   private pending = false;
   private uncertain = false;
   private phase: ApplicationPhase = 'choose';
@@ -63,7 +66,7 @@ export class ApplicationReview {
       phase: this.phase, busy: this.pending, canInspect: !this.pending && ready,
       canReview: !this.pending && !this.uncertain && ready && inspection && !this.deployment,
       canDeploy: !this.pending && !this.uncertain && ready && inspection && !!this.review?.ok && !this.deployment
-        && !this.consumedReviews.has(this.review.reviewId!) && same(this.selection, this.reviewSelection),
+        && !this.consumedReviews.has(this.review.reviewId!) && same(this.selection, this.reviewSelection) && this.reviewSource === applicationSourceIdentity(this.source),
       ...(this.inspection ? { inspection: this.inspection } : {}), ...(this.review ? { review: this.review } : {}),
       ...(this.deployment ? { deployment: this.deployment } : {}), ...(this.error ? { error: this.error } : {}) });
   }
@@ -78,7 +81,7 @@ export class ApplicationReview {
     if (action.action === 'deploy' && this.consumedReviews.size >= 256) throw new ApplicationRequestError(409, 'This viewer has reached its deployment history limit');
     this.pending = true; this.error = undefined;
     const generation = ++this.generation;
-    if (action.action === 'inspect') { this.inspection = undefined; this.review = undefined; this.reviewSelection = undefined; this.deployment = undefined; this.phase = 'inspect'; }
+    if (action.action === 'inspect') { this.inspection = undefined; this.review = undefined; this.reviewSelection = undefined; this.deployment = undefined; this.source = undefined; this.phase = 'inspect'; this.notify({ source: undefined }); }
     if (action.action === 'review') { this.review = undefined; this.reviewSelection = undefined; this.deployment = undefined; this.phase = 'review'; }
     if (action.action === 'deploy') { this.consumedReviews.add(action.reviewId); this.reviewSelection = undefined; this.inspection = undefined; this.phase = 'deploy'; }
     this.notify();
@@ -93,7 +96,8 @@ export class ApplicationReview {
     const profile = this.profiles().find(profile => profile.id === this.selection!.profileId);
     return !!profile && (!target.profileAdapterIds || target.profileAdapterIds.includes(profile.adapterId));
   }
-  private inspectionReady(): boolean { return !!this.inspection?.ok && !!this.target() && passes(this.inspection.checks, this.target()!.requiredInspectionCheckIds); }
+  private sourceReady(): boolean { return this.source ? applicationSourceMatches(this.source, this.selection) && this.source.status === 'ready' : this.target()?.requiresSource !== true; }
+  private inspectionReady(): boolean { return !!this.inspection?.ok && !!this.target() && this.sourceReady() && passes(this.inspection.checks, this.target()!.requiredInspectionCheckIds); }
   private select(action: Extract<ApplicationAction, { action: 'select' }>): void {
     const { action: _action, ...selection } = action;
     const target = this.target(selection);
@@ -106,15 +110,20 @@ export class ApplicationReview {
     if (same(this.selection, selection)) return;
     this.selection = structuredClone(selection); this.inspection = undefined; this.review = undefined; this.reviewSelection = undefined;
     this.deployment = undefined; this.error = undefined; this.phase = 'choose';
+    this.source = undefined; this.reviewSource = '';
     this.notify({ graph: null, design: undefined, binding: undefined, schedulePreview: undefined, run: undefined, recording: undefined,
       connections: undefined, identity: undefined, artifacts: [], systemView: undefined, changeAssessment: undefined, neoUrl: undefined, appAccess: undefined,
-      target: { id: target.id, label: target.label } });
+      target: { id: target.id, label: target.label }, source: undefined });
   }
   private observer(generation: number, operation: ApplicationAction['action']): (publication: ApplicationPublication) => void {
     return publication => {
       if (!this.pending || generation !== this.generation) return;
       try {
         const value = readApplicationPublication(publication);
+        if (Object.hasOwn(value, 'source')) {
+          if (value.source && !applicationSourceMatches(value.source, this.selection)) throw Error('Source selection changed');
+          this.source = value.source;
+        }
         if (value.phase !== undefined && (value.phase !== 'verify' || operation !== 'deploy')) throw Error('Invalid application activity phase');
         if (value.phase === 'verify') this.phase = 'verify';
         const { phase: _phase, ...patch } = value;
@@ -134,14 +143,23 @@ export class ApplicationReview {
         if (!this.inspectionReady()) { this.inspection = { ...this.inspection, ok: false }; this.phase = this.uncertain ? 'incomplete' : 'failed'; }
         else this.phase = this.uncertain ? 'incomplete' : 'review';
       } else if (action.action === 'review') {
+        const sourceIdentity = applicationSourceIdentity(this.source);
         const value = record(await this.host.plan(selection, publish), ['ok', 'reviewId', 'changes', 'publication']);
         const { publication, ...result } = value; this.review = readApplicationReview(result);
         if (publication !== undefined) publish(publication as ApplicationPublication);
-        if (this.review.ok) { this.reviewSelection = selection; this.phase = 'review'; }
+        if (this.review.ok && this.sourceReady() && sourceIdentity === applicationSourceIdentity(this.source)) { this.reviewSelection = selection; this.reviewSource = sourceIdentity; this.phase = 'review'; }
+        else if (this.review.ok) { this.reviewSelection = undefined; this.review = undefined; this.phase = 'failed'; throw Error('Source changed during review'); }
         else this.phase = 'failed';
       } else if (action.action === 'deploy') {
+        const sourceIdentity = applicationSourceIdentity(this.source);
         const value = record(await this.host.apply({ ...selection, reviewId: action.reviewId }, publish), ['ok', 'promoted', 'status', 'checks', 'appUrl', 'publication']);
         const { publication, ...result } = value; const deployment = readApplicationDeployment(result);
+        if (publication !== undefined) {
+          const admitted = readApplicationPublication(publication);
+          if (Object.hasOwn(admitted, 'source') && (admitted.source && !applicationSourceMatches(admitted.source, this.selection)
+            || applicationSourceIdentity(admitted.source) !== sourceIdentity)) throw Error('Deployment source changed');
+        }
+        if (!this.sourceReady() || sourceIdentity !== applicationSourceIdentity(this.source) || sourceIdentity !== this.reviewSource) throw Error('Deployment source changed');
         if (deployment.promoted && !passes(deployment.checks, this.target()!.requiredVerificationCheckIds)) throw Error('Required application verification is incomplete');
         this.deployment = deployment;
         if (publication !== undefined) publish(publication as ApplicationPublication);
@@ -150,7 +168,10 @@ export class ApplicationReview {
       }
     } catch {
       if (action.action === 'deploy') { this.uncertain = true; this.phase = 'incomplete'; this.deployment = { ok: false, promoted: false, status: 'incomplete' }; }
-      else if (action.action === 'refresh') { this.uncertain = true; this.phase = 'incomplete'; this.deployment = { ok: false, promoted: false, status: 'incomplete' }; }
+      else if (action.action === 'refresh') {
+        this.uncertain = true; this.phase = 'incomplete'; this.deployment = { ok: false, promoted: false, status: 'incomplete' };
+        if (this.source) { this.source = { ...this.source, status: 'incomplete' }; this.notify({ source: this.source }); }
+      }
       else this.phase = this.uncertain ? 'incomplete' : 'failed';
       this.reviewSelection = undefined;
       this.error = action.action === 'deploy'
@@ -171,14 +192,18 @@ export class ApplicationReview {
     if (deployment?.promoted && (!target || !passes(deployment.checks, target.requiredVerificationCheckIds))) throw Error('Required native application verification is missing');
     const patch = value.publication === undefined ? undefined : readApplicationPublication(value.publication);
     if (patch?.phase !== undefined) throw Error('A retained snapshot cannot be a running operation');
+    const source = patch?.source;
+    if (source && !applicationSourceMatches(source, selected)) throw Error('Retained source selection changed');
+    if (deployment?.promoted && (target?.requiresSource || source) && source?.status !== 'ready') throw Error('Retained source proof is missing');
     this.selection = selected; this.inspection = inspection; this.review = review; this.deployment = deployment;
+    this.source = source; this.reviewSource = applicationSourceIdentity(source);
     if (value.incomplete === true || this.deployment?.status === 'incomplete') this.uncertain = true;
     else if (value.incomplete === false) this.uncertain = false;
     if (this.uncertain && this.deployment?.promoted) this.deployment = { ok: false, promoted: false, status: 'incomplete' };
     this.reviewSelection = !this.uncertain && this.inspectionReady() && this.review?.ok && !this.deployment
       && !this.consumedReviews.has(this.review.reviewId!) ? this.selection : undefined;
     this.phase = this.uncertain ? 'incomplete' : this.deployment ? this.deployment.promoted ? 'ready' : 'failed' : this.review?.ok || this.inspectionReady() ? 'review' : 'choose';
-    if (patch) this.notify(structuredClone(patch));
+    this.notify({ ...structuredClone(patch), source });
   }
   private notify(publication?: ApplicationPublication): void {
     try { this.publish(this.snapshot(), publication); }

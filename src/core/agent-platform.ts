@@ -1,3 +1,4 @@
+import type { AgentComponentGraphView } from './agent-components.ts';
 /** Framework-neutral presentation of explicitly admitted agent observations. */
 export type AgentStatus = 'pending' | 'running' | 'ready' | 'failed' | 'paused' | 'incomplete' | 'unknown' | 'unsupported';
 export interface AgentRecordingRef {
@@ -27,11 +28,11 @@ export interface AgentConversationView {
 }
 export interface AgentView {
   id: string; label: string; description?: string; revisionId?: string; revisionLabel?: string;
-  binding?: { graphDigest: string; targetId: string };
+  binding?: { graphDigest: string; targetId: string; sourceDigest?: string };
   status: AgentStatus; resourceIds: readonly string[];
   layers: readonly AgentLayerView[]; capabilities: readonly AgentCapabilityView[];
   conversations: readonly AgentConversationView[]; limitations: readonly string[];
-  canCheck: boolean;
+  canCheck: boolean; components?: AgentComponentGraphView;
 }
 export interface AgentPlatformView {
   version: 1; id: string; label: string; busy: boolean; agents: readonly AgentView[];

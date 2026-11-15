@@ -5,6 +5,7 @@ import { applicationAppUrl, applicationHeadline, applicationNextAction, applicat
 import { ConnectionProfilesControl, type ConnectionProfileHandler } from './ConnectionProfilesControl.tsx';
 import { DetailsPanel } from './DetailsPanel.tsx';
 import { Icon } from './Icon.tsx';
+import { ApplicationSourceDetails, ApplicationSourceProgress } from './ApplicationSourceProgress.tsx';
 import './application-setup.css';
 
 const EvidenceView = lazy(() => import('./EvidenceView.tsx'));
@@ -25,6 +26,7 @@ export function ApplicationSetupDetails({ state }: { state: DashboardState }) {
       {view.deployment && <div><dt>Last deployment result</dt><dd>{view.deployment.status}</dd></div>}
     </dl>
     {view.description && <p>{view.description}</p>}
+    {state.source && <ApplicationSourceDetails source={state.source}/>}
     {view.inspection && <section><h3>Setup checks</h3><CheckResults checks={view.inspection.checks}/></section>}
     {view.review && <section><h3>Reviewed changes</h3>{view.review.changes.length ? <table><thead><tr><th>Resource</th><th>Action</th></tr></thead><tbody>{view.review.changes.map(change => <tr key={change.resourceId}><td>{change.label}<small>{change.resourceId}</small></td><td>{changeLabels[change.action]}</td></tr>)}</tbody></table> : <p>No resource changes were reported.</p>}</section>}
     {view.deployment?.checks && <section><h3>Application verification</h3><CheckResults checks={view.deployment.checks}/></section>}
@@ -80,6 +82,7 @@ export function ApplicationSetupPanel({ state, posting, onAction, onProfileActio
       </header>
       <ol className="application-setup-steps" aria-label="Setup progress">{applicationSetupSteps(view).map((step, index) => <li key={step.id} className={'application-step-' + (showOutcome || step.id === 'choose' ? step.status : 'pending')} aria-label={step.label + ': ' + (showOutcome || step.id === 'choose' ? step.status : 'pending')}>
         <span>{step.status === 'passed' && current ? <Icon name="check" size={12}/> : index + 1}</span><strong>{step.label}</strong></li>)}</ol>
+      {current && state.source && <ApplicationSourceProgress source={state.source}/>}
       {compactSelection ? <div className="application-selected-summary"><span>{strategy?.label}</span><span>{target?.label}</span>{profileId && <span>{profiles?.profiles.find(profile => profile.id === profileId)?.label ?? 'Saved connection'}</span>}
         <button type="button" disabled={selectionDisabled} onClick={() => setEditing(true)}>Change setup</button></div> : <><div className="application-setup-fields"><label>Run on<select aria-label="Deployment strategy" value={strategyId} disabled={selectionDisabled} onChange={event => {
         const selected = view.strategies.find(item => item.id === event.target.value);

@@ -1,6 +1,7 @@
 import { readReleaseAutomationAction,readReleaseAutomationView,type ReleaseAutomationAction } from './release-automation.ts';
 import { readChangeAssessmentView } from './change-assessment.ts';
 import { readApplicationAction, readApplicationView, type ApplicationAction } from './application.ts';
+import { applicationSourceMatches, readApplicationSourceView } from './application-source.ts';
 import { readAgentPlatformAction, readAgentPlatformView } from './agent-platform-read.ts';
 import type { AgentPlatformAction } from './agent-platform.ts';
 import type { DashboardState, Scenario } from './types.ts';
@@ -49,6 +50,12 @@ export function readDashboardState(value: unknown): DashboardState {
   }
   if (state.systemView !== undefined) readSystemViewDefinition(state.systemView);
   if (state.application !== undefined) state.application = readApplicationView(state.application);
+  if (state.source !== undefined) {
+    state.source = readApplicationSourceView(state.source);
+    if (!applicationSourceMatches(state.source, state.application?.selection)) throw Error('Application source belongs to a different selection');
+  }
+  const applicationTarget = state.application?.strategies.find(strategy => strategy.id === state.application?.selection?.strategyId)?.targets.find(target => target.id === state.application?.selection?.targetId);
+  if (state.application?.phase === 'ready' && (applicationTarget?.requiresSource || state.source) && state.source?.status !== 'ready') throw Error('Application source readiness is unconfirmed');
   if (state.agentPlatformAvailable !== undefined && typeof state.agentPlatformAvailable !== 'boolean') throw Error('Invalid agent feature availability');
   if (state.agentPlatform !== undefined) state.agentPlatform = readAgentPlatformView(state.agentPlatform);
   if (state.revisionReview !== undefined) readRevisionReview(state.revisionReview);

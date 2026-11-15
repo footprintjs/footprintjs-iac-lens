@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { system, bindSystem, simulationProfile } from 'footprintjs-iac';
+import { projectAgentPlatformView } from '../src/core/agent-platform-project.ts';
 import { AgentPlatformReview } from '../src/server/agent-platform-review.ts';
 import type { AgentPlatformView } from '../src/core/agent-platform.ts';
 import type { AgentPlatformContext, AgentPlatformHost, PublishAgentPlatform } from '../src/server/agent-platform-host.ts';
@@ -94,4 +95,62 @@ test('uncertainty is scoped to the checked revision and a new admitted revision 
   await review.action({ action: 'check', agentId: 'neo' }); await review.whenIdle();
   current = view('ready', 'c'.repeat(64)); await review.action({ action: 'refresh' });
   await review.action({ action: 'check', agentId: 'neo' }); await review.whenIdle(); assert.equal(checks, 2); review.dispose();
+});
+
+function componentView(optional: 'pending' | 'running' | 'paused' | 'incomplete' | 'unknown' | 'failed' = 'pending', initial = false): AgentPlatformView {
+  const result = view(initial ? 'unknown' : 'ready'), agent = result.agents[0]!;
+  if (initial) { agent.layers[1]!.status = 'pending'; agent.layers[2]!.status = 'pending'; delete agent.layers[2]!.recording; }
+  const childProof = { id: 'worker-proof', kind: 'readiness' as const, runId: 'worker-native', source: 'native' as const, complete: true };
+  const phases = ['acquire', 'details', 'connect', 'verify'];
+  agent.components = { version: 1, id: 'components', label: 'Components', digest: 'd'.repeat(64), binding: { graphDigest: digest, deploymentDigest: 'e'.repeat(64), revisionDigest: revision, targetId: 'local' },
+    nodes: [{ id: 'worker', label: 'Worker', kind: 'execution', roles: ['worker'], required: true, selected: true, boundaryId: 'runtime', status: initial ? 'pending' : 'ready',
+      progress: { completed: initial ? 0 : 4, total: 4, unit: 'stages', indeterminate: false }, stages: phases.map(id => ({ id, label: id, status: initial ? 'pending' : 'ready' })), ...initial ? {} : { recording: childProof } },
+    { id: 'optional', label: 'Optional capability', kind: 'connection', roles: ['optional'], required: false, selected: true, status: initial ? 'pending' : optional,
+      progress: { completed: 0, total: 4, unit: 'stages', indeterminate: optional === 'incomplete' }, stages: phases.map((id, index) => ({ id, label: id, status: !initial && optional === 'failed' && index === 0 ? 'failed' : 'pending' })),
+      ...!initial && optional === 'failed' ? { recording: { ...childProof, id: 'optional-failure', runId: 'optional-native' } } : {} }],
+    boundaries: [{ id: 'runtime', label: 'Runtime', kind: 'service', identityComponentId: 'worker', observed: !initial, status: initial ? 'pending' : 'ready',
+      progress: { completed: initial ? 0 : 4, total: 4, unit: 'stages', indeterminate: false }, ...initial ? {} : { recording: childProof } }],
+    relations: [], limitations: [], ...initial ? {} : { recording: { ...childProof, id: 'parent-proof', runId: 'parent-native' } } };
+  return result;
+}
+
+test('a pending component registration remains checkable and a known optional failure remains settled', async () => {
+  let checks = 0;
+  const host: AgentPlatformHost = { version: 1, id: 'agents', label: 'Agents', async snapshot() { return componentView('pending', true); }, async check() { checks++; return componentView('failed'); } };
+  const review = new AgentPlatformReview(host, context, () => {}); await review.initialize();
+  await review.action({ action: 'check', agentId: 'neo' }); await review.whenIdle();
+  await review.action({ action: 'check', agentId: 'neo' }); await review.whenIdle(); assert.equal(checks, 2); review.dispose();
+});
+
+test('an unfinished selected optional invocation cannot settle or authorize a second check', async () => {
+  for (const optional of ['running', 'paused', 'incomplete', 'unknown'] as const) {
+    let checks = 0;
+    const host: AgentPlatformHost = { version: 1, id: 'agents', label: 'Agents', async snapshot() { return componentView('pending', true); }, async check() { checks++; return componentView(optional); } };
+    let observed: AgentPlatformView | undefined;
+    const review = new AgentPlatformReview(host, context, value => { observed = value; }); await review.initialize();
+    await review.action({ action: 'check', agentId: 'neo' }); await review.whenIdle();
+    assert.equal(observed?.agents[0]?.layers[2]?.status, 'incomplete', optional);
+    await assert.rejects(review.action({ action: 'check', agentId: 'neo' }), /unavailable|confirmed/i); assert.equal(checks, 1, optional); review.dispose();
+  }
+});
+
+test('retained optional unfinished work is not authorized by a permissive host flag', async () => {
+  for (const optional of ['running', 'paused', 'incomplete', 'unknown'] as const) {
+    let checks = 0;
+    const host: AgentPlatformHost = { version: 1, id: 'agents', label: 'Agents', async snapshot() { return componentView(optional); }, async check() { checks++; return componentView('failed'); } };
+    const review = new AgentPlatformReview(host, context, () => {}); await review.initialize();
+    await assert.rejects(review.action({ action: 'check', agentId: 'neo' }), /unavailable|confirmed/i); assert.equal(checks, 0, optional); review.dispose();
+  }
+});
+
+test('missing or incomplete component parent proof blocks retained success and failure before another effect', async () => {
+  for (const complete of [undefined, false]) for (const outcome of ['ready', 'failed'] as const) {
+    let checks = 0; const retained = componentView('failed'); retained.agents[0]!.layers[2]!.status = outcome;
+    if (complete === undefined) delete retained.agents[0]!.components!.recording; else retained.agents[0]!.components!.recording!.complete = complete;
+    assert.equal(projectAgentPlatformView(retained, context()).agents[0]?.status, 'incomplete');
+    assert.equal(projectAgentPlatformView(retained, context()).agents[0]?.canCheck, false);
+    const host: AgentPlatformHost = { version: 1, id: 'agents', label: 'Agents', async snapshot() { return retained; }, async check() { checks++; return componentView('failed'); } };
+    const review = new AgentPlatformReview(host, context, () => {}); await review.initialize();
+    await assert.rejects(review.action({ action: 'check', agentId: 'neo' }), /unavailable|confirmed/i); assert.equal(checks, 0, outcome); review.dispose();
+  }
 });

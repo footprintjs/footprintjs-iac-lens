@@ -68,3 +68,7 @@ Neo's consumer bridge is documented in its `infra/agent-platform/README.md`.
 It registers one logical triage agent, preserves its native skills/subflows,
 and observes actual authenticated AG-UI runs. A local scripted model/seeded-data
 test must retain that provenance; it does not establish production readiness.
+
+The [component graph guide](agent-components.md) describes native per-component
+workflows, shared memory/storage roles, real platform boundaries and outline
+progress. The component scene is an additional lazy chunk inside Agents.

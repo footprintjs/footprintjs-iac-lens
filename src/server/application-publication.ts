@@ -2,6 +2,7 @@ import { validateInfraGraph } from 'footprintjs-iac/graph';
 import { readSystemDesign } from 'footprintjs-iac/system';
 import { readDeploymentChart, readDeploymentSchedulePreview } from 'footprintjs-iac/progress';
 import { applicationText, applicationUrl } from '../core/application.ts';
+import { readApplicationSourceView } from '../core/application-source.ts';
 import { readDashboardState } from '../core/client.ts';
 import { readSystemViewDefinition } from '../core/capabilities.ts';
 import { readChangeAssessmentView } from '../core/change-assessment.ts';
@@ -9,7 +10,7 @@ import { projectNativeDeploymentChart } from '../core/native-deployment-chart.ts
 import type { DashboardState } from '../core/types.ts';
 import type { ApplicationPublication } from './application-host.ts';
 
-const fields = ['graph', 'design', 'binding', 'schedulePreview', 'run', 'recording', 'connections', 'identity', 'artifacts', 'target', 'systemView', 'changeAssessment', 'neoUrl', 'appAccess', 'phase'];
+const fields = ['graph', 'design', 'binding', 'schedulePreview', 'run', 'recording', 'connections', 'identity', 'artifacts', 'target', 'systemView', 'changeAssessment', 'neoUrl', 'appAccess', 'source', 'phase'];
 function fail(): never { throw Error('Invalid application publication'); }
 function object(input: unknown, allowed?: readonly string[]): Record<string, any> {
   if (!input || typeof input !== 'object' || Array.isArray(input) || ![Object.prototype, null].includes(Object.getPrototypeOf(input))) fail();
@@ -166,6 +167,7 @@ function measured(observation: Record<string, any>): void {
 export function readApplicationPublication(input: unknown, current?: DashboardState): ApplicationPublication {
   const row = object(copy(input), fields);
   if (row.phase !== undefined && row.phase !== 'verify') fail();
+  if (row.source !== undefined) row.source = readApplicationSourceView(row.source);
   if (row.graph !== undefined && row.graph !== null) row.graph = validateInfraGraph(row.graph);
   if (row.design !== undefined) row.design = readSystemDesign(row.design);
   if (row.binding !== undefined) binding(row.binding);
