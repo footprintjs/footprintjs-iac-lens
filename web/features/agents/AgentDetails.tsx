@@ -8,7 +8,7 @@ const EvidenceView = lazy(() => import('../../components/EvidenceView.tsx'));
 const capabilityNames = { supported: 'Confirmed', unsupported: 'Not supported', unknown: 'Not confirmed' };
 
 export function RecordingSummary({ reference }: { reference?: AgentRecordingRef }) {
-  return reference ? <dl><div><dt>Native run</dt><dd><code>{reference.runId}</code></dd></div>
+  return reference ? <dl><div><dt>{reference.kind === 'deployment' ? 'Deployment run' : 'Native run'}</dt><dd><code>{reference.runId}</code></dd></div>
     <div><dt>Recording</dt><dd>{reference.complete ? 'Complete' : 'Incomplete'}</dd></div>
     <div><dt>Kind</dt><dd>{reference.kind}</dd></div><div><dt>Evidence reference</dt><dd><code>{reference.id}</code></dd></div></dl>
     : <p>No native recording was supplied for this layer.</p>;

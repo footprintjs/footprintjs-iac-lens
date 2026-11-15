@@ -49,7 +49,7 @@ function stage(input: unknown): AgentStageView {
   const value = row(input, ['id', 'label', 'status', 'runtimeStageId', 'kind', 'sequence']);
   if (value.kind !== undefined && !['stage', 'decision', 'tool', 'model'].includes(value.kind)) fail();
   if (value.sequence !== undefined && (!Number.isSafeInteger(value.sequence) || value.sequence < 1)) fail();
-  return { id: id(value.id), label: text(value.label, 160), status: status(value.status), ...optionalText(value.runtimeStageId, 'runtimeStageId', 512),
+  return { id: text(value.id, 512), label: text(value.label, 160), status: status(value.status), ...optionalText(value.runtimeStageId, 'runtimeStageId', 512),
     ...(value.kind === undefined ? {} : { kind: value.kind }), ...(value.sequence === undefined ? {} : { sequence: value.sequence }) };
 }
 function turn(input: unknown, budget: ReadBudget): AgentTurnView {

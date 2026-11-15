@@ -84,3 +84,12 @@ test('agent observations bound total stages before mapping oversized histories',
   sample.agents[0]!.conversations = [{ id: 'conversation', status: 'unknown', turns: Array.from({ length: 5 }, (_, i) => ({ id: 'turn-' + i, status: 'unknown' as const, stages })) }];
   assert.throws(() => readAgentPlatformView(sample));
 });
+
+test('native runtime stage identities retain visit numbers and nested drill paths', () => {
+  const sample = view();
+  sample.agents[0]!.conversations = [{ id: 'conversation', status: 'running', turns: [{ id: 'turn', status: 'running', stages: [
+    { id: 'final/prepare-final#103', runtimeStageId: 'final/prepare-final#103', label: 'Recorded stage', status: 'running', sequence: 171 },
+  ] }] }];
+  assert.deepEqual(readAgentPlatformView(sample).agents[0]?.conversations[0]?.turns[0]?.stages, sample.agents[0]?.conversations[0]?.turns[0]?.stages);
+  assert.throws(() => readAgentPlatformAction({ action: 'check', agentId: 'foreign/agent#103' }));
+});
