@@ -22,3 +22,7 @@ export * from './migration.ts';
 export * from './migration-project.ts';
 export * from './change-assessment.ts';
 export * from './release-automation.ts';
+export * from './application.ts';
+export * from './agent-platform.ts';
+export { readAgentPlatformView, readAgentPlatformAction } from './agent-platform-read.ts';
+export { projectAgentPlatformView } from './agent-platform-project.ts';

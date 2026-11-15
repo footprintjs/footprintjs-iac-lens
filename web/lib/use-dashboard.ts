@@ -1,6 +1,6 @@
 import type {ReleaseAutomationAction} from '../../src/core/release-automation.ts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createDashboardClient } from '../../src/core/client.ts';
+import { createDashboardClient, newerState } from '../../src/core/client.ts';
 import type { DashboardState, Scenario } from '../../src/core/types.ts';
 import type { ResourceFlowAction } from '../../src/core/resource-flow.ts';
 import type { ConnectionProfileAction } from '../../src/core/connection-profiles.ts';
@@ -8,11 +8,14 @@ import type { HostActionInput } from '../../src/core/host-actions.ts';
 import type { MigrationAction } from '../../src/core/migration.ts';
 import type { PipelineAction } from '../../src/core/pipeline.ts';
 import type { DeliveryAction } from '../../src/core/delivery.ts';
+import type { ApplicationAction } from '../../src/core/application.ts';
+import type { AgentPlatformAction } from '../../src/core/agent-platform.ts';
 
 export function useDashboard(baseUrl = '') {
   const [state, setState] = useState<DashboardState>();
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string>();
+  const [agentError, setAgentError] = useState<string>();
   const [posting, setPosting] = useState(false);
   const client = useMemo(() => createDashboardClient({ baseUrl, openStream(url, callbacks) {
     const stream = new EventSource(url);
@@ -22,7 +25,7 @@ export function useDashboard(baseUrl = '') {
     return () => stream.close();
   } }), [baseUrl]);
   useEffect(() => {
-    setState(undefined); setConnected(false);
+    setState(undefined); setConnected(false); setAgentError(undefined);
     return client.subscribe({ state: setState, connected: setConnected, error: error => setError(error.message) });
   }, [client]);
   const run = useCallback(async (scenario: Scenario, reviewId?: string) => {
@@ -62,5 +65,22 @@ export function useDashboard(baseUrl = '') {
   },[client]);
   const migration=useCallback(async(input:MigrationAction)=>{setPosting(true);setError(undefined);try{await client.migration(input);}catch(cause){setError(cause instanceof Error?cause.message:'The migration action was refused.');}finally{setPosting(false);}},[client]);
   const releaseAutomation=useCallback(async(input:ReleaseAutomationAction)=>{setPosting(true);setError(undefined);try{await client.releaseAutomation(input);}catch(cause){setError(cause instanceof Error?cause.message:'Release action refused.');}finally{setPosting(false);}},[client]);
-  return { releaseAutomation, state, connected, error, posting, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, dismissError: () => setError(undefined) };
+  const application = useCallback(async (input: ApplicationAction) => {
+    setPosting(true); setError(undefined);
+    try { await client.application(input); }
+    catch { setError('The setup action could not complete. Check its recorded result and current connection.'); }
+    finally { setPosting(false); }
+  }, [client]);
+  const agentPlatform = useCallback(async (input: AgentPlatformAction) => {
+    setPosting(true); setAgentError(undefined);
+    try {
+      await client.agentPlatform(input);
+      // The first explicit open can race the initial stream connection. Read its
+      // admitted result without allowing a delayed snapshot to replace live facts.
+      const next = await client.getState();
+      setState(current => newerState(current, next));
+    } catch { setAgentError('The agent action could not complete. Check its recorded result and current connection.'); }
+    finally { setPosting(false); }
+  }, [client]);
+  return { agentPlatform, agentError, application, releaseAutomation, state, connected, error, posting, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, dismissError: () => setError(undefined), dismissAgentError: () => setAgentError(undefined) };
 }

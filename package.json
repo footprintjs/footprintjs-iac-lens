@@ -1,6 +1,6 @@
 {
   "name": "footprintjs-iac-lens",
-  "version": "0.2.0-alpha.1",
+  "version": "0.2.0-alpha.2",
   "type": "module",
   "description": "InfraChart Lens: live infrastructure views and native FootPrintJS execution evidence",
   "engines": {
@@ -66,6 +66,11 @@
       "import": "./dist/react/index.js"
     },
     "./react/style.css": "./dist/react/index.css",
+    "./react/agents": {
+      "types": "./dist/modules/src/react/agents.d.ts",
+      "import": "./dist/react/agents.js"
+    },
+    "./react/agents/style.css": "./dist/react/agents.css",
     "./server": {
       "types": "./dist/modules/src/server/index.d.ts",
       "import": "./dist/modules/src/server/index.js"
@@ -74,9 +79,11 @@
   "files": [
     "dist",
     "README.md",
+    "docs/application-host.md",
     "AGENTS.md",
     "LICENSE",
-    "THIRD_PARTY_NOTICES"
+    "THIRD_PARTY_NOTICES",
+    "docs/agent-platform.md"
   ],
   "publishConfig": {
     "access": "public",

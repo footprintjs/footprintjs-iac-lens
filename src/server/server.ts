@@ -11,6 +11,8 @@ import { readHostActionRequest } from './host-action-request.ts';
 import { readMigrationRequest } from './migration-request.ts';
 import { readPipelineRequest } from './pipeline-request.ts';
 import { readDeliveryRequest } from './delivery-request.ts';
+import { readApplicationRequest } from './application-request.ts';
+import { readAgentPlatformRequest } from './agent-platform-request.ts';
 
 export interface DashboardOptions extends ControllerOptions { staticDirectory: string; port?: number }
 
@@ -31,6 +33,14 @@ export async function startDashboard(options: DashboardOptions): Promise<{
         if (streams.size >= 32) throw new RequestError(429, 'Too many viewer connections');
         const stop = streamState(response, controller); streams.set(response, stop);
         response.on('close', () => { stop(); streams.delete(response); }); return;
+      }
+      if (request.method === 'POST' && path === '/api/application') {
+        controller.applicationAction(await readApplicationRequest(request));
+        return json(response, 202, { accepted: true });
+      }
+      if (request.method === 'POST' && path === '/api/agent-platform') {
+        await controller.agentPlatformAction(await readAgentPlatformRequest(request));
+        return json(response, 202, { accepted: true });
       }
       if (request.method === 'POST' && path === '/api/run') {
         const body = await readRunRequest(request);

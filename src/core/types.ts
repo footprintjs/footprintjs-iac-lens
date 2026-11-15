@@ -12,10 +12,14 @@ import type { HostActionsView } from './host-actions.ts';
 import type { MigrationView } from './migration.ts';
 import type { PipelineView } from './pipeline.ts';
 import type { DeliveryView } from './delivery.ts';
+import type { ApplicationView } from './application.ts';
+import type { AgentPlatformView } from './agent-platform.ts';
 
 export type ResourceStatus = 'pending' | 'deploying' | 'ready' | 'failed' | 'skipped' | 'deleted';
 export interface ResourceProgress {
   id: string;
+  /** Retained when this row comes directly from the native deployment recorder. */
+  version?: 1; runId?: string; sequence?: number;
   resourceId?: string;
   status: ResourceStatus;
   action?: string;
@@ -24,6 +28,7 @@ export interface ResourceProgress {
   runtimeStageId?: string;
 }
 export interface ProgressEvent {
+  version?: 1; runId?: string;
   resourceId?: string;
   status?: ResourceStatus;
   action?: string;
@@ -109,6 +114,9 @@ export interface OutputArtifact {
   sha256?: string;
 }
 export interface DashboardState {
+  agentPlatformAvailable?: boolean;
+  agentPlatform?: AgentPlatformView;
+  application?: ApplicationView;
   revision: number;
   graph: InfraGraph | null;
   design?: SystemDesign;

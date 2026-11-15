@@ -10,3 +10,6 @@ export type { DeliveryReviewOptions, DeliveryPublication } from './delivery.ts';
 export type { PipelineReviewOptions, PreparedPipeline } from './pipeline.ts';
 export type { MigrationReviewOptions,PreparedMigration } from './migration.ts';
 export type { ReleaseAutomationReviewOptions } from './release-automation.ts';
+export type { ApplicationHost, ApplicationHostContext, ApplicationHostSnapshot, ApplicationPublication, PublishApplication, CreateApplicationHost } from './application-host.ts';
+export { loadApplicationHost } from './load-application-host.ts';
+export type { AgentPlatformHost, AgentPlatformHostProvider, AgentPlatformContext, PublishAgentPlatform } from './agent-platform-host.ts';

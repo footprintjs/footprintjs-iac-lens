@@ -1,5 +1,8 @@
 import { readReleaseAutomationAction,readReleaseAutomationView,type ReleaseAutomationAction } from './release-automation.ts';
 import { readChangeAssessmentView } from './change-assessment.ts';
+import { readApplicationAction, readApplicationView, type ApplicationAction } from './application.ts';
+import { readAgentPlatformAction, readAgentPlatformView } from './agent-platform-read.ts';
+import type { AgentPlatformAction } from './agent-platform.ts';
 import type { DashboardState, Scenario } from './types.ts';
 import { readSystemViewDefinition } from './capabilities.ts';
 import { projectDeploymentSchedulePreview } from './native-deployment-chart.ts';
@@ -45,6 +48,9 @@ export function readDashboardState(value: unknown): DashboardState {
       ||Object.getOwnPropertySymbols(target).length||Object.entries(Object.getOwnPropertyDescriptors(target)).some(([key,value])=>!['id','context','namespace','label'].includes(key)||!value.enumerable||!('value'in value)||(value.value!==undefined&&(typeof value.value!=='string'||!value.value.trim()||value.value.length>256||/[\x00-\x1f\x7f]/.test(value.value)))))throw Error('Deployment target metadata has an unsupported shape');
   }
   if (state.systemView !== undefined) readSystemViewDefinition(state.systemView);
+  if (state.application !== undefined) state.application = readApplicationView(state.application);
+  if (state.agentPlatformAvailable !== undefined && typeof state.agentPlatformAvailable !== 'boolean') throw Error('Invalid agent feature availability');
+  if (state.agentPlatform !== undefined) state.agentPlatform = readAgentPlatformView(state.agentPlatform);
   if (state.revisionReview !== undefined) readRevisionReview(state.revisionReview);
   if (state.resourceFlow !== undefined) readResourceFlowState(state.resourceFlow);
   if (state.recordedDiagnostics !== undefined) state.recordedDiagnostics = readRecordedDiagnostics(state.recordedDiagnostics);
@@ -145,6 +151,14 @@ export function createDashboardClient(options: { baseUrl?: string; fetch?: JsonF
     const response = await request(endpoint('/api/host-action'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!response.ok) throw Error('The configured action was refused. Check that the workflow has completed and no task is running.');
   }
+  async function application(input: ApplicationAction): Promise<void> {
+    const body = readApplicationAction(input);
+    const response = await request(endpoint('/api/application'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      throw Error(result.error ?? 'The application step was refused. Review the registered target and current recorded status.');
+    }
+  }
   async function delivery(input: DeliveryAction): Promise<void> {
     const body = readDeliveryAction(input);
     const response = await request(endpoint('/api/delivery'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -185,5 +199,10 @@ export function createDashboardClient(options: { baseUrl?: string; fetch?: JsonF
     const response=await request(endpoint('/api/releases'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(!response.ok)throw Error('The release action was refused. Check the registered version and retained deployment.');
   }
-  return { releaseAutomation, getState, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, subscribe };
+  async function agentPlatform(input: AgentPlatformAction): Promise<void> {
+    const body = readAgentPlatformAction(input);
+    const response = await request(endpoint('/api/agent-platform'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!response.ok) throw Error('The agent action was refused. Check its deployment and retained native records.');
+  }
+  return { agentPlatform, application, releaseAutomation, getState, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, subscribe };
 }

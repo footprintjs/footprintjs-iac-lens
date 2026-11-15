@@ -35,6 +35,14 @@ import type { PipelineAction } from '../core/pipeline.ts';
 import { PipelineReview, PipelineRequestError, type PipelineReviewOptions } from './pipeline.ts';
 import type { DeliveryAction } from '../core/delivery.ts';
 import { DeliveryReview, DeliveryRequestError, type DeliveryReviewOptions, type DeliveryPublication } from './delivery.ts';
+import { ApplicationReview, ApplicationRequestError } from './application.ts';
+import type { ApplicationHost } from './application-host.ts';
+import type { ApplicationAction } from '../core/application.ts';
+import { readApplicationPublication } from './application-publication.ts';
+import type { AgentPlatformHostProvider, AgentPlatformContext } from './agent-platform-host.ts';
+import type { AgentPlatformReview } from './agent-platform-review.ts';
+import type { AgentPlatformAction } from '../core/agent-platform.ts';
+import { projectAgentPlatformView } from '../core/agent-platform-project.ts';
 
 const verificationAttention = 'The version was applied. Connection or access checks need attention; recorded results are available.';
 
@@ -43,6 +51,8 @@ export interface InitialReview {
   graph: InfraGraph; run: DashboardRun; target?: DashboardState['target']; neoUrl?: string;
 }
 export interface ControllerOptions {
+  applicationHost?: ApplicationHost;
+  agentPlatform?: AgentPlatformHostProvider;
   directory: string; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number;
   identityReview?: IdentityReviewOptions; initialReview?: InitialReview;
   managedReview?: ManagedReviewOptions; systemView?: SystemViewDefinition;
@@ -80,8 +90,14 @@ export class DashboardController {
   private pipelineReview?: PipelineReview;
   private migrationReview?:MigrationReview;
   private releaseAutomationReview?:ReleaseAutomationReview;
+  private applicationReview?: ApplicationReview;
+  private agentReview?: AgentPlatformReview;
+  private agentActivation?: Promise<void>;
+  private agentBusy = false;
 
   constructor(options: ControllerOptions) {
+    if (options.applicationHost && (options.releaseAutomation || options.migration || options.pipeline || options.delivery || options.resourceFlow
+      || options.revisionWorkflow || options.managedReview || options.neo || options.initialScenario || options.initialReview || options.identityReview || options.connectionReview)) throw Error('Choose one registered application host');
     if(options.releaseAutomation&&(options.pipeline||options.delivery||options.migration||options.resourceFlow||options.revisionWorkflow||options.managedReview||options.neo||options.initialScenario))throw Error('Choose one configured release automation host');
     if(options.migration&&(options.pipeline||options.delivery||options.resourceFlow||options.revisionWorkflow||options.managedReview||options.neo||options.initialScenario))throw Error('Choose one configured migration host and its recorded system');
     if (options.pipeline && (options.delivery || options.resourceFlow || options.revisionWorkflow || options.managedReview || options.neo || options.initialScenario)) throw Error('Choose one configured pipeline host and its recorded system');
@@ -119,7 +135,7 @@ export class DashboardController {
     const neo = options.initialScenario === 'neo' ? options.neo : undefined;
     const initialReview = this.options.initialReview;
     const workspace = options.resourceFlow?.workspace;
-    const graph = workspace?.graph ?? initialReview?.graph ?? managedReview?.graph ?? neo?.binding.graph ?? (options.resourceFlow || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? null : demoGraph());
+    const graph = workspace?.graph ?? initialReview?.graph ?? managedReview?.graph ?? neo?.binding.graph ?? (options.applicationHost || options.resourceFlow || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? null : demoGraph());
     if (options.connectionReview) {
       validateInfraGraph(graph!);
       this.options.connectionReview = readConnectionReview(options.connectionReview, graph!);
@@ -129,7 +145,9 @@ export class DashboardController {
       identityReview.resourceBindings = readIdentityResourceBindings(identityReview, graph!.resources.map(resource => resource.id));
       if (Object.values(identityReview.resourceBindings ?? {}).some(ids => ids.length > 0)) this.identityGraphDigest = graph!.digest;
     }
-    this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? managedReview?.mode ?? (managedReview || options.resourceFlow || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? 'managed' : neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
+    if (options.agentPlatform && options.applicationHost?.agentPlatform) throw Error('Choose one registered agent host');
+    this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? managedReview?.mode ?? (options.applicationHost || managedReview || options.resourceFlow || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? 'managed' : neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
+      ...((options.agentPlatform || options.applicationHost?.agentPlatform) ? { agentPlatformAvailable: true } : {}),
       ...(managedReview ? { managedReviewAvailable: true, managedReviewLabel: managedReview.label ?? 'Configured system deployment' } : {}),
       ...(this.options.connectionReview || workspace ? { connectionReviewAvailable: !!this.options.connectionReview } : {}),
       ...(identityReview || workspace || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? { identityReviewAvailable: !!identityReview } : {}),
@@ -141,7 +159,7 @@ export class DashboardController {
       ...(neo ? { design: neo.design, binding: neo.binding } : {}),
       ...(initialReview?.neoUrl ? { neoUrl: initialReview.neoUrl } : options.neo?.url ? { neoUrl: options.neo.url } : {}),
       target: options.resourceFlow?.target ?? initialReview?.target ?? managedReview?.target ?? (managedReview ? { id: 'managed-review', label: managedReview.label ?? 'Configured local providers' } : neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Fresh local Neo Kubernetes target' }
-        : options.releaseAutomation ? {id:'release-automation',label:'Release deployment'} : options.migration ? {id:options.migration.id,label:options.migration.label} : options.pipeline ? { id: options.pipeline.catalog.id, label: options.pipeline.catalog.label } : options.delivery ? { id: options.delivery.id, label: 'Configured deployment target' } : { id: 'local-simulator', label: 'Local simulator · no cloud resources' }),
+        : options.applicationHost ? { id: options.applicationHost.id, label: options.applicationHost.label } : options.releaseAutomation ? {id:'release-automation',label:'Release deployment'} : options.migration ? {id:options.migration.id,label:options.migration.label} : options.pipeline ? { id: options.pipeline.catalog.id, label: options.pipeline.catalog.label } : options.delivery ? { id: options.delivery.id, label: 'Configured deployment target' } : { id: 'local-simulator', label: 'Local simulator · no cloud resources' }),
       run: options.resourceFlow ? undefined : initialReview?.run ?? (graph ? { id: '', status: 'idle', mode: managedReview?.mode ?? (managedReview ? 'managed' : neo ? 'kubernetes' : 'simulator'), resources: this.pending(graph), events: [] } : undefined),
       connections: graph ? this.pendingConnections(graph) : undefined, ...(identityReview ? { identity: pendingIdentity(identityReview) } : {}), artifacts: [] };
   }
@@ -149,6 +167,23 @@ export class DashboardController {
   async initialize(): Promise<void> {
     await mkdir(this.options.directory, { recursive: true, mode: 0o700 });
     this.state.artifacts = this.state.graph ? [...await graphArtifacts(this.state.graph), ...await cloudFormationExample()] : [];
+    if (this.options.applicationHost) {
+      const host = this.options.applicationHost;
+      if (host.connectionProfiles) {
+        this.connectionProfilesReview = new ConnectionProfilesReview(host.connectionProfiles, false, view => { this.state.connectionProfiles = view; this.publish(); });
+        await this.connectionProfilesReview.initialize();
+      }
+      this.applicationReview = new ApplicationReview(host, (view, publication) => {
+        if (publication) {
+          const patch = readApplicationPublication(publication, this.state);
+          const admitted = readDashboardState({ ...this.state, ...patch, application: view, busy: view.busy || this.agentBusy });
+          if (admitted.graph) validateInfraGraph(admitted.graph);
+          this.state = admitted;
+        } else { this.state.application = view; this.state.busy = view.busy || this.agentBusy; }
+        this.publish();
+      }, () => this.state.connectionProfiles?.profiles ?? []);
+      await this.applicationReview.initialize();
+    }
     if (this.options.resourceFlow?.connectionProfiles) {
       this.connectionProfilesReview = new ConnectionProfilesReview(this.options.resourceFlow.connectionProfiles,
         this.options.resourceFlow.connectionProfileRequiredAtStart ?? this.options.resourceFlow.workflow.requiresProfileAtStart ?? false,
@@ -216,24 +251,71 @@ export class DashboardController {
     await this.diagnosticHistory.initialize(this.state);
     this.publish();
   }
-  getSnapshot(): DashboardState { return structuredClone(this.state); }
+  getSnapshot(): DashboardState {
+    const state = structuredClone(this.state);
+    if (state.agentPlatform) state.agentPlatform = projectAgentPlatformView(state.agentPlatform, state);
+    state.busy ||= this.agentBusy;
+    return state;
+  }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   async whenIdle(): Promise<void> {
-    await Promise.all([this.completion, this.profileCompletion, this.hostActionReview?.whenIdle(), this.deliveryReview?.whenIdle(), this.pipelineReview?.whenIdle(),this.migrationReview?.whenIdle(),this.releaseAutomationReview?.whenIdle()]);
+    await Promise.all([this.completion, this.profileCompletion, this.applicationReview?.whenIdle(), this.hostActionReview?.whenIdle(), this.deliveryReview?.whenIdle(), this.pipelineReview?.whenIdle(),this.migrationReview?.whenIdle(),this.releaseAutomationReview?.whenIdle(), this.agentActivation]);
+    await this.agentReview?.whenIdle();
     await this.diagnosticHistory?.whenIdle();
   }
-  dispose(): void { this.resourceFlowReview?.dispose(); this.deliveryReview?.dispose(); this.pipelineReview?.dispose();this.migrationReview?.dispose();this.releaseAutomationReview?.dispose(); }
+  dispose(): void { this.agentReview?.dispose(); this.resourceFlowReview?.dispose(); this.deliveryReview?.dispose(); this.pipelineReview?.dispose();this.migrationReview?.dispose();this.releaseAutomationReview?.dispose(); }
+  private agentContext(): AgentPlatformContext {
+    return structuredClone({ graph: this.state.graph, application: this.state.application, run: this.state.run, target: this.state.target });
+  }
+  private requireAgentIdle(): void { if (this.agentBusy) throw new RequestError(409, 'Wait for the current agent check'); }
+  async agentPlatformAction(input: AgentPlatformAction): Promise<void> {
+    const provider = this.options.agentPlatform ?? this.options.applicationHost?.agentPlatform;
+    if (!provider) throw new RequestError(409, 'No agent host was registered');
+    if (input.action === 'check' && (this.state.busy || this.connectionProfilesReview?.isBusy())) throw new RequestError(409, 'Wait for the current deployment or connection setup');
+    const feature = await import('./agent-platform-review.ts');
+    if (!this.agentActivation) this.agentActivation = (async () => {
+      const { AgentPlatformReview } = feature;
+      const review = new AgentPlatformReview(provider, () => this.agentContext(), view => {
+        const wasBusy = this.agentBusy; this.agentBusy = view.busy;
+        this.state.agentPlatform = view;
+        if (this.agentBusy) this.state.busy = true;
+        else if (wasBusy && !this.applicationReview?.isBusy) this.state.busy = false;
+        this.publish();
+      });
+      await review.initialize(); this.agentReview = review;
+    })();
+    try {
+      await this.agentActivation;
+      // Lazy host loading can yield while another deployment or profile action starts.
+      if (input.action === 'check' && (this.state.busy || this.connectionProfilesReview?.isBusy())) {
+        throw new feature.AgentPlatformRequestError(409, 'Wait for the current deployment or connection setup');
+      }
+      await this.agentReview!.action(input);
+    }
+    catch (error) { throw new RequestError(error instanceof feature.AgentPlatformRequestError ? error.status : 500,
+      error instanceof feature.AgentPlatformRequestError ? error.message : 'Agent view could not be loaded. Check its trusted host configuration.'); }
+  }
+  applicationAction(input: ApplicationAction): void {
+    this.requireAgentIdle();
+    if (!this.applicationReview) throw new RequestError(409, 'No application host was registered');
+    if (this.connectionProfilesReview?.isBusy()) throw new RequestError(409, 'Wait for connection setup to finish');
+    try { this.applicationReview.action(input); this.completion = this.applicationReview.whenIdle().then(() => this.persist()); }
+    catch (error) { if (error instanceof ApplicationRequestError) throw new RequestError(error.status, error.message); throw error; }
+  }
   async releaseAutomationAction(input:ReleaseAutomationAction):Promise<void>{
+    this.requireAgentIdle();
     if(!this.releaseAutomationReview)throw new RequestError(409,'No release watcher was configured');
     try{await this.releaseAutomationReview.action(input);}catch(error){if(error&&typeof error==='object'&&'status'in error)throw new RequestError(Number(error.status),'The release action was refused');throw error;}
   }
   async migrationAction(input:MigrationAction):Promise<void>{
+    this.requireAgentIdle();
     if(!this.migrationReview)throw new RequestError(409,'No migration was configured by this host');
     if(this.state.busy||this.connectionProfilesReview?.isBusy())throw new RequestError(409,'Wait for the current task');
     try{const action=this.migrationReview.action(input);this.completion=action.then(()=>this.migrationReview!.whenIdle(),()=>{}).finally(async()=>{this.state.busy=false;this.publish();await this.persist();});await action;}
     catch(error){if(error instanceof MigrationRequestError)throw new RequestError(error.status,error.message);throw error;}
   }
   async pipelineAction(input:PipelineAction):Promise<void>{
+    this.requireAgentIdle();
     if(!this.pipelineReview)throw new RequestError(409,'No pipeline was configured by this host');
     if(this.state.busy || this.connectionProfilesReview?.isBusy())throw new RequestError(409,'Wait for the current task');
     try {
@@ -243,6 +325,7 @@ export class DashboardController {
     }catch(error){if(error instanceof PipelineRequestError)throw new RequestError(error.status,error.message);throw error;}
   }
   startDelivery(input: DeliveryAction): void {
+    this.requireAgentIdle();
     if (!this.deliveryReview) throw new RequestError(409,'No delivery was configured by this host');
     if (this.state.busy || this.connectionProfilesReview?.isBusy()) throw new RequestError(409,'Wait for the current task to finish');
     try {
@@ -262,6 +345,7 @@ export class DashboardController {
     this.state = admitted; this.publish();
   }
   startResourceFlow(input: ResourceFlowAction): void {
+    this.requireAgentIdle();
     if (!this.resourceFlowReview) throw new RequestError(409, 'No resource workflow is configured');
     if (this.connectionProfilesReview?.isBusy()) throw new RequestError(409, 'Wait for connection setup to finish');
     if (input.action === 'start' && this.state.connectionProfiles) {
@@ -273,6 +357,7 @@ export class DashboardController {
   }
 
   hostAction(input: HostActionInput): void {
+    this.requireAgentIdle();
     if (!this.hostActionReview || this.state.resourceFlow?.status !== 'passed') throw new RequestError(409, 'Configured actions are available after this workflow completes');
     if (this.state.busy || this.connectionProfilesReview?.isBusy()) throw new RequestError(409, 'Wait for the current task to finish');
     try { this.hostActionReview.action(input); this.completion = this.hostActionReview.whenIdle().then(() => this.persist()); }
@@ -280,8 +365,9 @@ export class DashboardController {
   }
 
   async connectionProfileAction(value: unknown): Promise<ConnectionProfileActionResult> {
+    this.requireAgentIdle();
     if (!this.connectionProfilesReview) throw new RequestError(409, 'Connection setup was not configured by this host');
-    if (this.state.busy || this.connectionProfilesReview.isBusy()) throw new RequestError(409, 'Wait for the current task to finish');
+    if (this.state.busy || this.applicationReview?.isBusy || this.connectionProfilesReview.isBusy()) throw new RequestError(409, 'Wait for the current task to finish');
     let input;
     try { input = readConnectionProfileAction(value); }
     catch { throw new RequestError(400, 'Supply only the declared connection fields or a saved profile ID'); }
@@ -292,6 +378,8 @@ export class DashboardController {
   }
 
   start(scenario: Scenario, reviewId?: string): void {
+    this.requireAgentIdle();
+    if (this.options.applicationHost) throw new RequestError(409, 'Use the registered application setup controls');
     if(this.options.releaseAutomation)throw new RequestError(409,'Use the configured release controls');
     if(this.options.migration)throw new RequestError(409,'Use the assessed migration workflow for this system');
     if (this.pipelineReview?.isBusy) throw new RequestError(409,'Wait for the pipeline to finish');
@@ -457,6 +545,7 @@ export class DashboardController {
     } finally { this.state.busy = false; this.publish(); await this.persist(); }
   }
   private publish(): void {
+    this.agentReview?.contextChanged();
     if (this.diagnosticHistory) {
       this.diagnosticHistory.update(this.state); this.state.recordedDiagnostics = this.diagnosticHistory.snapshot();
       const history = this.state.recordedDiagnostics;

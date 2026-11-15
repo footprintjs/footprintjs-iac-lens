@@ -4,6 +4,12 @@ A separate live system view for [footprintjs-iac](https://github.com/footprintjs
 
 Most logic is framework-neutral TypeScript. The root and `/core` exports contain the protocol, state projection, dependency layout and injectable transport client. `/react` is the optional React adapter. `/server` is the separate Node loopback server. React, React DOM, XYFlow and Flow Lens are optional peers; importing the headless API does not load them. Angular, Svelte and Vue adapters can consume the same headless contract; those adapters are not implemented yet.
 
+The optional [Agents workspace](docs/agent-platform.md) loads when selected.
+It separates infrastructure, execution-environment readiness and actual agent
+turns, using native FootPrint evidence. Apps register real agents through a
+trusted lazy host; `/react/agents` is an independent optional UI adapter. Neo's
+skills remain subflows of its one logical triage agent.
+
 ## Run directly
 
 The [release pipeline guide](docs/pipeline-strategies.md) covers registered
@@ -25,21 +31,67 @@ backlog, and polling/deployment stops when the host exits. Neo's local adapter
 currently keeps rollback disabled; these local stage labels do not configure
 remote production.
 
-Use Node.js 24 or newer. The first npm release is an alpha: its API and deployment integrations may change before a stable release.
+Use Node.js 24 or newer. This branch prepares `footprintjs-iac-lens@0.2.0-alpha.2`
+with `footprintjs-iac@0.5.0-alpha.2`. The commands below target those planned
+releases after publication; this documentation does not confirm npm publication.
+Public APIs and deployment integrations may change between alpha releases.
 
 Run the packaged dashboard without a source checkout:
 
 ```sh
-npx footprintjs-iac-lens@0.2.0-alpha.1 --port 0
+npx footprintjs-iac-lens@0.2.0-alpha.2 --port 0
 ```
 
 Or install the headless API and optional UI adapter in your application:
 
 ```sh
-npm install --save-exact footprintjs-iac-lens@0.2.0-alpha.1
+npm install --save-exact footprintjs-iac-lens@0.2.0-alpha.2
 ```
 
-The exact published `footprintjs-iac@0.5.0-alpha.1` dependency is installed automatically. The dashboard and `/core` or `/server` imports work without installing the optional React peers. Embedding `/react` requires the peers shown below. The npm package includes the compiled command and web assets; source examples and integration recipes live in the GitHub repository.
+The planned Lens release pins `footprintjs-iac@0.5.0-alpha.2` as its dependency.
+The dashboard and `/core` or `/server` imports work without installing the
+optional React peers. Embedding `/react` requires the peers shown below. The npm
+package includes the compiled command and web assets; source examples and
+integration recipes live in the GitHub repository.
+
+## Set up your application
+
+An application owns its deployment adapters, registered targets and private
+connection storage. Lens supplies the generic first-run interface. Start the
+packaged dashboard with the application's trusted local host module:
+
+```sh
+npx footprintjs-iac-lens@0.2.0-alpha.2 --host ./infra/lens-host.mjs --directory ./.private/lens --port 0
+```
+
+The module must export `createApplicationHost({ directory })`; the path above is
+an application-provided module, not a bundled example. It loads as local code
+with the operator's privileges. The [application host guide](docs/application-host.md)
+defines the contract, private state and recovery behavior. This path uses public
+npm exports and needs no sibling core source checkout. Supplying `--host` cannot
+be combined with the older `--neo`, `--fresh-neo` or `--core-root` flags.
+
+In **Simple**, choose a deployment strategy and registered target, add or choose
+a saved connection if required, and optionally **Test connection**. Then use
+**Check setup → Review changes → Deploy** and watch the recorded **Verify** step.
+Check setup calls the host's inspection; Deploy applies the exact sealed review
+and includes the host's real verification. The host supplies labels and supported
+choices. This milestone
+supports already prepared, registered server or Kubernetes targets; cluster
+installation and target bootstrap are not part of this onboarding interface.
+
+The same native graph stays visible as the host publishes it: grey resources
+wait, blue resources are building, and green resources have confirmed ready
+outcomes. Connection and application checks keep their own measured results.
+**Details** adds exact changes, resource/system views and native FootPrint
+recordings. If the host publishes no graph or recording, Lens shows that absence
+instead of substituting a simulated build. An unconfirmed operation offers
+**Refresh status**, which reads retained native history without retrying a
+deployment. Target changes stay locked until that uncertainty is resolved.
+
+Without `--host`, the standalone command still opens the labelled simulator.
+
+## Develop Lens
 
 For development, clone and build Lens:
 
@@ -55,15 +107,28 @@ npm start
 
 Open the printed URL. The preferred port is `15231`; an occupied port falls back to an available loopback port. State and `server.json` are stored under `.artifacts/` in the current directory. Use `--directory /absolute/operator-state` to choose a different private state directory, and `--help` for command options. Package installation files are not used for writable state. Automatic CI is off; publishing is performed directly with the npm `alpha` tag.
 
-Lens opens in **Simple**: a build scene with large resource pictures, short labels and **Build system**. Grey resources wait, blue resources animate only while recorded work is running, and green resources have a recorded ready outcome. Steps follow the captured deployment flow; work that runs together can animate together. Switch to **Details** for the deployment pipeline, running system, resource panels and full FootPrint evidence.
+The standalone simulator opens in **Simple**: a build scene with large resource pictures, short labels and **Build system**. Grey resources wait, blue resources animate only while recorded work is running, and green resources have a recorded ready outcome. Steps follow the captured deployment flow; work that runs together can animate together. Switch to **Details** for the deployment pipeline, running system, resource panels and full FootPrint evidence.
 
-After a successful run, **Check setup** reapplies the same setup. A recorded no-op or verification keeps the resource picture solid with a checking scan instead of showing it being built again. Communication links show **Not checked → Checking → Connected / Failed** from real connection checks. Sign-in and access checks have their own result. These observations stay separate from resource readiness; animation cannot turn an unchecked or failed result green. Reduced-motion preferences stop the repeating animation while keeping every status visible.
+In the simulator and older managed resource fixtures, **Check setup** reapplies
+the same setup after a successful run. A recorded no-op or verification keeps
+the resource picture solid with a checking scan instead of showing it being
+built again. Communication links show **Not checked → Checking → Connected /
+Failed** from real connection checks. Sign-in and access checks have their own
+result. These observations stay separate from resource readiness; animation
+cannot turn an unchecked or failed result green. Reduced-motion preferences
+stop the repeating animation while keeping every status visible. Application
+hosts use the read-only setup inspection described above.
 
 The built-in server starts with an explicitly labelled **Simulation** fixture. In **Details**, choose a successful simulation, an injected failure, or reapply a successful run to check no-op behavior. The simulator deliberately delays its readiness promise so progress is visible; the UI never manufactures deployment outcomes using animation timers. Requests run serially. A failure leaves earlier successful resources managed so the next successful simulation can reconcile them.
 
-## Show the actual Neo fixture
+## Older prepared Neo fixtures
 
-The prepared Neo fixtures additionally require a core source checkout. Clone `https://github.com/footprintjs/footprintjs-iac.git` into a sibling `footprint-iac` directory, and prepare Neo using its [setup instructions](https://github.com/footprintjs/footprintjs-iac/blob/main/docs/SHARING.md). Then run Lens with:
+These older `--neo` and `--fresh-neo` fixture commands require a core source
+checkout. An app-owned `--host` integration uses the separate setup above.
+Clone `https://github.com/footprintjs/footprintjs-iac.git` into a sibling
+`footprint-iac` directory, and prepare Neo using its
+[setup instructions](https://github.com/footprintjs/footprintjs-iac/blob/main/docs/SHARING.md).
+Then run Lens with:
 
 ```sh
 npm start -- --neo --core-root ../footprint-iac
