@@ -1,4 +1,4 @@
-import type { InfraGraph } from 'footprint-iac';
+import type { InfraGraph } from 'footprintjs-iac';
 import type { ConnectionProgress, ConnectionRun, ConnectionStatus, DashboardState } from './types.ts';
 
 export const CONNECTION_LABELS: Record<ConnectionStatus, string> = {

@@ -13,6 +13,6 @@ const options = await createNeoVersionedReview(resolve(targetPath), resolve(cand
 const app = await startDashboard({ ...options, staticDirectory: resolve(import.meta.dirname, '../dist/web'), port });
 await writeMasterJson(join(options.directory, 'server.json'), { pid: process.pid, url: app.url, directory: options.directory,
   targetPath: resolve(targetPath), candidatePath: resolve(candidatePath), versioned: true, createdAt: new Date().toISOString() });
-console.log('IaC Lens: ' + app.url);
+console.log('InfraChart Lens: ' + app.url);
 console.log('Review the staged version, then apply the exact reviewed changes. Opening this server does not deploy.');
 for (const signal of ['SIGTERM', 'SIGINT'] as const) process.once(signal, () => { void app.close().then(() => process.exit(0)); });

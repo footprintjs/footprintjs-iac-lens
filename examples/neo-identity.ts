@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { loadEvidence, type ApplyResult, type InfraGraph } from 'footprint-iac';
-import { loadIdentityTarget, neoIdentityCheckAdapter, neoIdentityChecks } from 'footprint-iac/integration/identity';
+import { loadEvidence, type ApplyResult, type InfraGraph } from 'footprintjs-iac';
+import { loadIdentityTarget, neoIdentityCheckAdapter, neoIdentityChecks } from 'footprintjs-iac/integration/identity';
 import { startDashboard } from '../src/server/server.ts';
 import type { DashboardRun, ProgressEvent } from '../src/core/types.ts';
 
@@ -26,6 +26,6 @@ const app = await startDashboard({ directory, staticDirectory: resolve(import.me
 await mkdir(directory, { recursive: true, mode: 0o700 });
 await writeFile(join(directory, 'server.json'), JSON.stringify({ pid: process.pid, url: app.url, directory,
   context: target.context, namespace: target.namespace, createdAt: new Date().toISOString() }, null, 2) + '\n', { mode: 0o600 });
-console.log('IaC Lens: ' + app.url);
+console.log('InfraChart Lens: ' + app.url);
 console.log('Neo: ' + `http://127.0.0.1:${target.neoPort}/?test`);
 for (const signal of ['SIGTERM', 'SIGINT'] as const) process.once(signal, () => { void app.close().then(() => process.exit(0)); });

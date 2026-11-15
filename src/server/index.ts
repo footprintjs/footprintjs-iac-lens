@@ -6,3 +6,7 @@ export type { ManagedReviewOptions } from './execute-managed-review.ts';
 export type { RevisionWorkflowOptions, RevisionPreparation } from './revision-workflow.ts';
 export type { ResourceFlowReviewOptions, ResourceFlowWorkspaceOptions } from './resource-flow.ts';
 export { loadNeoTarget, type NeoTarget } from './neo.ts';
+export type { DeliveryReviewOptions, DeliveryPublication } from './delivery.ts';
+export type { PipelineReviewOptions, PreparedPipeline } from './pipeline.ts';
+export type { MigrationReviewOptions,PreparedMigration } from './migration.ts';
+export type { ReleaseAutomationReviewOptions } from './release-automation.ts';

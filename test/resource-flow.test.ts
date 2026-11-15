@@ -6,8 +6,8 @@ import test from 'node:test';
 import { createDashboardClient, readDashboardState } from '../src/core/client.ts';
 import { projectResourceFlow, readResourceFlowAction, resourceFlowRecordings, type ResourceFlowState } from '../src/core/resource-flow.ts';
 import { DashboardController, RequestError, startDashboard } from '../src/server/index.ts';
-import { FileResourceFlowStore, ResourceFlowWorkflow } from 'footprint-iac/resource-flow/workflow';
-import type { ResourceFlowAdapters } from 'footprint-iac/resource-flow';
+import { FileResourceFlowStore, ResourceFlowWorkflow } from 'footprintjs-iac/resource-flow/workflow';
+import type { ResourceFlowAdapters } from 'footprintjs-iac/resource-flow';
 
 function idle(mode: 'create' | 'existing' = 'create'): ResourceFlowState {
   return { version: 1, kind: 'resource-flow-state', definitionDigest: 'a'.repeat(64), configurationDigest: 'c'.repeat(64),

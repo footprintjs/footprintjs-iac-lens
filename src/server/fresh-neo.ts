@@ -1,8 +1,8 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { bindSystem } from 'footprint-iac';
-import { createNeoSystem, neoKubernetesProfile, NEO_NAMESPACE } from 'footprint-iac/integration/neo';
+import { bindSystem } from 'footprintjs-iac';
+import { createNeoSystem, neoKubernetesProfile, NEO_NAMESPACE } from 'footprintjs-iac/integration/neo';
 import { ownedPath, type NeoTarget } from './neo.ts';
 
 interface PreparedNeo {

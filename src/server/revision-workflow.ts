@@ -1,5 +1,5 @@
-import { validateInfraGraph } from 'footprint-iac/graph';
-import { readDeploymentSchedulePreview } from 'footprint-iac/progress';
+import { validateInfraGraph } from 'footprintjs-iac/graph';
+import { readDeploymentSchedulePreview } from 'footprintjs-iac/progress';
 import { readRevisionReview, type RevisionReviewState } from '../core/revision-review.ts';
 import { projectDeploymentSchedulePreview } from '../core/native-deployment-chart.ts';
 import type { DashboardRun, DashboardState, OutputArtifact } from '../core/types.ts';

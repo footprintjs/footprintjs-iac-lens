@@ -1,9 +1,18 @@
+import { readReleaseAutomationAction,readReleaseAutomationView,type ReleaseAutomationAction } from './release-automation.ts';
+import { readChangeAssessmentView } from './change-assessment.ts';
 import type { DashboardState, Scenario } from './types.ts';
 import { readSystemViewDefinition } from './capabilities.ts';
 import { projectDeploymentSchedulePreview } from './native-deployment-chart.ts';
 import { readRevisionReview } from './revision-review.ts';
 import { readResourceFlowAction, readResourceFlowState, type ResourceFlowAction } from './resource-flow.ts';
 import { readResourceFlowWorkspace } from './resource-flow-workspace.ts';
+import { readRecordedDiagnostics } from './recorded-diagnostics.ts';
+import { readHostActionInput, readHostActionsView, type HostActionInput } from './host-actions.ts';
+import { readMigrationAction,readMigrationView,type MigrationAction } from './migration.ts';
+import { readPipelineAction, readPipelineView, type PipelineAction } from './pipeline.ts';
+import { readDeliveryAction, readDeliveryView, type DeliveryAction } from './delivery.ts';
+import { readConnectionProfileAction, readConnectionProfilesView, readConnectionProfileTestResult,
+  type ConnectionProfileAction, type ConnectionProfileActionResult } from './connection-profiles.ts';
 
 export interface JsonResponse { ok: boolean; status: number; json(): Promise<unknown> }
 export interface RequestOptions { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal }
@@ -30,9 +39,22 @@ export function readDashboardState(value: unknown): DashboardState {
       throw new Error('Deployment progress has an unsupported shape');
     }
   }
+  if(state.target!==undefined){
+    const target=state.target;
+    if(!target||typeof target!=='object'||Array.isArray(target)||![Object.prototype,null].includes(Object.getPrototypeOf(target))
+      ||Object.getOwnPropertySymbols(target).length||Object.entries(Object.getOwnPropertyDescriptors(target)).some(([key,value])=>!['id','context','namespace','label'].includes(key)||!value.enumerable||!('value'in value)||(value.value!==undefined&&(typeof value.value!=='string'||!value.value.trim()||value.value.length>256||/[\x00-\x1f\x7f]/.test(value.value)))))throw Error('Deployment target metadata has an unsupported shape');
+  }
   if (state.systemView !== undefined) readSystemViewDefinition(state.systemView);
   if (state.revisionReview !== undefined) readRevisionReview(state.revisionReview);
   if (state.resourceFlow !== undefined) readResourceFlowState(state.resourceFlow);
+  if (state.recordedDiagnostics !== undefined) state.recordedDiagnostics = readRecordedDiagnostics(state.recordedDiagnostics);
+  if (state.hostActions !== undefined) state.hostActions = readHostActionsView(state.hostActions);
+  if(state.releaseAutomation!==undefined)state.releaseAutomation=readReleaseAutomationView(state.releaseAutomation);
+  if(state.changeAssessment!==undefined)state.changeAssessment=readChangeAssessmentView(state.changeAssessment);
+  if(state.migration!==undefined)state.migration=readMigrationView(state.migration);
+  if (state.pipeline !== undefined) state.pipeline = readPipelineView(state.pipeline);
+  if (state.delivery !== undefined) state.delivery = readDeliveryView(state.delivery);
+  if (state.connectionProfiles !== undefined) state.connectionProfiles = readConnectionProfilesView(state.connectionProfiles);
   if (state.resourceFlowWorkspace !== undefined) readResourceFlowWorkspace(state.resourceFlowWorkspace, state.graph!, state.resourceFlow);
   if (state.identityReviewAvailable !== undefined && typeof state.identityReviewAvailable !== 'boolean') throw Error('Identity review availability has an unsupported shape');
   if (state.resourceFlowError !== undefined && (typeof state.resourceFlowError !== 'string' || state.resourceFlowError.length > 4000)) throw Error('Workflow display error has an unsupported shape');
@@ -101,6 +123,33 @@ export function createDashboardClient(options: { baseUrl?: string; fetch?: JsonF
       throw Error(result.error ?? `Workflow action was refused (${response.status})`);
     }
   }
+  async function connectionProfile(input: ConnectionProfileAction): Promise<ConnectionProfileActionResult> {
+    const body = readConnectionProfileAction(input);
+    const response = await request(endpoint('/api/connection-profiles'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!response.ok) throw Error('The connection was refused. Check the fields and allowed target.');
+    const result = await response.json() as Partial<ConnectionProfileActionResult>;
+    if (body.action === 'test' && result.action === 'test') {
+      const tested = readConnectionProfileTestResult(result.result);
+      if (tested.profileId !== body.profileId) throw Error('The connection result does not match this profile');
+      return { action: 'test', result: tested };
+    }
+    if (body.action === 'register' && result.action === 'register') {
+      const current = await getState();
+      const profile = current.connectionProfiles?.profiles.find(profile => profile.id === result.profile?.id);
+      if (profile) return { action: 'register', profile };
+    }
+    throw Error('The saved connection could not be matched to this host');
+  }
+  async function hostAction(input: HostActionInput): Promise<void> {
+    const body = readHostActionInput(input);
+    const response = await request(endpoint('/api/host-action'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!response.ok) throw Error('The configured action was refused. Check that the workflow has completed and no task is running.');
+  }
+  async function delivery(input: DeliveryAction): Promise<void> {
+    const body = readDeliveryAction(input);
+    const response = await request(endpoint('/api/delivery'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!response.ok) throw Error('The delivery was refused. Check the configured version and wait for any current task.');
+  }
   function subscribe(observer: ClientObserver): () => void {
     const controller = new AbortController();
     let current: DashboardState | undefined;
@@ -121,5 +170,20 @@ export function createDashboardClient(options: { baseUrl?: string; fetch?: JsonF
     });
     return () => { controller.abort(); close?.(); };
   }
-  return { getState, run, resourceFlow, subscribe };
+  async function pipeline(input:PipelineAction):Promise<void>{
+    const body=readPipelineAction(input);
+    const response=await request(endpoint('/api/pipeline'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!response.ok)throw Error('The pipeline settings or action were refused. Review the current preview and recorded state.');
+  }
+  async function migration(input:MigrationAction):Promise<void>{
+    const body=readMigrationAction(input);
+    const response=await request(endpoint('/api/migration'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!response.ok)throw Error('The migration action was refused. Check the current assessment, review and recorded approval.');
+  }
+  async function releaseAutomation(input:ReleaseAutomationAction):Promise<void>{
+    const body=readReleaseAutomationAction(input);
+    const response=await request(endpoint('/api/releases'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!response.ok)throw Error('The release action was refused. Check the registered version and retained deployment.');
+  }
+  return { releaseAutomation, getState, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, subscribe };
 }

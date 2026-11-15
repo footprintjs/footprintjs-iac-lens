@@ -1,3 +1,4 @@
+import {readReleaseAutomationRequest} from './release-automation-request.ts';
 import { createServer, type Server } from 'node:http';
 import { resolve } from 'node:path';
 import type { Scenario } from '../core/types.ts';
@@ -5,6 +6,11 @@ import { DashboardController, RequestError, type ControllerOptions } from './con
 import { admitRequest, json, readRunRequest, readResourceFlowRequest } from './request.ts';
 import { serveStatic } from './static.ts';
 import { streamState } from './events.ts';
+import { readConnectionProfileRequest } from './connection-profile-request.ts';
+import { readHostActionRequest } from './host-action-request.ts';
+import { readMigrationRequest } from './migration-request.ts';
+import { readPipelineRequest } from './pipeline-request.ts';
+import { readDeliveryRequest } from './delivery-request.ts';
 
 export interface DashboardOptions extends ControllerOptions { staticDirectory: string; port?: number }
 
@@ -34,7 +40,21 @@ export async function startDashboard(options: DashboardOptions): Promise<{
         controller.startResourceFlow(await readResourceFlowRequest(request));
         return json(response, 202, { accepted: true });
       }
-      if (request.method === 'GET' && path === '/health') return json(response, 200, { status: 'ok', service: 'footprint-iac-lens' });
+      if (request.method === 'POST' && path === '/api/connection-profiles') {
+        return json(response, 200, await controller.connectionProfileAction(await readConnectionProfileRequest(request)));
+      }
+      if (request.method === 'POST' && path === '/api/host-action') {
+        controller.hostAction(await readHostActionRequest(request)); return json(response, 202, { accepted: true });
+      }
+      if(request.method==='POST'&&path==='/api/releases'){await controller.releaseAutomationAction(await readReleaseAutomationRequest(request));return json(response,202,{accepted:true});}
+      if(request.method==='POST'&&path==='/api/migration'){await controller.migrationAction(await readMigrationRequest(request));return json(response,202,{accepted:true});}
+      if (request.method === 'POST' && path === '/api/pipeline') {
+        await controller.pipelineAction(await readPipelineRequest(request)); return json(response,202,{accepted:true});
+      }
+      if (request.method === 'POST' && path === '/api/delivery') {
+        controller.startDelivery(await readDeliveryRequest(request)); return json(response, 202, { accepted: true });
+      }
+      if (request.method === 'GET' && path === '/health') return json(response, 200, { status: 'ok', service: 'footprintjs-iac-lens' });
       if (request.method !== 'GET') throw new RequestError(405, 'Method not allowed');
       return serveStatic(response, resolve(options.staticDirectory), path);
     })().catch(error => {

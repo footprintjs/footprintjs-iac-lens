@@ -1,0 +1,9 @@
+.iac-lens .assessment-strip{display:flex;align-items:center;gap:14px;padding:8px 12px;border:1px solid #dce7e0;background:#f6fbf8;border-radius:9px;flex-shrink:0;color:#355d4c}
+.iac-lens .assessment-strip>div{display:flex;gap:16px;align-items:center;flex:1;min-width:0;font-size:11px}
+.iac-lens .assessment-strip>div>span{color:#74877c;font-size:10px}
+.iac-lens .assessment-strip .simple-button{padding:5px 9px;font-size:10px}
+.iac-lens .assessment-attention{border-color:#e5d7ad;background:#fffdf6;color:#8b713e}
+.iac-lens .assessment-details{font-size:12px;overflow-wrap:anywhere}
+.iac-lens .assessment-details table{border-collapse:collapse;width:100%;margin-bottom:16px}
+.iac-lens .assessment-details td,.iac-lens .assessment-details th{text-align:left;padding:10px;border-bottom:1px solid #e3eaf0}
+.iac-lens .assessment-details small{font-size:10px;color:#8290a0}

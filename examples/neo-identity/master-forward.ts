@@ -4,7 +4,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
-import type { IdentityTarget } from 'footprint-iac/integration/identity';
+import type { IdentityTarget } from 'footprintjs-iac/integration/identity';
 import { writeMasterJson } from './master-files.ts';
 
 const execute = promisify(execFile);

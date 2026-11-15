@@ -1,4 +1,4 @@
-import type { Resource } from 'footprint-iac';
+import type { Resource } from 'footprintjs-iac';
 import type { DashboardState, ResourceProgress, ResourceStatus } from './types.ts';
 import { workspaceResourceProgress } from './resource-flow-workspace.ts';
 

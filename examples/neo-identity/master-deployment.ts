@@ -1,5 +1,5 @@
-import { loadEvidence, type ApplyResult, type InfraGraph } from 'footprint-iac';
-import { validateInfraGraph } from 'footprint-iac/graph';
+import { loadEvidence, type ApplyResult, type InfraGraph } from 'footprintjs-iac';
+import { validateInfraGraph } from 'footprintjs-iac/graph';
 import type { DashboardRun, ProgressEvent } from '../../src/core/types.ts';
 import { readMasterJson } from './master-files.ts';
 

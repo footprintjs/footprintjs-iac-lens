@@ -1,6 +1,6 @@
-import type { InfraGraph } from 'footprint-iac';
-import type { createNeoResourceFlow } from 'footprint-iac/integration/identity';
-import type { NeoResourceFlowObservation } from 'footprint-iac/integration/identity/resource-flow-view';
+import type { InfraGraph } from 'footprintjs-iac';
+import type { createNeoResourceFlow } from 'footprintjs-iac/integration/identity';
+import type { NeoResourceFlowObservation } from 'footprintjs-iac/integration/identity/resource-flow-view';
 import type { ResourceFlowWorkspaceFrame } from '../../src/core/resource-flow-workspace.ts';
 import type { ResourceFlowWorkspaceOptions } from '../../src/server/resource-flow.ts';
 import { neoIdentitySystemView } from '../neo-identity/system-view.ts';

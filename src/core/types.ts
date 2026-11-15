@@ -1,9 +1,17 @@
-import type { InfraGraph, BindingResult, SystemDesign } from 'footprint-iac';
-import type { DeploymentChart, DeploymentSchedulePreview } from 'footprint-iac/progress';
+import type { ReleaseAutomationView } from './release-automation.ts';
+import type { ChangeAssessmentView } from './change-assessment.ts';
+import type { InfraGraph, BindingResult, SystemDesign } from 'footprintjs-iac';
+import type { DeploymentChart, DeploymentSchedulePreview } from 'footprintjs-iac/progress';
 import type { SystemViewDefinition } from './capabilities.ts';
 import type { RevisionReviewState } from './revision-review.ts';
 import type { ResourceFlowState } from './resource-flow.ts';
 import type { ResourceFlowWorkspaceState } from './resource-flow-workspace.ts';
+import type { ConnectionProfilesView } from './connection-profiles.ts';
+import type { RecordedDiagnostics } from './recorded-diagnostics.ts';
+import type { HostActionsView } from './host-actions.ts';
+import type { MigrationView } from './migration.ts';
+import type { PipelineView } from './pipeline.ts';
+import type { DeliveryView } from './delivery.ts';
 
 export type ResourceStatus = 'pending' | 'deploying' | 'ready' | 'failed' | 'skipped' | 'deleted';
 export interface ResourceProgress {
@@ -31,6 +39,7 @@ export interface Recording {
   narrativeEntries?: unknown[];
   /** Domain run admitted from its evidence envelope; FootPrint snapshot.runId is a separate runtime ID. */
   provenance?: { runId: string; stack?: string; graphDigest?: string };
+  controlDeps?: Readonly<Record<string, unknown>>;
 }
 export type ConnectionStatus = 'untested' | 'checking' | 'connected' | 'failed';
 export interface ConnectionObservation {
@@ -128,5 +137,13 @@ export interface DashboardState {
   resourceFlowError?: string;
   resourceFlowRecording?: Recording;
   resourceFlowWorkspace?: ResourceFlowWorkspaceState;
+  connectionProfiles?: ConnectionProfilesView;
+  recordedDiagnostics?: RecordedDiagnostics;
+  hostActions?: HostActionsView;
+  delivery?: DeliveryView;
+  pipeline?: PipelineView;
+  migration?: MigrationView;
+  changeAssessment?: ChangeAssessmentView;
+  releaseAutomation?: ReleaseAutomationView;
 }
 export type Scenario = 'demo' | 'failure' | 'noop' | 'neo' | 'connections' | 'identity' | 'review' | 'revision-review' | 'revision-apply';

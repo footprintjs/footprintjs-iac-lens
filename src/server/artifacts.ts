@@ -1,6 +1,6 @@
-import { bindSystem, system } from 'footprint-iac';
-import { awsObjectStorageProfile, cloudFormationOutput, kubernetesOutput, synthesize } from 'footprint-iac/synthesis';
-import type { InfraGraph } from 'footprint-iac';
+import { bindSystem, system } from 'footprintjs-iac';
+import { awsObjectStorageProfile, cloudFormationOutput, kubernetesOutput, synthesize } from 'footprintjs-iac/synthesis';
+import type { InfraGraph } from 'footprintjs-iac';
 import type { OutputArtifact } from '../core/types.ts';
 
 /** Native files are compiled from the whole requested graph, never from changed operations. */

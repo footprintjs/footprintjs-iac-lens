@@ -1,4 +1,4 @@
-import type { Resource } from 'footprint-iac';
+import type { Resource } from 'footprintjs-iac';
 import { CONNECTION_LABELS } from '../../src/core/connections.ts';
 import { identityOutcomeLabel } from '../../src/core/identity.ts';
 import { eventTime, STATUS_LABELS } from '../../src/core/model.ts';

@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { InfraGraph } from 'footprint-iac';
-import { checkConnections, createConnectionRecorder, type ConnectionAdapter } from 'footprint-iac/connections';
+import type { InfraGraph } from 'footprintjs-iac';
+import { checkConnections, createConnectionRecorder, type ConnectionAdapter } from 'footprintjs-iac/connections';
 import { untestedConnections } from '../core/connections.ts';
 import type { ConnectionProgress, ConnectionRun } from '../core/types.ts';
 
@@ -67,7 +67,7 @@ export async function runConnectionReview(options: ConnectionReviewOptions & {
     const complete = checks.every(check => check.status === 'connected' || check.status === 'failed');
     state = { ...state, id: result.runId, status: result.ok ? 'passed' : 'failed', checkedAt: Date.now(),
       checks, events: result.events.map(event => withScope(event, options)),
-      recording: { snapshot: result.snapshot, structure: result.structure, narrativeEntries: Array.isArray(result.narrative) ? result.narrative : [] },
+      recording: { snapshot: result.snapshot, structure: result.structure, controlDeps: result.controlDeps, narrativeEntries: Array.isArray(result.narrative) ? result.narrative : [] },
       report: { tracePath: result.tracePath, traceStatus: result.traceStatus } };
     if (result.traceStatus && (result.traceStatus.failed > 0 || result.traceStatus.flushed === false)) {
       state.report!.captureError = 'The native JSONL trace is incomplete. The captured snapshot remains available; trace replay may have gaps.';

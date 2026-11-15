@@ -1,4 +1,4 @@
-import type { InfraGraph } from 'footprint-iac';
+import type { InfraGraph } from 'footprintjs-iac';
 import type { ConnectionRun, DashboardRun, DashboardState, IdentityRun, ResourceProgress } from './types.ts';
 import type { ResourceFlowState } from './resource-flow.ts';
 import { projectNativeDeploymentChart } from './native-deployment-chart.ts';

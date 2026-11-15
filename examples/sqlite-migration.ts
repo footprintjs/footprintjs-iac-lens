@@ -1,0 +1,12 @@
+import { join,resolve } from 'node:path';
+import { startDashboard } from '../src/server/index.ts';
+import { createSqliteMigrationHost } from './sqlite-migration/create-host.ts';
+import type { SqliteMigrationScenario } from './sqlite-migration/scenario.ts';
+const [path,...args]=process.argv.slice(2);if(args.some(arg=>!/^--(?:port=\d+|scenario=(?:normal|bad-data|consumer-failure))$/.test(arg))||new Set(args.map(arg=>arg.split('=')[0])).size!==args.length)throw Error('Usage: node examples/sqlite-migration.ts /private/new-fixture [--port=0] [--scenario=normal|bad-data|consumer-failure]');
+const port=Number(args.find(arg=>arg.startsWith('--port='))?.slice(7)??0);if(!Number.isInteger(port)||port<0||port>65535)throw Error('Choose a local port');
+const scenario=(args.find(arg=>arg.startsWith('--scenario='))?.slice(11)??'normal') as SqliteMigrationScenario;
+const directory=resolve(path??join('/tmp','iac-lens-sqlite-migration-'+Date.now()));const {host}=await createSqliteMigrationHost(directory,{scenario});
+const app=await startDashboard({...host,port,staticDirectory:resolve(import.meta.dirname,'../dist/web')});
+console.log('Real SQLite · Cooperative consumer fixture · No Neo or cloud resources.');
+console.log('InfraChart Lens: '+app.url);console.log('Review changes, preview the move, start migration, then approve the switch only after recorded data checks. The original store is retained; no delete control exists.');
+for(const signal of ['SIGINT','SIGTERM'] as const)process.once(signal,()=>{void app.close().then(()=>process.exit(0));});

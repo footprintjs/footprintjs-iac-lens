@@ -17,14 +17,14 @@ function caption(node: SceneNode) {
 function isChecking(node: SceneNode) { return /^(?:noop|no-op|verify|check|read|observe|find)$/i.test(node.action ?? ''); }
 
 /** Stable positions come from the native flow; links below show observed communication. */
-export function BuildScene({ scene, execution = 'idle', workflowStatus, changes }: { scene: Scene; execution?: 'idle' | 'running' | 'passed' | 'failed'; workflowStatus?: ResourceFlowState['status']; changes?: readonly RevisionResourceView[] }) {
+export function BuildScene({ scene, execution = 'idle', workflowStatus, changes, compact = false }: { compact?:boolean; scene: Scene; execution?: 'idle' | 'running' | 'passed' | 'failed'; workflowStatus?: ResourceFlowState['status']; changes?: readonly RevisionResourceView[] }) {
   const markerId = `build-arrow-${useId().replace(/:/g, '')}`;
   const descriptionId = `${markerId}-description`;
   const changeMap = new Map(changes?.map(change => [change.resourceId, change]));
   const columns = [...new Set(scene.nodes.map(node => node.column))].sort((a, b) => a - b);
   const rows = Math.max(0, ...scene.nodes.map(node => node.row)) + 1;
   const width = Math.max(800, 150 + columns.length * 176);
-  const height = Math.max(380, rows * 218 + 155);
+  const height = Math.max(compact?315:380, rows * 218 + (compact?105:155));
   const locations = new Map(scene.nodes.map(node => [node.id, {
     x: 150 + columns.indexOf(node.column) * 176,
     y: 42 + node.row * 218,

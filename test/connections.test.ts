@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { infra, resource } from 'footprint-iac';
+import { infra, resource } from 'footprintjs-iac';
 import { connectionProgress, untestedConnections } from '../src/core/connections.ts';
 import { layoutResources } from '../src/core/layout.ts';
 import { readDashboardState } from '../src/core/client.ts';

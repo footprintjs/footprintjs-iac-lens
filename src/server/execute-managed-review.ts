@@ -1,5 +1,5 @@
-import { loadEvidence, type ApplyResult, type InfraGraph } from 'footprint-iac';
-import type { DeploymentRecorder, DeploymentSnapshot, DeploymentSchedulePreview } from 'footprint-iac/progress';
+import { loadEvidence, type ApplyResult, type InfraGraph } from 'footprintjs-iac';
+import type { DeploymentRecorder, DeploymentSnapshot, DeploymentSchedulePreview } from 'footprintjs-iac/progress';
 import type { DashboardRun, DashboardState } from '../core/types.ts';
 
 /** Trusted composition only: no graph, callback, credentials or target comes from HTTP. */
@@ -66,7 +66,7 @@ export async function executeManagedReview(options: ManagedReviewOptions, update
         && evidence.graph?.digest === options.graph.digest && result.plan.stack === options.graph.name;
       if (!matchingEvidence) errors.push('Native evidence belongs to a different run or graph.');
       else if (!evidence.structure) errors.push('Native chart structure was not captured.');
-      else run.recording = { snapshot: evidence.snapshot, structure: evidence.structure,
+      else run.recording = { snapshot: evidence.snapshot, structure: evidence.structure, controlDeps: evidence.controlDeps,
         narrativeEntries: Array.isArray(evidence.narrative) ? evidence.narrative : [] };
     } catch { errors.push('Native deployment evidence could not be loaded; capture is incomplete.'); }
     if (!matchingEvidence) run.resources = pendingManagedResources(options.graph);

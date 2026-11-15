@@ -3,9 +3,9 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { compileGraph } from 'footprint-iac/graph';
-import type { IdentityTarget } from 'footprint-iac/integration/identity';
-import type { NeoResourceFlowObservation } from 'footprint-iac/integration/identity/resource-flow-view';
+import { compileGraph } from 'footprintjs-iac/graph';
+import type { IdentityTarget } from 'footprintjs-iac/integration/identity';
+import type { NeoResourceFlowObservation } from 'footprintjs-iac/integration/identity/resource-flow-view';
 import { projectNeoWorkspace } from '../examples/neo-resource-flow/workspace.ts';
 import { neoWorkspaceHistory } from '../examples/neo-resource-flow/workspace-history.ts';
 

@@ -30,6 +30,6 @@ const metadata = JSON.stringify({ pid: process.pid, startedAt, directory,
   url: app.url, neoAvailable: !!neo, createdAt: new Date().toISOString() }, null, 2) + '\n';
 await writeFile(resolve(directory, 'server.json'), metadata, { mode: 0o600 });
 if (directory !== indexDirectory) await writeFile(resolve(indexDirectory, 'server.json'), metadata, { mode: 0o600 });
-console.log(`IaC Lens: ${app.url}`);
+console.log(`InfraChart Lens: ${app.url}`);
 console.log(`Native recorder progress; ${neo ? 'prepared local Neo fixture enabled' : 'simulator only'}. Automatic CI is off.`);
 for (const signal of ['SIGTERM', 'SIGINT'] as const) process.once(signal, () => { void app.close().then(() => process.exit(0)); });

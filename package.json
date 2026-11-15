@@ -1,15 +1,15 @@
 {
-  "name": "footprint-iac-lens",
+  "name": "footprintjs-iac-lens",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Live infrastructure system view and native FootPrint execution evidence",
+  "description": "InfraChart Lens: live infrastructure views and native FootPrintJS execution evidence",
   "engines": {
     "node": ">=24"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/footprintjs/footprint-iac-lens.git"
+    "url": "git+https://github.com/footprintjs/footprintjs-iac-lens.git"
   },
   "scripts": {
     "check": "tsc --noEmit",
@@ -20,7 +20,7 @@
     "build:server": "tsc -p tsconfig.server.json"
   },
   "dependencies": {
-    "footprint-iac": "file:../footprint-iac"
+    "footprintjs-iac": "file:../footprint-iac"
   },
   "devDependencies": {
     "@types/node": "24.9.1",

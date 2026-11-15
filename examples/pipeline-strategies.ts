@@ -1,0 +1,11 @@
+import { resolve, join } from 'node:path';
+import { startDashboard } from '../src/server/index.ts';
+import { createStrategyExample } from './pipeline-strategies/create-host.ts';
+const directory=resolve(process.argv[2]??join('/tmp','iac-lens-strategy-example-'+Date.now()));
+const raw=process.argv[3]??'0';if(!/^\d+$/.test(raw)||Number(raw)>65535)throw Error('Choose a local port');
+const pipeline=await createStrategyExample(directory);
+const app=await startDashboard({directory:join(directory,'lens'),staticDirectory:resolve(import.meta.dirname,'../dist/web'),port:Number(raw),pipeline});
+console.log('Simulation only · no infrastructure or application is changed.');
+console.log('InfraChart Lens: '+app.url);
+console.log('Select a prepared example, preview, start deployment, then explicitly promote Gamma and Production. Choose the failing example to inspect a failed check and restore its verified baseline.');
+for(const signal of ['SIGTERM','SIGINT'] as const)process.once(signal,()=>{void app.close().then(()=>process.exit(0));});

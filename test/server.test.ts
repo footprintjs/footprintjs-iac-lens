@@ -11,7 +11,7 @@ async function fixture(t: { after(fn: () => Promise<void>): void }, readinessDel
   const directory = await mkdtemp(join(tmpdir(), 'iac-lens-server-'));
   const staticDirectory = join(directory, 'public');
   await mkdir(staticDirectory);
-  await writeFile(join(staticDirectory, 'index.html'), '<!doctype html><html><body>IaC Lens fixture<script src="/app.js"></script></body></html>');
+  await writeFile(join(staticDirectory, 'index.html'), '<!doctype html><html><body>InfraChart Lens fixture<script src="/app.js"></script></body></html>');
   await writeFile(join(staticDirectory, 'app.js'), 'globalThis.fixtureViewer = true;\n');
   await writeFile(join(staticDirectory, 'styles.css'), 'body { color: #123; }\n');
   await writeFile(join(directory, 'outside.html'), 'PRIVATE OUTSIDE FIXTURE');
@@ -74,7 +74,7 @@ test('the local dashboard starts with seven pending resources and serves only it
   const running = await fixture(t, 0);
   const health = await fetch(running.url + '/health');
   assert.equal(health.status, 200);
-  assert.deepEqual(await health.json(), { status: 'ok', service: 'footprint-iac-lens' });
+  assert.deepEqual(await health.json(), { status: 'ok', service: 'footprintjs-iac-lens' });
   const state = await (await fetch(running.url + '/api/state')).json() as DashboardState;
   assert.equal(state.mode, 'simulator');
   assert.equal(state.busy, false);
@@ -86,7 +86,7 @@ test('the local dashboard starts with seven pending resources and serves only it
   assert.equal(state.neoAvailable, false);
   assert.ok(state.artifacts?.some(artifact => artifact.target?.includes('export only')));
   for (const [path, media, expected] of [
-    ['/', 'text/html', 'IaC Lens fixture'], ['/app.js', 'text/javascript', 'fixtureViewer'], ['/styles.css', 'text/css', 'color'],
+    ['/', 'text/html', 'InfraChart Lens fixture'], ['/app.js', 'text/javascript', 'fixtureViewer'], ['/styles.css', 'text/css', 'color'],
   ]) {
     const response = await fetch(running.url + path);
     assert.equal(response.status, 200);

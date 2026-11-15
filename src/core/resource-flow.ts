@@ -1,9 +1,9 @@
-import { readResourceFlowState, type ResourceFlowState } from 'footprint-iac/resource-flow';
+import { readResourceFlowState, type ResourceFlowState } from 'footprintjs-iac/resource-flow';
 import type { DashboardState, Recording } from './types.ts';
 
 export { readResourceFlowState };
 export type { ResourceFlowState };
-export type ResourceFlowAction = { action: 'start' } | { action: 'resume'; pauseToken: string; profileId: string };
+export type ResourceFlowAction = { action: 'start'; profileId?: string } | { action: 'resume'; pauseToken: string; profileId: string };
 export interface ResourceFlowStageView {
   id: ResourceFlowState['stages'][number]['id']; label: string;
   status: ResourceFlowState['stages'][number]['status']; caption: string;
@@ -45,7 +45,10 @@ export function readResourceFlowAction(input: unknown): ResourceFlowAction {
     throw Error('Workflow actions must be plain JSON values');
   }
   const row = input as Record<string, unknown>;
-  if (row.action === 'start' && Object.keys(row).length === 1) return { action: 'start' };
+  const profile = typeof row.profileId === 'string' && row.profileId.length > 0 && row.profileId.length <= 200
+    && !/[\x00-\x20\x7f]/.test(row.profileId);
+  if (row.action === 'start' && Object.keys(row).every(key => ['action', 'profileId'].includes(key))
+    && (row.profileId === undefined || profile)) return { action: 'start', ...(row.profileId !== undefined ? { profileId: row.profileId as string } : {}) };
   if (row.action === 'resume' && Object.keys(row).length === 3
     && typeof row.pauseToken === 'string' && /^[a-f0-9]{64}$/.test(row.pauseToken)
     && typeof row.profileId === 'string' && row.profileId.length > 0 && row.profileId.length <= 200
@@ -72,6 +75,7 @@ export function resourceFlowRecordings(input: Pick<DashboardState, 'resourceFlow
         || value.definition?.target?.scope !== state.target.scope || value.snapshot?.runId !== value.runId
         || !value.structure || !state.segments.some(segment => segment.runId === value.runId)) continue;
       records.set(value.runId, { snapshot: value.snapshot, structure: value.structure,
+        ...(value.controlDeps && typeof value.controlDeps === 'object' && !Array.isArray(value.controlDeps) ? { controlDeps: value.controlDeps } : {}),
         ...(Array.isArray(value.narrative) ? { narrativeEntries: value.narrative } : {}) });
     } catch { /* A non-recording artifact cannot become workflow execution evidence. */ }
   }

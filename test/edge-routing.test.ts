@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { InfraGraph, Resource } from 'footprint-iac';
+import type { InfraGraph, Resource } from 'footprintjs-iac';
 import { layoutResources, resourceEdgePath, type LayoutPoint, type ResourceNodeView } from '../src/core/layout.ts';
 import type { DashboardState } from '../src/core/types.ts';
 import { demoGraph } from '../src/server/graphs.ts';

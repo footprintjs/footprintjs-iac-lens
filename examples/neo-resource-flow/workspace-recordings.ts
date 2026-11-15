@@ -1,4 +1,4 @@
-import { loadEvidence, type InfraGraph } from 'footprint-iac';
+import { loadEvidence, type InfraGraph } from 'footprintjs-iac';
 import { lstat, realpath } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 import type { ResourceFlowWorkspaceFrame } from '../../src/core/resource-flow-workspace.ts';
@@ -16,7 +16,7 @@ export function createNeoWorkspaceRecordingReader(stateDirectory: string, flowDi
     const evidence = await loadEvidence(path);
     if (evidence.runId !== runId || evidence.stack !== graph.name || !evidence.structure
       || (graphDigest !== undefined && evidence.graph?.digest !== graphDigest)) throw Error('Native recording does not match this child run');
-    const recording = { snapshot: evidence.snapshot, structure: evidence.structure,
+    const recording = { snapshot: evidence.snapshot, structure: evidence.structure, controlDeps: evidence.controlDeps,
       provenance: { runId: evidence.runId, stack: evidence.stack, ...(evidence.graph ? { graphDigest: evidence.graph.digest } : {}) },
       narrativeEntries: Array.isArray(evidence.narrative) ? evidence.narrative : [] };
     cache.set(key, recording); return recording;

@@ -3,10 +3,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { FileStateStore, InfraEngine, SimulatorAdapter } from 'footprint-iac';
-import { compileGraph } from 'footprint-iac/graph';
-import { createDeploymentRecorder, type DeploymentSchedulePreview } from 'footprint-iac/progress';
-import { previewDeploymentChart } from 'footprint-iac/progress/preview';
+import { FileStateStore, InfraEngine, SimulatorAdapter } from 'footprintjs-iac';
+import { compileGraph } from 'footprintjs-iac/graph';
+import { createDeploymentRecorder, type DeploymentSchedulePreview } from 'footprintjs-iac/progress';
+import { previewDeploymentChart } from 'footprintjs-iac/progress/preview';
 import { projectBuildScene, projectDeploymentFlow, projectDeploymentSchedulePreview, readDashboardState,
   type DashboardState } from '../src/core/index.ts';
 import { DashboardController } from '../src/server/index.ts';

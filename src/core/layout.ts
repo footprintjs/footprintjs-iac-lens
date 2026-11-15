@@ -1,4 +1,4 @@
-import type { InfraGraph, Resource } from 'footprint-iac';
+import type { InfraGraph, Resource } from 'footprintjs-iac';
 import { describeResource, resourceProgress, type ResourceDescription } from './model.ts';
 import type { DashboardState, ResourceProgress } from './types.ts';
 import { communicationRoute, orderRoute, RESOURCE_WIDTH, resourceColumnGap, resourceSize, type ResourceBox, type ResourceEdgeRoute } from './resource-geometry.ts';

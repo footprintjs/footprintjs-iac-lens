@@ -1,5 +1,5 @@
-import { neoIdentityCheckAdapter, neoIdentityChecks, neoIdentityConnectionAdapter, type IdentityTarget } from 'footprint-iac/integration/identity';
-import type { InfraGraph } from 'footprint-iac';
+import { neoIdentityCheckAdapter, neoIdentityChecks, neoIdentityConnectionAdapter, type IdentityTarget } from 'footprintjs-iac/integration/identity';
+import type { InfraGraph } from 'footprintjs-iac';
 import type { ConnectionReviewOptions } from '../../src/server/run-connections.ts';
 import type { IdentityReviewOptions } from '../../src/server/run-identity.ts';
 

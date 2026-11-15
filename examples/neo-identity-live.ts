@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { loadIdentityTarget } from 'footprint-iac/integration/identity';
+import { loadIdentityTarget } from 'footprintjs-iac/integration/identity';
 import { startDashboard } from '../src/server/index.ts';
 import { createNeoLiveReview } from './neo-identity/create-live-review.ts';
 
@@ -20,6 +20,6 @@ await mkdir(options.directory, { recursive: true, mode: 0o700 });
 await writeFile(join(options.directory, 'server.json'), JSON.stringify({ pid: process.pid, url: app.url,
   directory: options.directory, targetPath: selected, stage: '--full', singleBuild: true,
   context: target.context, namespace: target.namespace, createdAt: new Date().toISOString() }, null, 2) + '\n', { mode: 0o600 });
-console.log('IaC Lens: ' + app.url);
+console.log('InfraChart Lens: ' + app.url);
 console.log('One Build system button creates all six resources. Start the loopback forward after readiness before opening Neo.');
 for (const signal of ['SIGTERM', 'SIGINT'] as const) process.once(signal, () => { void app.close().then(() => process.exit(0)); });

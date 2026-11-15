@@ -1,5 +1,5 @@
-import type { BindingResult, Resource } from 'footprint-iac';
-import type { DeploymentResourceStages } from 'footprint-iac/progress';
+import type { BindingResult, Resource } from 'footprintjs-iac';
+import type { DeploymentResourceStages } from 'footprintjs-iac/progress';
 import { projectDeploymentFlow, type DeploymentFlowCapability, type DeploymentFlowObservation } from './deployment-flow.ts';
 import { describeResource, resourceProgress, type ResourceDescription } from './model.ts';
 import { projectNativeDeploymentChart } from './native-deployment-chart.ts';

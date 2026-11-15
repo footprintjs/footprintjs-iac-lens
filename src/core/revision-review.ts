@@ -1,4 +1,4 @@
-import type { Json } from 'footprint-iac';
+import type { Json } from 'footprintjs-iac';
 import { projectBuildScene, type BuildSceneKind } from './build-scene.ts';
 import type { DashboardState } from './types.ts';
 

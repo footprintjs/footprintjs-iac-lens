@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { IdentityTarget } from 'footprint-iac/integration/identity';
-import type { MasterState, SystemRevision } from 'footprint-iac/master';
+import type { IdentityTarget } from 'footprintjs-iac/integration/identity';
+import type { MasterState, SystemRevision } from 'footprintjs-iac/master';
 import { writeMasterJson } from './master-files.ts';
 
 /** The applied pointer is the authority: a staged or failed release cannot publish canonical bindings. */

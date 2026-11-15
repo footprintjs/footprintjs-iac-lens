@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { compileGraph } from 'footprint-iac/graph';
+import { compileGraph } from 'footprintjs-iac/graph';
 import { projectBuildScene } from '../src/core/build-scene.ts';
 import { projectRevisionReview, readRevisionReview, type RevisionIdentity, type RevisionReviewState } from '../src/core/revision-review.ts';
 import type { DashboardState } from '../src/core/types.ts';

@@ -1,5 +1,5 @@
-import { readDeploymentChart, readDeploymentSchedulePreview, type DeploymentChart, type DeploymentResourceStages } from 'footprint-iac/progress';
-import type { InfraGraph } from 'footprint-iac';
+import { readDeploymentChart, readDeploymentSchedulePreview, type DeploymentChart, type DeploymentResourceStages } from 'footprintjs-iac/progress';
+import type { InfraGraph } from 'footprintjs-iac';
 import type { DashboardState } from './types.ts';
 
 export interface NativeDeploymentBatch {

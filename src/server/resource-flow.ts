@@ -1,12 +1,14 @@
 import { readResourceFlowAction, readResourceFlowState, type ResourceFlowAction, type ResourceFlowState } from '../core/resource-flow.ts';
 import type { DashboardState, OutputArtifact, Recording } from '../core/types.ts';
-import type { InfraGraph, BindingResult, SystemDesign } from 'footprint-iac';
-import type { DeploymentSchedulePreview } from 'footprint-iac/progress';
+import type { InfraGraph, BindingResult, SystemDesign } from 'footprintjs-iac';
+import type { DeploymentSchedulePreview } from 'footprintjs-iac/progress';
 import type { SystemViewDefinition } from '../core/capabilities.ts';
 import type { RevisionReviewState } from '../core/revision-review.ts';
 import type { ResourceFlowChildPhase, ResourceFlowWorkspaceFrame } from '../core/resource-flow-workspace.ts';
 import type { ResourceFlowWorkspaceState } from '../core/resource-flow-workspace.ts';
 import { ResourceFlowWorkspaceReview } from './resource-flow-workspace.ts';
+import type { ConnectionProfileCatalog } from './connection-profiles.ts';
+import type { HostActionControl } from '../core/host-actions.ts';
 
 export interface ResourceFlowWorkspaceOptions {
   graph: InfraGraph;
@@ -23,9 +25,10 @@ export interface ResourceFlowWorkspaceOptions {
 
 export interface ResourceFlowReviewOptions {
   workflow: {
+    readonly requiresProfileAtStart?: boolean;
     snapshot(): Promise<ResourceFlowState>;
     subscribe(listener: (state: ResourceFlowState) => void): () => void;
-    start(): Promise<ResourceFlowState>;
+    start(input?: { profileId: string }): Promise<ResourceFlowState>;
     resume(input: { pauseToken: string; profileId: string }): Promise<ResourceFlowState>;
   };
   target?: DashboardState['target']; neoUrl?: string;
@@ -33,6 +36,9 @@ export interface ResourceFlowReviewOptions {
   /** The fixed host can supply its latest admitted native snapshot; requests cannot choose a path. */
   recording?(state: ResourceFlowState): Promise<Recording | undefined>;
   workspace?: ResourceFlowWorkspaceOptions;
+  connectionProfiles?: ConnectionProfileCatalog;
+  connectionProfileRequiredAtStart?: boolean;
+  controls?: readonly HostActionControl[];
 }
 export interface ResourceFlowPublication {
   state: ResourceFlowState; busy: boolean; error?: string; artifacts?: OutputArtifact[]; recording?: Recording;
@@ -106,7 +112,7 @@ export class ResourceFlowReview {
   private async perform(input: ResourceFlowAction): Promise<void> {
     let error: string | undefined;
     try {
-      this.accept(input.action === 'start' ? await this.options.workflow.start()
+      this.accept(input.action === 'start' ? await this.options.workflow.start(input.profileId ? { profileId: input.profileId } : undefined)
         : await this.options.workflow.resume({ pauseToken: input.pauseToken, profileId: input.profileId }));
     } catch {
       error = 'The workflow action could not complete. Its saved state and native evidence are retained.';

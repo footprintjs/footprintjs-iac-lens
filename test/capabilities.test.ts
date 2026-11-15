@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { infra, resource } from 'footprint-iac';
+import { infra, resource } from 'footprintjs-iac';
 import { projectSystemBlocks, readSystemViewDefinition, unmappedSystemResources, type SystemViewDefinition } from '../src/core/capabilities.ts';
 import type { DashboardState } from '../src/core/types.ts';
 

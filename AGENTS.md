@@ -1,6 +1,6 @@
-# IaC Lens
+# InfraChart Lens
 
-This is the separate viewer and local server for `footprint-iac`. Consume the core library through its public exports; keep resource reconciliation, compilation and native recording in that library. Keep React and viewer dependencies here.
+This is the separate viewer and local server for `footprintjs-iac`. Consume the core library through its public exports; keep resource reconciliation, compilation and native recording in that library. Keep React and viewer dependencies here.
 
 Use small cohesive helpers, stages and modules. Each flowchart construction belongs in one dedicated creation file. Run typecheck, meaningful tests and build directly locally before committing. Automatic CI is off; do not trigger it.
 

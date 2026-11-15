@@ -1,16 +1,35 @@
-# FootPrint IaC Lens
+# InfraChart Lens
 
-A separate live system view for [footprint-iac](https://github.com/footprintjs/footprint-iac). Resource nodes start grey for pending work, become blue while reconciling, and become green only after the configured provider confirms readiness. Failures and skipped work remain visible. The execution view lazily loads [Flow Lens](https://github.com/footprintjs/explainable-ui) over the actual native FootPrint recording.
+A separate live system view for [footprintjs-iac](https://github.com/footprintjs/footprintjs-iac). Resource nodes start grey for pending work, become blue while reconciling, and become green only after the configured provider confirms readiness. Failures and skipped work remain visible. The execution view lazily loads [Flow Lens](https://github.com/footprintjs/explainable-ui) over the actual native FootPrint recording.
 
 Most logic is framework-neutral TypeScript. The root and `/core` exports contain the protocol, state projection, dependency layout and injectable transport client. `/react` is the optional React adapter. `/server` is the separate Node loopback server. React, React DOM, XYFlow and Flow Lens are optional peers; importing the headless API does not load them. Angular, Svelte and Vue adapters can consume the same headless contract; those adapters are not implemented yet.
 
 ## Run directly
 
-Use Node.js 24 or newer. These private repositories need GitHub read access and must be sibling checkouts for the current local package dependency:
+The [release pipeline guide](docs/pipeline-strategies.md) covers registered
+release choices, no-code strategy settings, pure previews, explicit promotion
+and recovery, and per-environment native drilldown. A real Neo host runs with
+`node examples/neo-release-pipeline.ts /private/neo-host.json --port=0` after
+preparing its targets and packages. The browser selects registered IDs; paths,
+credentials and commands stay in the host. Neo's current direct adapter does
+not advertise automatic restore or traffic shifting.
+
+The [Neo release automation guide](docs/neo-release-automation.md) adds a
+**Refresh releases** / **Deploy version** interface and an optional host-driven
+watcher for new published GitHub releases. One exact source build feeds the
+registered dev → gamma → prod stages, with mandatory recorded infrastructure
+preflight and revalidation before each application change. Stage order and
+automatic/manual promotion remain trusted host settings; browser inputs are
+registered IDs only. CI stays off. The first `observe` tick skips the existing
+backlog, and polling/deployment stops when the host exits. Neo's local adapter
+currently keeps rollback disabled; these local stage labels do not configure
+remote production.
+
+Use Node.js 24 or newer. These private repositories need GitHub read access. The explicit checkout names below retain the existing sibling paths used by the local package dependency and prepared recordings; npm package names use `footprintjs-iac` and `footprintjs-iac-lens`:
 
 ```sh
-git clone https://github.com/footprintjs/footprint-iac.git
-git clone https://github.com/footprintjs/footprint-iac-lens.git
+git clone https://github.com/footprintjs/footprintjs-iac.git footprint-iac
+git clone https://github.com/footprintjs/footprintjs-iac-lens.git footprint-iac-lens
 cd footprint-iac
 npm ci
 npm run check
@@ -34,7 +53,7 @@ The built-in server starts with an explicitly labelled **Simulation** fixture. I
 
 ## Show the actual Neo fixture
 
-First prepare Neo from the core checkout using its [setup instructions](https://github.com/footprintjs/footprint-iac/blob/main/docs/SHARING.md). Then run Lens with:
+First prepare Neo from the core checkout using its [setup instructions](https://github.com/footprintjs/footprintjs-iac/blob/main/docs/SHARING.md). Then run Lens with:
 
 ```sh
 npm start -- --neo
@@ -60,7 +79,7 @@ After a successful fresh Neo deployment, Lens opens two random loopback ports fo
 ## Reuse the headless API
 
 ```ts
-import { createDashboardClient, layoutResources, projectBuildScene, statusCounts } from 'footprint-iac-lens/core';
+import { createDashboardClient, layoutResources, projectBuildScene, statusCounts } from 'footprintjs-iac-lens/core';
 
 const client = createDashboardClient({ fetch: yourFetch, openStream: yourStream });
 // Feed its state into your framework's rendering mechanism.
@@ -77,9 +96,9 @@ For React, install the optional peers and load the separate surface:
 
 ```tsx
 import { lazy, Suspense } from 'react';
-import 'footprint-iac-lens/react/style.css';
+import 'footprintjs-iac-lens/react/style.css';
 
-const IacLens = lazy(() => import('footprint-iac-lens/react')
+const IacLens = lazy(() => import('footprintjs-iac-lens/react')
   .then(module => ({ default: module.IacLens })));
 
 <Suspense fallback="Opening infrastructure…"><IacLens /></Suspense>;
@@ -123,6 +142,63 @@ LDAPS federation, a signing-key request from the Ready owned Neo Pod, and the
 in-cluster Service health request. Target, ownership and routing checks remain
 inside the adapters. Viewer requests cannot choose a destination or credentials.
 
+### Recording reader compatibility
+
+The paired core currently pins FootPrintJS 12.1.0 and FootTrace 1.15.0. Lens
+keeps `footprint-explainable-ui` 0.41.0; that viewer has React/XYFlow peers and
+does not require an older FootPrintJS or FootTrace runtime. Native recordings
+and chart bindings remain unchanged. The display adapter admits bounded linked
+stage trees and chain/branch trees, including subflow contexts; the actual
+FootPrintJS 12 snapshots exercised here still use the linked form.
+
+Serial evidence without additional provenance keeps the full existing Flow
+Lens. For recorded read windows, values built on an earlier view, additive
+merge/append writes or nested-path writes, the embedded viewer's older causal
+resolver cannot safely interpret every dependency. Lens uses the same viewer
+library's presentation-only graph, timeline and value inspector alongside the
+base library's updated recorded-dependency reader. The original commits, provenance fields and
+subflow recordings are preserved; no dependency links are guessed or removed
+from the saved evidence.
+
+The browser reader and the core's `backwalk` / `explainRun` use FootTrace 1.15
+for dependency attribution. The updated reader handles the time a parallel
+stage read a value and the earlier writers retained by a partial update. Older
+recordings cannot acquire missing read-window stamps after the run; incomplete
+evidence remains incomplete.
+
+### Recorded failure explanations and recovery
+
+**Why did this fail?** in Simple opens the recorded result, safe status/verdict,
+HTTP status and latency when present, and its dependency steps. **Trace back**
+remains available after recovery. Select the earlier failed run or the later
+passed run without replacing either recording. Details adds native stage IDs,
+keys and diagnostic JSON. Step order is recorded **commit order**; it does not
+claim parallel work started in that order. Data dependencies, controlling
+decisions, partial updates and possible sources are labelled separately.
+Missing reads, missing control records, pre-run inputs and query limits remain
+visible. These dependencies describe one recorded execution; they do not infer
+unobserved service internals or causal links between separate runs.
+
+The host retains up to 12 value-free diagnostic reports in
+`recorded-diagnostics.json`, bound to the current graph, target and workflow.
+Older reports outside that limit are counted. Raw bodies, endpoints, credentials,
+tokens and provider error messages are excluded; facts use a fixed enum/numeric
+allowlist. Unreadable or differently bound history files are retained untouched,
+with a visible warning that the current view only includes newly observed runs
+and cannot save over that file. Native evidence remains authoritative. The
+safe report history is also available in **Output artifacts**.
+
+A trusted resource-flow host may supply `controls` with fixed parameterless
+callbacks. Lens exposes only their configured IDs through `/api/host-action`;
+it accepts no commands, endpoints, paths or callback arguments. Actions require
+a completed workflow, run one at a time, and retain their own native receipt and
+recording when provided. The Neo example maps **Pause sign-in** and **Restore
+sign-in** to its already admitted local identity target. Use **Check connections**
+and **Check sign-in and access** after each action to record failure/recovery;
+the action alone does not manufacture a failed connection. The execution
+evidence selector includes **Configured actions**, separate from checks and
+deployment recordings.
+
 ## Identity and access reviews
 
 A trusted local host can supply `identityReview` to `startDashboard`. **Check identity and access** runs those declared checks through the core's native FootPrint chart and streams actual **Checking → Passed / Failed** events. A negative test can pass: an expected denial must observe `denied`, and a wrong-password test must observe `rejected`. An unavailable identity service fails either test. Identity failures retain the successful resource deployment and its original recording.
@@ -132,8 +208,8 @@ The adapter owns the actual authentication and application requests. It keeps te
 This complete starter function accepts your measured adapter and an already-recorded deployment snapshot. Paths and credentials are supplied on your own laptop:
 
 ```ts
-import type { AccessCheckAdapter } from 'footprint-iac/identity';
-import { startDashboard, type InitialReview } from 'footprint-iac-lens/server';
+import type { AccessCheckAdapter } from 'footprintjs-iac/identity';
+import { startDashboard, type InitialReview } from 'footprintjs-iac-lens/server';
 
 export function openIdentityReview(options: {
   directory: string;
@@ -172,7 +248,7 @@ consume details obtained automatically or from an approved profile selected
 during a human pause. The workflow remains independent of Neo and cloud brands.
 
 Compose a `ResourceFlowWorkflow` and `FileResourceFlowStore` through
-`footprint-iac/resource-flow/workflow`, then supply that fixed instance:
+`footprintjs-iac/resource-flow/workflow`, then supply that fixed instance:
 
 ```ts
 await startDashboard({
@@ -249,7 +325,7 @@ Use sibling core and Lens checkouts with Node 24+ and the core identity guide's
 Docker, kind, kubectl and protected Neo source prerequisites. Run `npm ci`,
 `npm run check`, `npm test` and `npm run build` in each library checkout locally.
 Do not enable CI. Prepare this laptop's own target and protected app images using
-the core [identity integration guide](https://github.com/footprintjs/footprint-iac/blob/main/integration/identity/README.md).
+the core [identity integration guide](https://github.com/footprintjs/footprintjs-iac/blob/main/integration/identity/README.md).
 Pin its printed canonical `target.json` path; another laptop's target, ports,
 image cache and credential files are not inputs. Use a separate prepared target
 when existing viewers must continue controlling their own deployments.
@@ -292,12 +368,64 @@ linked paused/resumed native segments. **Inspect segment** opens either segment
 in Flow Lens. Record from before Start through both paths and the application
 tests when an unedited demonstration is needed. Preserve each execution's
 `<target>/resource-flows/<flow-id>/` history privately; do not commit credentials,
-checkpoints, traces or recordings. The viewer accepts profile choices only and
-does not expose a free-form connection editor or arbitrary company LDAP import.
+checkpoints, traces or recordings. Execution requests accept profile choices
+only. Connection registration is a separate, optional host capability below.
+
+### Add and select an existing connection
+
+A host can provide `resourceFlow.connectionProfiles`, implementing the core
+`ConnectionProfileCatalog` interface. Lens renders its adapter-declared public
+and password fields; the generic viewer contains no identity, storage or cloud
+branches. **Add connection** saves a new immutable profile. Choose it under
+**Connection** before **Start workflow**. A workflow whose
+`requiresProfileAtStart` getter is true cannot Find until a profile is selected.
+Other hosts can collect binding details after Create. An optional
+`connectionProfileRequiredAtStart` host override supplies the same UI admission
+rule when wrapping a workflow without that getter.
+
+For the local Neo existing-service trial:
+
+```sh
+node examples/neo-resource-flow.ts /printed/identity/target.json --mode=existing --profiles=user --details=human --flow=find-entered-connection --port=0
+```
+
+Use **Add connection** to enter a name, the prepared target's issuer address,
+the `neo-checks` client, an existing validation account and its password. The
+adapter admits only that target's issuer before making any request, then checks
+real discovery and account authentication. It does not import an arbitrary
+company LDAP server. A different host supplies its own adapter schema and
+endpoint policy for that system. The default `--profiles=prepared` behavior
+remains available for the earlier fixed-profile examples.
+
+After saving, select the connection and optionally use **Test connection**.
+This invokes the adapter's validation hook; it is separate from the workflow's
+recorded Verify stage. An adapter without a probe reports **Connection check
+unavailable**. Start sends only the saved profile ID. The later human pause
+confirms the same pinned ID and exact pause token; registering another profile
+cannot change an already selected execution. Restarting the host preserves the
+selection and pending pause.
+
+The separate `POST /api/connection-profiles` endpoint accepts
+`{ action: "register", registration: { label, adapterId, config, secrets } }`
+or `{ action: "test", profileId }`. It uses the same loopback and origin guards,
+accepts JSON only, and limits requests to 32 KiB, 32 declared fields per map,
+4,096 characters per value and 160 characters per connection name. The shared
+catalog capacity is 128 immutable profiles, including revisions; existing
+profiles remain selectable when full. Unknown fields and out-of-policy targets
+are refused by the configured service. Errors never echo submitted values.
+
+Only safe configuration, profile IDs and test outcomes enter dashboard state.
+Password controls are cleared on submission and never stored in browser
+storage. Neo keeps public profiles under `<target>/connection-profiles/` and
+encrypted credentials with its private local key under
+`<target>/connection-secrets/`. Runtime adapters resolve credentials privately;
+workflow JSON and FootPrint recordings retain references. A production host
+can replace the secret-store adapter independently of Lens. Do not commit or
+share either target directory or its private recordings.
 
 ## Review and apply a versioned master JSON
 
-The core's `footprint-iac/master` API keeps immutable desired-system revisions,
+The core's `footprintjs-iac/master` API keeps immutable desired-system revisions,
 their parent revision, the applied and staged heads, and every recorded apply
 attempt. This history is separate from the provider inventory. A release's
 revision ID and content digest are also separate from Lens's increasing snapshot
@@ -347,7 +475,7 @@ later connection or application request succeeded.
 ### Upgrade the existing real Neo deployment
 
 First complete the six-resource Neo identity deployment using the core
-[identity guide](https://github.com/footprintjs/footprint-iac/blob/main/integration/identity/README.md).
+[identity guide](https://github.com/footprintjs/footprintjs-iac/blob/main/integration/identity/README.md).
 Keep its printed canonical `target.json` path and successful native recording.
 For the next application version, review and stage the intended source changes
 in the Neo checkout and obtain its exact 40-character `git write-tree` value.
@@ -453,7 +581,7 @@ and failures and skipped dependencies remain visible. Unit lists expand inline;
 the started animation respects reduced-motion settings and never changes status.
 
 Build the reviewed Neo images first using the core
-[identity guide](https://github.com/footprintjs/footprint-iac/blob/main/integration/identity/README.md). Then start one
+[identity guide](https://github.com/footprintjs/footprintjs-iac/blob/main/integration/identity/README.md). Then start one
 viewer against the newly prepared, empty target:
 
 ```sh
@@ -483,4 +611,46 @@ Kubernetes runs expose generated JSON/YAML from the complete desired graph. The 
 
 Replay reconstructs recorded state. Backwalking traverses captured dependencies, with missing evidence and external uncertainty retained. Live snapshots survive SSE reconnects while the server runs; the viewer saves the final state under `.artifacts/latest.json`, and the core retains its durable inventory and execution evidence. Keep `.artifacts/` local because it contains infrastructure and execution data.
 
-The server accepts only named demo/failure/no-op/Neo/connection scenarios, host-configured managed or versioned reviews, and identity checks. It has no arbitrary command, graph upload, path or cloud-target execution endpoint. Keep this prototype local; remote hosting and authentication require a separate design.
+The server accepts only named demo/failure/no-op/Neo/connection scenarios, host-configured managed or versioned reviews, identity checks, and a configured manual delivery ID. It has no arbitrary command, graph upload, path or cloud-target execution endpoint. Keep this prototype local; remote hosting and authentication require a separate design.
+
+## Manual source-to-deployment delivery
+
+A trusted host can supply `delivery` alongside its `initialReview`. The base
+library's `DeliveryWorkflow` owns source resolution, source acquisition, building,
+artifact publication, planning, deployment and verification. Lens observes that
+workflow; its browser request contains only `{ deliveryId }`.
+
+```ts
+await startDashboard({
+  directory: viewerDirectory,
+  staticDirectory,
+  initialReview: recordedExistingSystem,
+  delivery: {
+    id: deliveryDefinition.id,
+    buttonLabel: 'Deploy from GitHub',
+    workflow,
+    subscribePublication: listener => providerObservations.subscribe(listener),
+  },
+});
+```
+
+`DeliveryReviewOptions` and `DeliveryPublication` are exported from `/server`.
+The optional publication callback supplies actual resource, connection, access
+and master-revision observations. It cannot change the configured target. The
+six-resource system view remains visible while the delivery strip shows **Get
+code → Build → Store package → Review changes → Deploy → Check**. Stage changes
+come from the native workflow; building a package does not claim acceptance
+checks passed. A changed graph disables obsolete separately configured recheck
+controls; the delivery adapter's new recorded checks remain visible.
+
+The source repository, requested version, pinned commit and terminal outcome
+are shown directly. **Delivery details** retains planned resource actions,
+artifact identities, measured acceptance results and the native delivery
+recording. Host source locations, adapter metadata and evidence paths are
+excluded from the delivery protocol.
+
+Each button represents one immutable configured delivery. A successful button
+becomes **Deployed** and is disabled; failed or incomplete outcomes remain
+inspectable and cannot silently repeat effects. Deploying a later version needs
+a new host-configured definition and store. Source acquisition is independent
+of GitHub Actions; automatic CI remains off.

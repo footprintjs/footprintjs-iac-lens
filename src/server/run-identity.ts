@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { checkIdentityAccess, createIdentityRecorder, type AccessCheckAdapter, type IdentityCheckRequest } from 'footprint-iac/identity';
+import { checkIdentityAccess, createIdentityRecorder, type AccessCheckAdapter, type IdentityCheckRequest } from 'footprintjs-iac/identity';
 import { untestedIdentity } from '../core/identity.ts';
 import type { IdentityProgress, IdentityRun } from '../core/types.ts';
 
@@ -64,7 +64,7 @@ export async function runIdentityReview(options: IdentityReviewOptions & {
     const complete = checks.every(check => check.status === 'passed' || check.status === 'failed');
     state = { ...state, id: result.runId, status: result.ok ? 'passed' : 'failed', checkedAt: Date.now(), checks,
       events: result.events.map(event => bindResources(event, resourceBindings)),
-      recording: { snapshot: result.snapshot, structure: result.structure, narrativeEntries: Array.isArray(result.narrative) ? result.narrative : [] },
+      recording: { snapshot: result.snapshot, structure: result.structure, controlDeps: result.controlDeps, narrativeEntries: Array.isArray(result.narrative) ? result.narrative : [] },
       report: { tracePath: result.tracePath, traceStatus: result.traceStatus } };
     if (result.traceStatus && (result.traceStatus.failed > 0 || result.traceStatus.flushed === false)) {
       state.report!.captureError = 'The native JSONL trace is incomplete. The captured snapshot remains available; trace replay may have gaps.';

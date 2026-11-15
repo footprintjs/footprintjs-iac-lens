@@ -6,7 +6,7 @@ import test from 'node:test';
 import { loadFreshNeoTarget, preparedNeo } from '../src/server/fresh-neo.ts';
 import { startDashboard } from '../src/server/server.ts';
 import { claimFreshNeo } from '../src/server/claim-fresh-neo.ts';
-import type { Plan } from 'footprint-iac';
+import type { Plan } from 'footprintjs-iac';
 
 const descriptor = {
   version: 1, stage: 'prepared', clusterName: 'footprint-iac-recording-0123abcd',

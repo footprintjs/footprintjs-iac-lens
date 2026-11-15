@@ -1,7 +1,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
-import { loadEvidence, type InfraGraph } from 'footprint-iac';
-import type { ResourceFlowState } from 'footprint-iac/resource-flow';
+import { loadEvidence, type InfraGraph } from 'footprintjs-iac';
+import type { ResourceFlowState } from 'footprintjs-iac/resource-flow';
 import type { OutputArtifact, Recording } from '../../src/core/types.ts';
 
 async function readBoundedJson(path: string) {
@@ -38,6 +38,6 @@ export async function neoFlowRecording(directory: string, state: ResourceFlowSta
   const segment = state.segments.at(-1); if (!segment) return;
   const evidence = await loadEvidence(segmentPath(directory, segment.evidencePath));
   if (evidence.runId !== segment.runId || !evidence.structure) throw Error('The native workflow recording does not match its segment');
-  return { snapshot: evidence.snapshot, structure: evidence.structure,
+  return { snapshot: evidence.snapshot, structure: evidence.structure, controlDeps: evidence.controlDeps,
     narrativeEntries: Array.isArray(evidence.narrative) ? evidence.narrative : [] };
 }

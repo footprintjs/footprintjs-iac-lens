@@ -1,5 +1,5 @@
 import { open } from 'node:fs/promises';
-import type { Plan } from 'footprint-iac';
+import type { Plan } from 'footprintjs-iac';
 
 /** One fresh take per prepared target, including across separate dashboard processes. */
 export async function claimFreshNeo(path: string, plan: () => Promise<Plan>): Promise<void> {

@@ -1,0 +1,13 @@
+import { resolve } from 'node:path';
+import { startDashboard } from '../src/server/index.ts';
+import { createNeoReleasePipelineHost } from './neo-release-pipeline/create-host.ts';
+import { readNeoReleaseHostConfig } from './neo-release-pipeline/config.ts';
+const [path,...args]=process.argv.slice(2);
+if(!path||args.some(arg=>!/^--(?:port=\d+|new-attempt)$/.test(arg))||new Set(args.map(arg=>arg.split('=')[0])).size!==args.length)throw Error('Usage: node examples/neo-release-pipeline.ts /private/neo-host.json [--port=0] [--new-attempt]');
+const port=Number(args.find(arg=>arg.startsWith('--port='))?.slice(7)??0);if(!Number.isInteger(port)||port<0||port>65535)throw Error('Choose a local port');
+const host=await createNeoReleasePipelineHost(await readNeoReleaseHostConfig(resolve(path)),{newAttempt:args.includes('--new-attempt')});
+const app=await startDashboard({...host,staticDirectory:resolve(import.meta.dirname,'../dist/web'),port});
+console.log('Real local Neo · direct application updates · no automatic restore or data migration.');
+console.log('InfraChart Lens: '+app.url);
+console.log('Preview the registered prepared release, then Start deployment. Progress, system details, connections and access come from native recordings. CI stays off.');
+for(const signal of ['SIGTERM','SIGINT'] as const)process.once(signal,()=>{void app.close().then(()=>process.exit(0));});

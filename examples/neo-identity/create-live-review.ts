@@ -1,8 +1,8 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { previewDeploymentChart } from 'footprint-iac/progress/preview';
+import { previewDeploymentChart } from 'footprintjs-iac/progress/preview';
 import { createIdentityGraph, identityEngine, neoIdentityCheckAdapter, neoIdentityChecks,
-  neoIdentityConnectionAdapter, type IdentityTarget } from 'footprint-iac/integration/identity';
+  neoIdentityConnectionAdapter, type IdentityTarget } from 'footprintjs-iac/integration/identity';
 import type { ControllerOptions } from '../../src/server/controller.ts';
 import { neoIdentitySystemView } from './system-view.ts';
 

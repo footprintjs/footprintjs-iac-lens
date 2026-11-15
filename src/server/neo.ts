@@ -1,8 +1,8 @@
 import { readFile, realpath, access } from 'node:fs/promises';
 import { relative, resolve, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { bindSystem, type BindingResult, type SystemDesign } from 'footprint-iac';
-import { createNeoSystem, neoKubernetesProfile, NEO_NAMESPACE } from 'footprint-iac/integration/neo';
+import { bindSystem, type BindingResult, type SystemDesign } from 'footprintjs-iac';
+import { createNeoSystem, neoKubernetesProfile, NEO_NAMESPACE } from 'footprintjs-iac/integration/neo';
 
 export interface NeoTarget {
   context: string; kubeconfig: string; stateDirectory: string; design: SystemDesign;

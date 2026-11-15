@@ -1,6 +1,6 @@
-import { neoIdentityChecks } from 'footprint-iac/integration/identity';
-import type { NeoResourceFlowObservation } from 'footprint-iac/integration/identity/resource-flow-view';
-import type { InfraGraph } from 'footprint-iac';
+import { neoIdentityChecks } from 'footprintjs-iac/integration/identity';
+import type { NeoResourceFlowObservation } from 'footprintjs-iac/integration/identity/resource-flow-view';
+import type { InfraGraph } from 'footprintjs-iac';
 import { untestedConnections } from '../../src/core/connections.ts';
 import { untestedIdentity } from '../../src/core/identity.ts';
 import type { ConnectionRun, IdentityRun } from '../../src/core/types.ts';

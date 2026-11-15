@@ -1,4 +1,4 @@
-import type { Resource } from 'footprint-iac';
+import type { Resource } from 'footprintjs-iac';
 import { projectSystemBlocks, type SystemBlockFamily, type SystemUnitMode } from './capabilities.ts';
 import { describeResource, resourceProgress, type ResourceDescription } from './model.ts';
 import type { DashboardState, ProgressEvent, ResourceProgress } from './types.ts';

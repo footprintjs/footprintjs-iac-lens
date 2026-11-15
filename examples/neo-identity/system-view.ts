@@ -1,4 +1,4 @@
-import type { IdentityTarget } from 'footprint-iac/integration/identity';
+import type { IdentityTarget } from 'footprintjs-iac/integration/identity';
 import type { SystemBlockDefinition, SystemViewDefinition } from '../../src/core/index.ts';
 
 export function neoIdentitySystemView(target: IdentityTarget, full = true): SystemViewDefinition {

@@ -2,8 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { FileStateStore, InfraEngine, KubernetesAdapter, SimulatorAdapter,
-  type ApplyResult, type InfraGraph } from 'footprint-iac';
-import type { DeploymentRecorder } from 'footprint-iac/progress';
+  type ApplyResult, type InfraGraph } from 'footprintjs-iac';
+import type { DeploymentRecorder } from 'footprintjs-iac/progress';
 import type { Recording } from '../core/types.ts';
 import type { NeoTarget } from './neo.ts';
 import { claimFreshNeo } from './claim-fresh-neo.ts';
@@ -39,7 +39,7 @@ export async function executeRun(options: {
   }
   try {
     const evidence = JSON.parse(await readFile(result.evidencePath, 'utf8'));
-    return { result, recording: { snapshot: evidence.snapshot, structure: evidence.structure,
+    return { result, recording: { snapshot: evidence.snapshot, structure: evidence.structure, controlDeps: evidence.controlDeps,
       narrativeEntries: evidence.narrative } };
   } catch (error) {
     return { result, captureError: error instanceof Error ? error.message : String(error) };

@@ -1,6 +1,6 @@
-import type { InfraGraph } from 'footprint-iac';
-import type { IdentityTarget } from 'footprint-iac/integration/identity';
-import { FileMasterStore } from 'footprint-iac/master/workflow';
+import type { InfraGraph } from 'footprintjs-iac';
+import type { IdentityTarget } from 'footprintjs-iac/integration/identity';
+import { FileMasterStore } from 'footprintjs-iac/master/workflow';
 import { join } from 'node:path';
 import type { OutputArtifact } from '../../src/core/types.ts';
 import type { RevisionReviewState } from '../../src/core/revision-review.ts';

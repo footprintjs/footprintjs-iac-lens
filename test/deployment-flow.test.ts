@@ -3,8 +3,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { compileGraph, FileStateStore, InfraEngine, SimulatorAdapter } from 'footprint-iac';
-import { createDeploymentRecorder } from 'footprint-iac/progress';
+import { compileGraph, FileStateStore, InfraEngine, SimulatorAdapter } from 'footprintjs-iac';
+import { createDeploymentRecorder } from 'footprintjs-iac/progress';
 import { projectDeploymentFlow } from '../src/core/deployment-flow.ts';
 import type { DashboardState, ProgressEvent, ResourceProgress } from '../src/core/types.ts';
 

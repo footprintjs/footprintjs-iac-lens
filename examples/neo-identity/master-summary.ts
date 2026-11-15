@@ -1,5 +1,5 @@
-import type { Json } from 'footprint-iac';
-import type { MasterReview, MasterState, SystemRevision } from 'footprint-iac/master';
+import type { Json } from 'footprintjs-iac';
+import type { MasterReview, MasterState, SystemRevision } from 'footprintjs-iac/master';
 import type { RevisionIdentity, RevisionReviewState, RevisionResourceChange } from '../../src/core/revision-review.ts';
 
 export function revisionIdentity(state: MasterState, revision: SystemRevision): RevisionIdentity {

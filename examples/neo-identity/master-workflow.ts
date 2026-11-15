@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { createIdentityGraph, identityEngine, loadIdentityTarget, type IdentityTarget } from 'footprint-iac/integration/identity';
-import { FileMasterStore, MasterWorkflow } from 'footprint-iac/master/workflow';
-import { previewDeploymentChart } from 'footprint-iac/progress/preview';
+import { createIdentityGraph, identityEngine, loadIdentityTarget, type IdentityTarget } from 'footprintjs-iac/integration/identity';
+import { FileMasterStore, MasterWorkflow } from 'footprintjs-iac/master/workflow';
+import { previewDeploymentChart } from 'footprintjs-iac/progress/preview';
 import type { ControllerOptions, RevisionWorkflowOptions } from '../../src/server/index.ts';
 import type { OutputArtifact } from '../../src/core/types.ts';
 import { neoIdentitySystemView } from './system-view.ts';

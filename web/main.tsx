@@ -5,5 +5,5 @@ import './styles.css';
 import './standalone.css';
 
 const root = document.getElementById('root');
-if (!root) throw new Error('IaC Lens requires a root element');
+if (!root) throw new Error('InfraChart Lens requires a root element');
 createRoot(root).render(<IacLens/>);

@@ -3,9 +3,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { FileStateStore, InfraEngine, ReconcileStrategy, SimulatorAdapter, loadEvidence } from 'footprint-iac';
-import { compileGraph } from 'footprint-iac/graph';
-import { createDeploymentRecorder } from 'footprint-iac/progress';
+import { FileStateStore, InfraEngine, ReconcileStrategy, SimulatorAdapter, loadEvidence } from 'footprintjs-iac';
+import { compileGraph } from 'footprintjs-iac/graph';
+import { createDeploymentRecorder } from 'footprintjs-iac/progress';
 import { projectBuildScene, type DashboardState } from '../src/core/index.ts';
 import { DashboardController, RequestError } from '../src/server/index.ts';
 

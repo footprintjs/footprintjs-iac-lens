@@ -1,4 +1,4 @@
-import type { InfraGraph } from 'footprint-iac';
+import type { InfraGraph } from 'footprintjs-iac';
 import { graphArtifacts } from '../../src/server/artifacts.ts';
 
 /** Render the complete consumer phase, including resources that a later plan leaves unchanged. */

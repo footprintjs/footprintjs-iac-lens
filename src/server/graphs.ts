@@ -1,4 +1,4 @@
-import { infra, resource, type InfraGraph } from 'footprint-iac';
+import { infra, resource, type InfraGraph } from 'footprintjs-iac';
 
 /** A labelled simulation of a small application, with real dependency scheduling. */
 export function demoGraph(failure = false): InfraGraph {

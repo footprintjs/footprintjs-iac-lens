@@ -1,8 +1,10 @@
+import {ReleaseAutomationReview,type ReleaseAutomationReviewOptions} from './release-automation.ts';
+import type {ReleaseAutomationAction} from '../core/release-automation.ts';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createDeploymentRecorder, readDeploymentSchedulePreview } from 'footprint-iac/progress';
-import type { InfraGraph } from 'footprint-iac';
-import { validateInfraGraph } from 'footprint-iac/graph';
+import { createDeploymentRecorder, readDeploymentSchedulePreview } from 'footprintjs-iac/progress';
+import type { InfraGraph } from 'footprintjs-iac';
+import { validateInfraGraph } from 'footprintjs-iac/graph';
 import type { DashboardRun, DashboardState, Scenario } from '../core/types.ts';
 import { readSystemViewDefinition, type SystemViewDefinition } from '../core/capabilities.ts';
 import { graphArtifacts, cloudFormationExample } from './artifacts.ts';
@@ -10,7 +12,7 @@ import { demoGraph } from './graphs.ts';
 import { ReviewSimulator, executeRun } from './execute-run.ts';
 import type { NeoTarget } from './neo.ts';
 import { checkNeoForward, startNeoForward, type NeoForward } from './neo-forward.ts';
-import { KubernetesConnectionAdapter } from 'footprint-iac/connections';
+import { KubernetesConnectionAdapter } from 'footprintjs-iac/connections';
 import { untestedConnections } from '../core/connections.ts';
 import { pendingConnectionReview, readConnectionReview, runConnectionReview, type ConnectionReviewOptions } from './run-connections.ts';
 import { pendingIdentity, readIdentityResourceBindings, runIdentityReview, type IdentityReviewOptions } from './run-identity.ts';
@@ -21,6 +23,18 @@ import { readRevisionPreparation, type RevisionWorkflowOptions, type RevisionPre
 import type { ResourceFlowAction } from '../core/resource-flow.ts';
 import { ResourceFlowReview, ResourceFlowRequestError, type ResourceFlowReviewOptions } from './resource-flow.ts';
 import { readWorkspaceOptions } from './resource-flow-workspace.ts';
+import { ConnectionProfilesReview } from './connection-profiles.ts';
+import { readConnectionProfileAction, type ConnectionProfileActionResult } from '../core/connection-profiles.ts';
+import { RecordedDiagnosticHistory } from './recorded-diagnostics.ts';
+import { HostActionReview, HostActionRequestError } from './host-actions.ts';
+import type { HostActionInput } from '../core/host-actions.ts';
+import { readDashboardState } from '../core/client.ts';
+import { MigrationReview,MigrationRequestError,type MigrationReviewOptions } from './migration.ts';
+import type { MigrationAction } from '../core/migration.ts';
+import type { PipelineAction } from '../core/pipeline.ts';
+import { PipelineReview, PipelineRequestError, type PipelineReviewOptions } from './pipeline.ts';
+import type { DeliveryAction } from '../core/delivery.ts';
+import { DeliveryReview, DeliveryRequestError, type DeliveryReviewOptions, type DeliveryPublication } from './delivery.ts';
 
 const verificationAttention = 'The version was applied. Connection or access checks need attention; recorded results are available.';
 
@@ -35,6 +49,10 @@ export interface ControllerOptions {
   connectionReview?: ConnectionReviewOptions;
   revisionWorkflow?: RevisionWorkflowOptions;
   resourceFlow?: ResourceFlowReviewOptions;
+  delivery?: DeliveryReviewOptions;
+  pipeline?: PipelineReviewOptions;
+  migration?: MigrationReviewOptions;
+  releaseAutomation?: ReleaseAutomationReviewOptions;
 }
 
 export class RequestError extends Error {
@@ -54,8 +72,22 @@ export class DashboardController {
   private connectionGraphDigest: string | undefined;
   private preparedRevision: RevisionPreparation | undefined;
   private resourceFlowReview?: ResourceFlowReview;
+  private connectionProfilesReview?: ConnectionProfilesReview;
+  private profileCompletion: Promise<unknown> = Promise.resolve();
+  private diagnosticHistory?: RecordedDiagnosticHistory;
+  private hostActionReview?: HostActionReview;
+  private deliveryReview?: DeliveryReview;
+  private pipelineReview?: PipelineReview;
+  private migrationReview?:MigrationReview;
+  private releaseAutomationReview?:ReleaseAutomationReview;
 
   constructor(options: ControllerOptions) {
+    if(options.releaseAutomation&&(options.pipeline||options.delivery||options.migration||options.resourceFlow||options.revisionWorkflow||options.managedReview||options.neo||options.initialScenario))throw Error('Choose one configured release automation host');
+    if(options.migration&&(options.pipeline||options.delivery||options.resourceFlow||options.revisionWorkflow||options.managedReview||options.neo||options.initialScenario))throw Error('Choose one configured migration host and its recorded system');
+    if (options.pipeline && (options.delivery || options.resourceFlow || options.revisionWorkflow || options.managedReview || options.neo || options.initialScenario)) throw Error('Choose one configured pipeline host and its recorded system');
+    if (options.delivery && (options.resourceFlow || options.revisionWorkflow || options.managedReview || options.neo || options.initialScenario)) {
+      throw Error('Choose one configured delivery host and its existing recorded system');
+    }
     if (options.resourceFlow?.workspace) options = { ...options, resourceFlow: { ...options.resourceFlow,
       workspace: readWorkspaceOptions(options.resourceFlow.workspace) } };
     if (options.resourceFlow && (options.neo || options.initialScenario || options.managedReview || options.revisionWorkflow
@@ -87,7 +119,7 @@ export class DashboardController {
     const neo = options.initialScenario === 'neo' ? options.neo : undefined;
     const initialReview = this.options.initialReview;
     const workspace = options.resourceFlow?.workspace;
-    const graph = workspace?.graph ?? initialReview?.graph ?? managedReview?.graph ?? neo?.binding.graph ?? (options.resourceFlow ? null : demoGraph());
+    const graph = workspace?.graph ?? initialReview?.graph ?? managedReview?.graph ?? neo?.binding.graph ?? (options.resourceFlow || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? null : demoGraph());
     if (options.connectionReview) {
       validateInfraGraph(graph!);
       this.options.connectionReview = readConnectionReview(options.connectionReview, graph!);
@@ -97,19 +129,19 @@ export class DashboardController {
       identityReview.resourceBindings = readIdentityResourceBindings(identityReview, graph!.resources.map(resource => resource.id));
       if (Object.values(identityReview.resourceBindings ?? {}).some(ids => ids.length > 0)) this.identityGraphDigest = graph!.digest;
     }
-    this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? managedReview?.mode ?? (managedReview || options.resourceFlow ? 'managed' : neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
+    this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? managedReview?.mode ?? (managedReview || options.resourceFlow || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? 'managed' : neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
       ...(managedReview ? { managedReviewAvailable: true, managedReviewLabel: managedReview.label ?? 'Configured system deployment' } : {}),
       ...(this.options.connectionReview || workspace ? { connectionReviewAvailable: !!this.options.connectionReview } : {}),
-      ...(identityReview || workspace ? { identityReviewAvailable: !!identityReview } : {}),
+      ...(identityReview || workspace || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? { identityReviewAvailable: !!identityReview } : {}),
       ...(workspace?.systemView || this.options.systemView ? { systemView: workspace?.systemView ?? this.options.systemView } : {}),
       ...(workspace?.schedulePreview || managedReview?.schedulePreview ? { schedulePreview: workspace?.schedulePreview ?? managedReview?.schedulePreview } : {}),
       ...(workspace?.design ? { design: workspace.design } : {}), ...(workspace?.binding ? { binding: workspace.binding } : {}),
       ...(workspace?.revisionReview ? { revisionReview: workspace.revisionReview } : {}),
-      ...(initialReview && !options.revisionWorkflow && !options.resourceFlow ? { deploymentReadOnly: true } : {}),
+      ...(initialReview && !options.revisionWorkflow && !options.resourceFlow && !options.delivery && !options.pipeline && !options.migration && !options.releaseAutomation ? { deploymentReadOnly: true } : {}),
       ...(neo ? { design: neo.design, binding: neo.binding } : {}),
       ...(initialReview?.neoUrl ? { neoUrl: initialReview.neoUrl } : options.neo?.url ? { neoUrl: options.neo.url } : {}),
       target: options.resourceFlow?.target ?? initialReview?.target ?? managedReview?.target ?? (managedReview ? { id: 'managed-review', label: managedReview.label ?? 'Configured local providers' } : neo ? { id: neo.binding.targetId, context: neo.context, namespace: 'footprint-iac-neo-test', label: 'Fresh local Neo Kubernetes target' }
-        : { id: 'local-simulator', label: 'Local simulator · no cloud resources' }),
+        : options.releaseAutomation ? {id:'release-automation',label:'Release deployment'} : options.migration ? {id:options.migration.id,label:options.migration.label} : options.pipeline ? { id: options.pipeline.catalog.id, label: options.pipeline.catalog.label } : options.delivery ? { id: options.delivery.id, label: 'Configured deployment target' } : { id: 'local-simulator', label: 'Local simulator · no cloud resources' }),
       run: options.resourceFlow ? undefined : initialReview?.run ?? (graph ? { id: '', status: 'idle', mode: managedReview?.mode ?? (managedReview ? 'managed' : neo ? 'kubernetes' : 'simulator'), resources: this.pending(graph), events: [] } : undefined),
       connections: graph ? this.pendingConnections(graph) : undefined, ...(identityReview ? { identity: pendingIdentity(identityReview) } : {}), artifacts: [] };
   }
@@ -117,11 +149,17 @@ export class DashboardController {
   async initialize(): Promise<void> {
     await mkdir(this.options.directory, { recursive: true, mode: 0o700 });
     this.state.artifacts = this.state.graph ? [...await graphArtifacts(this.state.graph), ...await cloudFormationExample()] : [];
+    if (this.options.resourceFlow?.connectionProfiles) {
+      this.connectionProfilesReview = new ConnectionProfilesReview(this.options.resourceFlow.connectionProfiles,
+        this.options.resourceFlow.connectionProfileRequiredAtStart ?? this.options.resourceFlow.workflow.requiresProfileAtStart ?? false,
+        view => { this.state.connectionProfiles = view; this.publish(); });
+      await this.connectionProfilesReview.initialize();
+    }
     if (this.options.resourceFlow) {
       const options = this.options.resourceFlow;
       const workspaceArtifacts = options.workspace ? this.state.artifacts : undefined;
       this.resourceFlowReview = new ResourceFlowReview(options, publication => {
-        this.state.resourceFlow = publication.state; this.state.busy = publication.busy;
+        this.state.resourceFlow = publication.state; this.state.busy = publication.busy || this.hostActionReview?.isBusy === true;
         this.state.resourceFlowError = publication.error;
         if (options.workspace) {
           const available = publication.state.status === 'passed' && !publication.busy && !publication.error;
@@ -146,25 +184,122 @@ export class DashboardController {
         this.publish();
       });
       await this.resourceFlowReview.initialize();
+      if (options.controls) {
+        this.hostActionReview = new HostActionReview(options.controls, view => { this.state.hostActions = view; this.state.busy = view.busy; this.publish(); });
+        this.state.hostActions = this.hostActionReview.snapshot();
+      }
     }
     if (this.options.revisionWorkflow) {
       this.state.revisionReview = readRevisionReview(await this.options.revisionWorkflow.snapshot());
       if (this.state.revisionReview.current?.graphDigest !== this.state.graph?.digest) throw Error('The recorded deployment does not match the current master revision');
       this.state.artifacts.push(...await this.options.revisionWorkflow.artifacts?.() ?? []);
     }
+    if (this.options.delivery) {
+      this.deliveryReview = new DeliveryReview(this.options.delivery, view => {
+        this.state.delivery = view; this.state.busy = view.status === 'running' || this.deliveryReview?.isBusy === true; this.publish();
+      }, patch => this.deliveryPublication(patch));
+      await this.deliveryReview.initialize();
+    }
+    if (this.options.pipeline) {
+      this.pipelineReview = new PipelineReview(this.options.pipeline, view => { this.state.pipeline=view; this.state.busy=view.busy; this.publish(); }, patch=>this.deliveryPublication(patch));
+      await this.pipelineReview.initialize();
+    }
+    if(this.options.migration){
+      this.migrationReview=new MigrationReview(this.options.migration,view=>{this.state.migration=view;this.state.busy=view.busy;this.publish();},patch=>this.deliveryPublication(patch));
+      await this.migrationReview.initialize();
+    }
+    if(this.options.releaseAutomation){
+      this.releaseAutomationReview=new ReleaseAutomationReview(this.options.releaseAutomation,view=>{this.state.releaseAutomation=view;this.state.busy=view.busy;this.publish();},patch=>this.deliveryPublication(patch));
+      await this.releaseAutomationReview.initialize();
+    }
+    this.diagnosticHistory = new RecordedDiagnosticHistory(this.options.directory, () => this.publish());
+    await this.diagnosticHistory.initialize(this.state);
     this.publish();
   }
   getSnapshot(): DashboardState { return structuredClone(this.state); }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
-  whenIdle(): Promise<void> { return this.completion; }
-  dispose(): void { this.resourceFlowReview?.dispose(); }
+  async whenIdle(): Promise<void> {
+    await Promise.all([this.completion, this.profileCompletion, this.hostActionReview?.whenIdle(), this.deliveryReview?.whenIdle(), this.pipelineReview?.whenIdle(),this.migrationReview?.whenIdle(),this.releaseAutomationReview?.whenIdle()]);
+    await this.diagnosticHistory?.whenIdle();
+  }
+  dispose(): void { this.resourceFlowReview?.dispose(); this.deliveryReview?.dispose(); this.pipelineReview?.dispose();this.migrationReview?.dispose();this.releaseAutomationReview?.dispose(); }
+  async releaseAutomationAction(input:ReleaseAutomationAction):Promise<void>{
+    if(!this.releaseAutomationReview)throw new RequestError(409,'No release watcher was configured');
+    try{await this.releaseAutomationReview.action(input);}catch(error){if(error&&typeof error==='object'&&'status'in error)throw new RequestError(Number(error.status),'The release action was refused');throw error;}
+  }
+  async migrationAction(input:MigrationAction):Promise<void>{
+    if(!this.migrationReview)throw new RequestError(409,'No migration was configured by this host');
+    if(this.state.busy||this.connectionProfilesReview?.isBusy())throw new RequestError(409,'Wait for the current task');
+    try{const action=this.migrationReview.action(input);this.completion=action.then(()=>this.migrationReview!.whenIdle(),()=>{}).finally(async()=>{this.state.busy=false;this.publish();await this.persist();});await action;}
+    catch(error){if(error instanceof MigrationRequestError)throw new RequestError(error.status,error.message);throw error;}
+  }
+  async pipelineAction(input:PipelineAction):Promise<void>{
+    if(!this.pipelineReview)throw new RequestError(409,'No pipeline was configured by this host');
+    if(this.state.busy || this.connectionProfilesReview?.isBusy())throw new RequestError(409,'Wait for the current task');
+    try {
+      const action=this.pipelineReview.action(input);
+      this.completion=action.then(()=>this.pipelineReview!.whenIdle(),()=>{}).finally(async()=>{this.state.busy=false;this.publish();await this.persist();});
+      await action;
+    }catch(error){if(error instanceof PipelineRequestError)throw new RequestError(error.status,error.message);throw error;}
+  }
+  startDelivery(input: DeliveryAction): void {
+    if (!this.deliveryReview) throw new RequestError(409,'No delivery was configured by this host');
+    if (this.state.busy || this.connectionProfilesReview?.isBusy()) throw new RequestError(409,'Wait for the current task to finish');
+    try {
+      this.deliveryReview.action(input);
+      this.state.busy = true; this.publish();
+      this.completion = this.deliveryReview.whenIdle().finally(async () => { this.state.busy = false; this.publish(); await this.persist(); });
+    } catch (error) { if (error instanceof DeliveryRequestError) throw new RequestError(error.status,error.message); throw error; }
+  }
+  private deliveryPublication(patch: DeliveryPublication): void {
+    const fields = new Set(['graph','design','binding','schedulePreview','run','recording','connections','identity','revisionReview','neoUrl','appAccess','artifacts','target','systemView','changeAssessment']);
+    if (!patch || typeof patch !== 'object' || Object.keys(patch).some(key => !fields.has(key))) throw Error('Invalid delivery publication');
+    const admitted = readDashboardState({ ...this.state, ...structuredClone(patch) });
+    if (admitted.graph) validateInfraGraph(admitted.graph);
+    if (admitted.graph?.digest !== this.state.graph?.digest) {
+      admitted.connectionReviewAvailable = false; admitted.identityReviewAvailable = false;
+    }
+    this.state = admitted; this.publish();
+  }
   startResourceFlow(input: ResourceFlowAction): void {
     if (!this.resourceFlowReview) throw new RequestError(409, 'No resource workflow is configured');
+    if (this.connectionProfilesReview?.isBusy()) throw new RequestError(409, 'Wait for connection setup to finish');
+    if (input.action === 'start' && this.state.connectionProfiles) {
+      if (this.state.connectionProfiles.requiredAtStart && !input.profileId) throw new RequestError(409, 'Choose a saved connection before starting');
+      if (input.profileId && !this.connectionProfilesReview?.has(input.profileId)) throw new RequestError(409, 'Choose a connection from this host');
+    }
     try { this.resourceFlowReview.action(input); this.completion = this.resourceFlowReview.whenIdle().then(() => this.persist()); }
     catch (error) { if (error instanceof ResourceFlowRequestError) throw new RequestError(error.status, error.message); throw error; }
   }
 
+  hostAction(input: HostActionInput): void {
+    if (!this.hostActionReview || this.state.resourceFlow?.status !== 'passed') throw new RequestError(409, 'Configured actions are available after this workflow completes');
+    if (this.state.busy || this.connectionProfilesReview?.isBusy()) throw new RequestError(409, 'Wait for the current task to finish');
+    try { this.hostActionReview.action(input); this.completion = this.hostActionReview.whenIdle().then(() => this.persist()); }
+    catch (error) { if (error instanceof HostActionRequestError) throw new RequestError(error.status, error.message); throw error; }
+  }
+
+  async connectionProfileAction(value: unknown): Promise<ConnectionProfileActionResult> {
+    if (!this.connectionProfilesReview) throw new RequestError(409, 'Connection setup was not configured by this host');
+    if (this.state.busy || this.connectionProfilesReview.isBusy()) throw new RequestError(409, 'Wait for the current task to finish');
+    let input;
+    try { input = readConnectionProfileAction(value); }
+    catch { throw new RequestError(400, 'Supply only the declared connection fields or a saved profile ID'); }
+    const completion = this.connectionProfilesReview.action(input);
+    this.profileCompletion = completion.catch(() => undefined);
+    try { return await completion; }
+    catch { throw new RequestError(422, 'The connection was refused. Check the fields and allowed target.'); }
+  }
+
   start(scenario: Scenario, reviewId?: string): void {
+    if(this.options.releaseAutomation)throw new RequestError(409,'Use the configured release controls');
+    if(this.options.migration)throw new RequestError(409,'Use the assessed migration workflow for this system');
+    if (this.pipelineReview?.isBusy) throw new RequestError(409,'Wait for the pipeline to finish');
+    if (this.options.pipeline && !['connections','identity'].includes(scenario)) throw new RequestError(409,'Use the configured pipeline action');
+    if (this.deliveryReview?.isBusy) throw new RequestError(409,'Wait for delivery to finish');
+    if (this.options.delivery && !['connections','identity'].includes(scenario)) throw new RequestError(409,'Use the configured delivery action for this system');
+    if (this.hostActionReview?.isBusy) throw new RequestError(409, 'Wait for the configured action to finish');
+    if (this.connectionProfilesReview?.isBusy()) throw new RequestError(409, 'Wait for connection setup to finish');
     if (this.options.resourceFlow) {
       if (reviewId !== undefined || (scenario !== 'connections' && scenario !== 'identity')) throw new RequestError(409, 'This viewer runs only its configured resource workflow');
       try { this.resourceFlowReview!.recheck(scenario); this.completion = this.resourceFlowReview!.whenIdle().then(() => this.persist()); }
@@ -322,6 +457,13 @@ export class DashboardController {
     } finally { this.state.busy = false; this.publish(); await this.persist(); }
   }
   private publish(): void {
+    if (this.diagnosticHistory) {
+      this.diagnosticHistory.update(this.state); this.state.recordedDiagnostics = this.diagnosticHistory.snapshot();
+      const history = this.state.recordedDiagnostics;
+      if (history?.runs.length) this.state.artifacts = [...(this.state.artifacts ?? []).filter(item => item.id !== 'recorded-diagnostics'), {
+        id: 'recorded-diagnostics', path: 'diagnostics/history.json', mediaType: 'application/json', content: JSON.stringify(history, null, 2) + '\n',
+      }];
+    }
     this.state.revision++;
     for (const listener of this.listeners) { try { listener(); } catch { /* A disconnected viewer cannot change a deployment. */ } }
   }

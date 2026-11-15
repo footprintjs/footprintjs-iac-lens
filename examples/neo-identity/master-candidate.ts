@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { createIdentityGraph, type IdentityTarget } from 'footprint-iac/integration/identity';
-import { defineSystemRevision, type MasterTarget, type SystemRevision } from 'footprint-iac/master';
+import { createIdentityGraph, type IdentityTarget } from 'footprintjs-iac/integration/identity';
+import { defineSystemRevision, type MasterTarget, type SystemRevision } from 'footprintjs-iac/master';
 
 interface SourceReceipt { baseCommit: string; sourceTree: string; imageId: string; image: string;
   pythonImageId: string; pythonImage: string; canonicalTargetSha256: string }
