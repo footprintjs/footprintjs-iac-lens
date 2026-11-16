@@ -44,6 +44,14 @@ test('connection failures and recovery use only supplied check states', () => {
   (view.connections[0] as {status: string}).status = 'connected'; assert.match(render(view), /class="topology-edge-label edge-connected"[^>]*>Connected/);
   (view.connections[0] as {status: string}).status = 'untested'; const html = render(view); assert.match(html, /class="topology-edge-label edge-untested"[^>]*>Not checked/); assert.doesNotMatch(html, /class="topology-edge-label edge-connected"/);
 });
+test('live arrows use explicit-size status-coloured heads and a separate crossing halo', () => {
+  const html = render();
+  assert.match(html, /markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8"/);
+  assert.match(html, /fill="#598ce5"/);
+  assert.match(html, /class="topology-wire-halo"/);
+  assert.match(html, /class="topology-wire-line"[^>]+marker-end="url\(#[^)]+-checking\)"/);
+  assert.doesNotMatch(html, /context-stroke/);
+});
 test('layout physically contains nested runtime and components without implying a compute/storage deployment order', () => {
   const view = topology(), result = layoutSystemTopology(view), map = new Map(result.boxes.map(box => [box.id, box]));
   const host = map.get('host')!, runtime = map.get('runtime')!, node = map.get('api')!;
@@ -84,7 +92,7 @@ test('a seven-component host, runtime and external directory fit a normal laptop
     ...['collectors','fleet','endpoint'].map(id=>({...template,id,boundaryId:'host'})),
     {...template,id:'identity',boundaryId:'directory'},
   ]};
-  const geometry=layoutSystemTopology(view);assert(geometry.width<=960);assert(geometry.height<=350);
+  const geometry=layoutSystemTopology(view);assert(geometry.width<=1020);assert(geometry.height<=400);
   assert(geometry.boxes.filter(box=>box.kind==='node').every(box=>box.width===184&&box.height===104));
 });
 

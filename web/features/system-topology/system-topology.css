@@ -7,3 +7,7 @@
 .iac-lens .topology-edge path{stroke-linecap:round;stroke-linejoin:round}.iac-lens .topology-edge-label{max-width:62px;height:16px;line-height:10px;font-size:8px;box-sizing:border-box}.iac-lens .topology-boundary-heading>strong{flex-basis:110px}.iac-lens .topology-boundary-heading>span{max-width:95px;overflow:hidden}
 
 .iac-lens .topology-unplaced-connections button{display:block;border:0;background:none;color:#526e90;font:inherit;padding:5px;text-align:left;cursor:pointer}
+
+/* Independent lanes and legible badges preserve connection identity at crossings. */
+.iac-lens .topology-edge path.topology-wire-halo{stroke:#fff;stroke-width:6;stroke-dasharray:none;animation:none}
+.iac-lens .topology-edge-label{width:72px;max-width:72px;height:20px;line-height:14px;font-size:9px;border-radius:6px;padding:2px 5px;box-shadow:0 1px 3px #2e4e6e0d}

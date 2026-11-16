@@ -4,7 +4,8 @@ export interface TopologyBox { id: string; kind: 'node' | 'boundary'; x: number;
 interface Group { box: TopologyBox; children: Group[] }
 /** Placement is a tree of host/runtime boundaries, never a deployment schedule. */
 export function layoutSystemTopology(view: SystemTopologyView): { width: number; height: number; boxes: TopologyBox[] } {
-  const gapX = 32, gapY = 14, inset = 10, header = 28;
+  // Reserve actual wire corridors; card text keeps its original size.
+  const gapX = 40, gapY = 40, inset = 14, header = 28;
   function group(id?: string, depth = 0): Group {
     const nested = view.boundaries.filter(row => row.parentId === id).map(row => group(row.id, depth + 1));
     const nodes: Group[] = view.nodes.filter(row => row.boundaryId === id).map(row => ({ box: { id: row.id, kind: 'node', x: 0, y: 0, width: 184, height: 104, depth }, children: [] }));
@@ -16,7 +17,7 @@ export function layoutSystemTopology(view: SystemTopologyView): { width: number;
       row.push(child); used += (row.length > 1 ? gapX : 0) + child.box.width;
     }
     if (row.length) rows.push(row);
-    let y = id ? header + inset : inset, width = id ? 240 : 220;
+    let y = id ? header + inset : 6, width = id ? 240 : 220;
     for (const row of rows) {
       let x = inset;
       for (const child of row) { child.box.x = x; child.box.y = y; x += child.box.width + gapX; }

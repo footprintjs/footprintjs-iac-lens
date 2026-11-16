@@ -41,6 +41,8 @@ The component evidence panel currently displays matching native run/stage IDs; i
 
 The graph uses readable HTML labels and a bounded graph viewport. Large systems can scroll within that viewport instead of shrinking all labels. Completed setup details collapse by default. Technical setup controls, the deployment flow, execution recordings and artifacts remain available separately.
 
+Connections use reserved row corridors, separate attachment points, rounded bends and a white separation stroke at crossings. Arrowheads have an explicit 8px size and match the recorded connection status. Status badges stay clear of components, boundary titles and other wires; when a dense graph has no clear badge position, its connection remains selectable under **more connections**. Routing follows the immutable definition and stays fixed while check outcomes change. The seven-component Neo layout retains full-size 184×104 cards in a 996×388 canvas.
+
 A configuration change clears the previous current topology. Only a publication bound to the newly active target/configuration can display again. Old recordings remain in history.
 
 The headless core and server require no React, diagram renderer or browser. Legacy hosts without topology retain the existing resource view.

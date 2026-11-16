@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from 'react';
 import type { SystemTopologyView } from 'footprintjs-iac/system-topology';
 import { layoutSystemTopology } from './topology-layout.ts';
-import {routeTopologyConnection,type TopologyRoute} from './topology-routing.ts';
+import {routeTopologyConnections} from './topology-routes.ts';
 import { TopologyNodeCard } from './TopologyNodeCard.tsx';
 import { TopologyBoundaryBox } from './TopologyBoundaryBox.tsx';
 import { TopologyWires, TopologyConnectionLabels, TopologyUnplacedConnections } from './TopologyConnections.tsx';
@@ -13,8 +13,8 @@ export default function SystemTopologyGraph({ view, simple = false }: { view: Sy
   const [selected, setSelected] = useState<TopologySelection>();
   const marker = `topology-arrow-${useId().replace(/:/g, '')}`;
   const {geometry,boxes,routes}=useMemo(()=>{
-    const geometry=layoutSystemTopology(view),boxes=new Map(geometry.boxes.map(box=>[box.id,box])),routes=new Map<string,TopologyRoute>();
-    for(const edge of view.definition.connections){const from=boxes.get(edge.from),to=boxes.get(edge.to);if(from&&to){const route=routeTopologyConnection(from,to,boxes,[...routes.values()]);routes.set(edge.id,edge.kind==='dependsOn'?{...route,labelHidden:true}:route);}}
+    const geometry=layoutSystemTopology(view),boxes=new Map(geometry.boxes.map(box=>[box.id,box]));
+    const routes=routeTopologyConnections(view.definition.connections,boxes);
     return{geometry,boxes,routes};
   },[view.definition.digest]);
   const boundaries = [...view.boundaries].sort((a, b) => boxes.get(a.id)!.depth - boxes.get(b.id)!.depth);
