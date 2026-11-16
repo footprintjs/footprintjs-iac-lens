@@ -21,6 +21,14 @@ function facts(status: string, observation?: { verdict?: string; latencyMs?: num
 /** Only already-admitted native runs and safe numeric/enum facts feed the history. */
 export function diagnosticCandidates(state: DashboardState): DiagnosticCandidate[] {
   const result: DiagnosticCandidate[] = [];
+  const onboarding = state.onboarding;
+  if (onboarding && !onboarding.busy && onboarding.recording && onboarding.status !== 'idle') {
+    const stage = [...onboarding.stages].reverse().find(item => item.status !== 'pending');
+    if (stage) result.push({ id: 'onboarding:' + onboarding.recording.runId, kind: 'workflow', runId: onboarding.recording.runId,
+      label: 'Setup · ' + stage.label, outcome: ['failed', 'unknown'].includes(stage.status) || onboarding.status === 'incomplete' ? 'failed' : 'passed', recording: state.onboardingRecording,
+      targets: [{ id: stage.id, key: 'outcome', label: stage.label, outcome: outcome(stage.status), facts: facts(stage.status) }],
+      limitations: ['Recorded adapter outcomes are available. External adapter internals require their own native evidence.'] });
+  }
   const labels = new Map(projectBuildScene(state).nodes.map(node => [node.id, node.title]));
   const label = (id: string) => labels.get(id) ?? id;
   for (const [kind, run] of [['connections', state.connections], ['identity', state.identity]] as const) {

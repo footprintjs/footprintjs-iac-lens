@@ -1,4 +1,5 @@
 import type { DeploymentFlowCapability, DeploymentFlowNode } from './deployment-flow.ts';
+import { isSystemdComputeKind } from './resource-kind.ts';
 
 export type BuildSceneKind = 'compute' | 'storage' | 'network' | 'identity' | 'space' | 'policy' | 'resource';
 
@@ -41,6 +42,7 @@ export function buildScenePurpose(node: DeploymentFlowNode): { title: string; ki
     && node.capabilities.some(item => item.mode === 'managed' && capabilityKind(item) === 'policy')) kind = 'policy';
   else if (/polic|permission|rolebinding/i.test(physicalKind)) kind = 'policy';
   else if (/database|store|storage|bucket|volume|disk/i.test(physicalKind)) kind = 'storage';
+  else if (isSystemdComputeKind(physicalKind)) kind = 'compute';
   else if (/service|network|ingress|gateway|loadbalancer/i.test(physicalKind)) kind = 'network';
   else if (/deployment|statefulset|daemonset|pod|container|function|server|instance|compute|job/i.test(physicalKind)) kind = 'compute';
   else if (node.capabilities.some(item => item.family === 'compute')) kind = 'compute';

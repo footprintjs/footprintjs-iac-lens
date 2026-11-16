@@ -1,6 +1,7 @@
 import { readReleaseAutomationAction,readReleaseAutomationView,type ReleaseAutomationAction } from './release-automation.ts';
 import { readChangeAssessmentView } from './change-assessment.ts';
 import { readApplicationAction, readApplicationView, type ApplicationAction } from './application.ts';
+import { readOnboardingAction, readOnboardingSnapshot, type OnboardingAction } from './onboarding.ts';
 import { applicationSourceMatches, readApplicationSourceView } from './application-source.ts';
 import { readAgentPlatformAction, readAgentPlatformView } from './agent-platform-read.ts';
 import type { AgentPlatformAction } from './agent-platform.ts';
@@ -50,12 +51,20 @@ export function readDashboardState(value: unknown): DashboardState {
   }
   if (state.systemView !== undefined) readSystemViewDefinition(state.systemView);
   if (state.application !== undefined) state.application = readApplicationView(state.application);
+  if (state.onboarding !== undefined) {
+    state.onboarding = readOnboardingSnapshot(state.onboarding);
+    if (state.application) throw Error('Choose one application deployment owner');
+    if (state.target?.id !== undefined && state.target.id !== state.onboarding.targetId) throw Error('Onboarding publication belongs to another target');
+    if (state.onboardingRecording && (state.onboardingRecording.snapshot as { runId?: unknown })?.runId !== state.onboarding.recording?.runId) throw Error('Onboarding evidence belongs to another run');
+  }
+  if (state.onboardingError !== undefined && (typeof state.onboardingError !== 'string' || state.onboardingError.length > 1000)) throw Error('Invalid onboarding display error');
   if (state.source !== undefined) {
     state.source = readApplicationSourceView(state.source);
-    if (!applicationSourceMatches(state.source, state.application?.selection)) throw Error('Application source belongs to a different selection');
+    if (!applicationSourceMatches(state.source, state.application?.selection ?? state.onboarding)) throw Error('Application source belongs to a different selection');
   }
   const applicationTarget = state.application?.strategies.find(strategy => strategy.id === state.application?.selection?.strategyId)?.targets.find(target => target.id === state.application?.selection?.targetId);
   if (state.application?.phase === 'ready' && (applicationTarget?.requiresSource || state.source) && state.source?.status !== 'ready') throw Error('Application source readiness is unconfirmed');
+  if (state.onboarding?.status === 'ready' && state.source && state.source.status !== 'ready') throw Error('Onboarding source readiness is unconfirmed');
   if (state.agentPlatformAvailable !== undefined && typeof state.agentPlatformAvailable !== 'boolean') throw Error('Invalid agent feature availability');
   if (state.agentPlatform !== undefined) state.agentPlatform = readAgentPlatformView(state.agentPlatform);
   if (state.revisionReview !== undefined) readRevisionReview(state.revisionReview);
@@ -166,6 +175,14 @@ export function createDashboardClient(options: { baseUrl?: string; fetch?: JsonF
       throw Error(result.error ?? 'The application step was refused. Review the registered target and current recorded status.');
     }
   }
+  async function onboarding(input: OnboardingAction): Promise<void> {
+    const body = readOnboardingAction(input);
+    const response = await request(endpoint('/api/onboarding'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      throw Error(result.error ?? 'The onboarding step was refused. Check the retained result and current review.');
+    }
+  }
   async function delivery(input: DeliveryAction): Promise<void> {
     const body = readDeliveryAction(input);
     const response = await request(endpoint('/api/delivery'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -211,5 +228,5 @@ export function createDashboardClient(options: { baseUrl?: string; fetch?: JsonF
     const response = await request(endpoint('/api/agent-platform'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!response.ok) throw Error('The agent action was refused. Check its deployment and retained native records.');
   }
-  return { agentPlatform, application, releaseAutomation, getState, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, subscribe };
+  return { onboarding, agentPlatform, application, releaseAutomation, getState, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, subscribe };
 }

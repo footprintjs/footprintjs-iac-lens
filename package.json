@@ -19,7 +19,7 @@
     "build:server": "tsc -p tsconfig.server.json"
   },
   "dependencies": {
-    "footprintjs-iac": "0.5.0-alpha.1"
+    "footprintjs-iac": "file:vendor/footprintjs-iac-0.5.0-alpha.2-onboarding-48be85eacbae.tgz"
   },
   "devDependencies": {
     "@types/node": "24.9.1",
@@ -74,7 +74,12 @@
     "./server": {
       "types": "./dist/modules/src/server/index.d.ts",
       "import": "./dist/modules/src/server/index.js"
-    }
+    },
+    "./react/onboarding": {
+      "types": "./dist/modules/src/react/onboarding.d.ts",
+      "import": "./dist/react/onboarding.js"
+    },
+    "./react/onboarding/style.css": "./dist/react/onboarding.css"
   },
   "files": [
     "dist",
@@ -84,7 +89,9 @@
     "LICENSE",
     "THIRD_PARTY_NOTICES",
     "docs/agent-platform.md",
-    "docs/agent-components.md"
+    "docs/agent-components.md",
+    "docs/onboarding.md",
+    "vendor"
   ],
   "publishConfig": {
     "access": "public",
@@ -94,5 +101,8 @@
   "license": "MIT",
   "bin": {
     "footprintjs-iac-lens": "./dist/modules/src/cli.js"
-  }
+  },
+  "bundleDependencies": [
+    "footprintjs-iac"
+  ]
 }

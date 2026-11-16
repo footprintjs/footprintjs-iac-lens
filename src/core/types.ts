@@ -15,6 +15,7 @@ import type { DeliveryView } from './delivery.ts';
 import type { ApplicationView } from './application.ts';
 import type { ApplicationSourceView } from './application-source.ts';
 import type { AgentPlatformView } from './agent-platform.ts';
+import type { OnboardingSnapshot } from './onboarding.ts';
 
 export type ResourceStatus = 'pending' | 'deploying' | 'ready' | 'failed' | 'skipped' | 'deleted';
 export interface ResourceProgress {
@@ -115,6 +116,9 @@ export interface OutputArtifact {
   sha256?: string;
 }
 export interface DashboardState {
+  onboarding?: OnboardingSnapshot;
+  onboardingRecording?: Recording;
+  onboardingError?: string;
   agentPlatformAvailable?: boolean;
   agentPlatform?: AgentPlatformView;
   application?: ApplicationView;

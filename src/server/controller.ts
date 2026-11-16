@@ -43,6 +43,9 @@ import type { AgentPlatformHostProvider, AgentPlatformContext } from './agent-pl
 import type { AgentPlatformReview } from './agent-platform-review.ts';
 import type { AgentPlatformAction } from '../core/agent-platform.ts';
 import { projectAgentPlatformView } from '../core/agent-platform-project.ts';
+import type { OnboardingAction } from '../core/onboarding.ts';
+import type { OnboardingHost } from './onboarding-host.ts';
+import { OnboardingSession, OnboardingRequestError } from './onboarding.ts';
 
 const verificationAttention = 'The version was applied. Connection or access checks need attention; recorded results are available.';
 
@@ -51,6 +54,7 @@ export interface InitialReview {
   graph: InfraGraph; run: DashboardRun; target?: DashboardState['target']; neoUrl?: string;
 }
 export interface ControllerOptions {
+  onboarding?: OnboardingHost;
   applicationHost?: ApplicationHost;
   agentPlatform?: AgentPlatformHostProvider;
   directory: string; neo?: NeoTarget; initialScenario?: 'neo'; readinessDelay?: number;
@@ -91,11 +95,13 @@ export class DashboardController {
   private migrationReview?:MigrationReview;
   private releaseAutomationReview?:ReleaseAutomationReview;
   private applicationReview?: ApplicationReview;
+  private onboardingSession?: OnboardingSession;
   private agentReview?: AgentPlatformReview;
   private agentActivation?: Promise<void>;
   private agentBusy = false;
 
   constructor(options: ControllerOptions) {
+    if (options.onboarding && (options.applicationHost || options.releaseAutomation || options.migration || options.pipeline || options.delivery || options.resourceFlow || options.revisionWorkflow || options.managedReview || options.neo || options.initialScenario || options.initialReview || options.identityReview || options.connectionReview)) throw Error('Choose one registered onboarding deployment owner');
     if (options.applicationHost && (options.releaseAutomation || options.migration || options.pipeline || options.delivery || options.resourceFlow
       || options.revisionWorkflow || options.managedReview || options.neo || options.initialScenario || options.initialReview || options.identityReview || options.connectionReview)) throw Error('Choose one registered application host');
     if(options.releaseAutomation&&(options.pipeline||options.delivery||options.migration||options.resourceFlow||options.revisionWorkflow||options.managedReview||options.neo||options.initialScenario))throw Error('Choose one configured release automation host');
@@ -135,7 +141,7 @@ export class DashboardController {
     const neo = options.initialScenario === 'neo' ? options.neo : undefined;
     const initialReview = this.options.initialReview;
     const workspace = options.resourceFlow?.workspace;
-    const graph = workspace?.graph ?? initialReview?.graph ?? managedReview?.graph ?? neo?.binding.graph ?? (options.applicationHost || options.resourceFlow || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? null : demoGraph());
+    const graph = workspace?.graph ?? initialReview?.graph ?? managedReview?.graph ?? neo?.binding.graph ?? (options.onboarding || options.applicationHost || options.resourceFlow || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? null : demoGraph());
     if (options.connectionReview) {
       validateInfraGraph(graph!);
       this.options.connectionReview = readConnectionReview(options.connectionReview, graph!);
@@ -146,7 +152,7 @@ export class DashboardController {
       if (Object.values(identityReview.resourceBindings ?? {}).some(ids => ids.length > 0)) this.identityGraphDigest = graph!.digest;
     }
     if (options.agentPlatform && options.applicationHost?.agentPlatform) throw Error('Choose one registered agent host');
-    this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? managedReview?.mode ?? (options.applicationHost || managedReview || options.resourceFlow || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? 'managed' : neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
+    this.state = { revision: 0, graph, busy: false, mode: initialReview?.run.mode ?? managedReview?.mode ?? (options.onboarding || options.applicationHost || managedReview || options.resourceFlow || options.delivery || options.pipeline || options.migration || options.releaseAutomation ? 'managed' : neo ? 'kubernetes' : 'simulator'), neoAvailable: !!options.neo,
       ...((options.agentPlatform || options.applicationHost?.agentPlatform) ? { agentPlatformAvailable: true } : {}),
       ...(managedReview ? { managedReviewAvailable: true, managedReviewLabel: managedReview.label ?? 'Configured system deployment' } : {}),
       ...(this.options.connectionReview || workspace ? { connectionReviewAvailable: !!this.options.connectionReview } : {}),
@@ -167,6 +173,19 @@ export class DashboardController {
   async initialize(): Promise<void> {
     await mkdir(this.options.directory, { recursive: true, mode: 0o700 });
     this.state.artifacts = this.state.graph ? [...await graphArtifacts(this.state.graph), ...await cloudFormationExample()] : [];
+    if (this.options.onboarding) {
+      this.onboardingSession = new OnboardingSession(this.options.onboarding, value => {
+        const { phase: _phase, ...publication } = value.publication ?? {};
+        const ready = !value.view.busy && value.view.status === 'ready' && value.view.deployment?.promoted === true;
+        const patch = readApplicationPublication(publication, { ...this.state, target: { id: value.view.targetId, label: value.view.label }, onboarding: value.view, onboardingRecording: value.recording });
+        this.state = readDashboardState({ ...this.state, ...patch, onboarding: value.view,
+          onboardingRecording: value.recording, onboardingError: value.error, busy: value.view.busy || this.agentBusy,
+          target: patch.target ?? (this.state.target?.id === value.view.targetId ? this.state.target : { id: value.view.targetId, label: value.view.label }),
+          ...(!ready ? { neoUrl: undefined, appAccess: patch.appAccess?.status === 'ready' ? undefined : patch.appAccess } : {}) });
+        this.publish();
+      });
+      await this.onboardingSession.initialize();
+    }
     if (this.options.applicationHost) {
       const host = this.options.applicationHost;
       if (host.connectionProfiles) {
@@ -259,11 +278,17 @@ export class DashboardController {
   }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   async whenIdle(): Promise<void> {
-    await Promise.all([this.completion, this.profileCompletion, this.applicationReview?.whenIdle(), this.hostActionReview?.whenIdle(), this.deliveryReview?.whenIdle(), this.pipelineReview?.whenIdle(),this.migrationReview?.whenIdle(),this.releaseAutomationReview?.whenIdle(), this.agentActivation]);
+    await Promise.all([this.completion, this.profileCompletion, this.onboardingSession?.whenIdle(), this.applicationReview?.whenIdle(), this.hostActionReview?.whenIdle(), this.deliveryReview?.whenIdle(), this.pipelineReview?.whenIdle(),this.migrationReview?.whenIdle(),this.releaseAutomationReview?.whenIdle(), this.agentActivation]);
     await this.agentReview?.whenIdle();
     await this.diagnosticHistory?.whenIdle();
   }
-  dispose(): void { this.agentReview?.dispose(); this.resourceFlowReview?.dispose(); this.deliveryReview?.dispose(); this.pipelineReview?.dispose();this.migrationReview?.dispose();this.releaseAutomationReview?.dispose(); }
+  dispose(): void { this.onboardingSession?.dispose(); this.agentReview?.dispose(); this.resourceFlowReview?.dispose(); this.deliveryReview?.dispose(); this.pipelineReview?.dispose();this.migrationReview?.dispose();this.releaseAutomationReview?.dispose(); }
+  onboardingAction(input: OnboardingAction): void {
+    this.requireAgentIdle();
+    if (!this.onboardingSession) throw new RequestError(409, 'No onboarding preset was registered');
+    try { this.onboardingSession.action(input); this.completion = this.onboardingSession.whenIdle().then(() => this.persist()); }
+    catch (error) { if (error instanceof OnboardingRequestError) throw new RequestError(error.status, error.message); throw error; }
+  }
   private agentContext(): AgentPlatformContext {
     return structuredClone({ graph: this.state.graph, application: this.state.application, source: this.state.source, run: this.state.run, target: this.state.target });
   }
@@ -379,6 +404,7 @@ export class DashboardController {
 
   start(scenario: Scenario, reviewId?: string): void {
     this.requireAgentIdle();
+    if (this.options.onboarding) throw new RequestError(409, 'Use the registered onboarding controls');
     if (this.options.applicationHost) throw new RequestError(409, 'Use the registered application setup controls');
     if(this.options.releaseAutomation)throw new RequestError(409,'Use the configured release controls');
     if(this.options.migration)throw new RequestError(409,'Use the assessed migration workflow for this system');

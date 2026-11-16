@@ -12,6 +12,11 @@ skills remain subflows of its one logical triage agent.
 Its lazy [component view](docs/agent-components.md) adds real runtime boundaries,
 shared memory/storage roles, measured connection edges and native outline progress.
 
+The [lazy onboarding panel](docs/onboarding.md) displays the base library's
+Discover → Configure → Verify → Review → Deploy preset. Neo consumes it with
+one shared systemd site registration, real login/access checks and optional
+Fleet manifest checks. The viewer never supplies another deployment engine.
+
 ## Run directly
 
 The [release pipeline guide](docs/pipeline-strategies.md) covers registered
@@ -735,3 +740,7 @@ of GitHub Actions; automatic CI remains off.
 ## License
 
 MIT. See [LICENSE](LICENSE). Bundled dependency notices are in [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).
+
+For a reusable, library-owned Discover → Configure → Verify → Review → Deploy
+flow, see [application onboarding](docs/onboarding.md). Neo and other apps
+supply private adapters while Lens remains a generic, lazy-loaded viewer.

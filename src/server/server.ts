@@ -13,6 +13,7 @@ import { readPipelineRequest } from './pipeline-request.ts';
 import { readDeliveryRequest } from './delivery-request.ts';
 import { readApplicationRequest } from './application-request.ts';
 import { readAgentPlatformRequest } from './agent-platform-request.ts';
+import { readOnboardingRequest } from './onboarding-request.ts';
 
 export interface DashboardOptions extends ControllerOptions { staticDirectory: string; port?: number }
 
@@ -36,6 +37,10 @@ export async function startDashboard(options: DashboardOptions): Promise<{
       }
       if (request.method === 'POST' && path === '/api/application') {
         controller.applicationAction(await readApplicationRequest(request));
+        return json(response, 202, { accepted: true });
+      }
+      if (request.method === 'POST' && path === '/api/onboarding') {
+        controller.onboardingAction(await readOnboardingRequest(request));
         return json(response, 202, { accepted: true });
       }
       if (request.method === 'POST' && path === '/api/agent-platform') {

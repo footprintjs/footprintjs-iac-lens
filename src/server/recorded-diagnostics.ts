@@ -7,6 +7,8 @@ import { DIAGNOSTIC_HISTORY_LIMIT, readRecordedDiagnostics, type DiagnosticRun, 
 import type { DashboardState } from '../core/types.ts';
 
 function binding(state: DashboardState): string {
+  if (state.onboarding) return createHash('sha256').update(JSON.stringify({ onboarding: state.onboarding.id, strategy: state.onboarding.strategyId,
+    target: state.onboarding.targetId, profile: state.onboarding.profileId ?? null, configuration: state.onboarding.configurationDigest })).digest('hex');
   return createHash('sha256').update(JSON.stringify({ graph: state.graph?.digest ?? null, target: state.resourceFlow?.target ?? state.target ?? null,
     workflow: state.resourceFlow?.definitionDigest ?? null })).digest('hex');
 }

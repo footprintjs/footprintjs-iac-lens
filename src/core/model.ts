@@ -1,5 +1,6 @@
 import type { Resource } from 'footprintjs-iac';
 import type { DashboardState, ResourceProgress, ResourceStatus } from './types.ts';
+import { isSystemdComputeKind } from './resource-kind.ts';
 import { workspaceResourceProgress } from './resource-flow-workspace.ts';
 
 export const STATUS_LABELS: Record<ResourceStatus, string> = {
@@ -49,7 +50,7 @@ export function describeResource(state: DashboardState, resource: Resource): Res
   const metadata = object(resource.spec.metadata);
   const kind = String(resource.spec.kind ?? resource.spec.Type ?? 'Resource');
   const family = familyValue(group?.attributes?.capabilityFamily) ?? familyValue(resource.spec.family)
-    ?? (/store|database|bucket|volume/i.test(kind) ? 'storage' : /network|namespace|service|configmap/i.test(kind) ? 'network' : 'compute');
+    ?? (isSystemdComputeKind(kind) ? 'compute' : /store|database|bucket|volume/i.test(kind) ? 'storage' : /network|namespace|service|configmap/i.test(kind) ? 'network' : 'compute');
   return {
     name: typeof metadata.name === 'string' ? metadata.name : resource.id, kind, family,
     capability: mapping?.capabilityPath ?? (typeof group?.attributes?.capabilityPath === 'string' ? group.attributes.capabilityPath : undefined),

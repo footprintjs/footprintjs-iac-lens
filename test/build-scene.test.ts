@@ -5,8 +5,10 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { compileGraph, FileStateStore, InfraEngine, SimulatorAdapter } from 'footprintjs-iac';
 import { createDeploymentRecorder } from 'footprintjs-iac/progress';
+import { compileSystemdDeployment } from 'footprintjs-iac/deployment-strategy';
 import { projectBuildScene } from '../src/core/build-scene.ts';
 import { projectDeploymentFlow } from '../src/core/deployment-flow.ts';
+import { describeResource } from '../src/core/model.ts';
 import type { DashboardState, ProgressEvent } from '../src/core/types.ts';
 
 function initial(parallel = false): DashboardState {
@@ -85,6 +87,23 @@ test('the grey scene stays pure, academic and ordered by prerequisites, without 
   assert.deepEqual(scene.edges, [{ id: `communication:${state.graph!.relations.findIndex(relation => relation.kind === 'communicatesWith')}`,
     from: 'app', to: 'data', status: 'untested' }]);
   assert.deepEqual(state, before);
+});
+
+test('actual systemd service resources use compute glyphs while a Kubernetes Service remains network', () => {
+  const units = [{ id: 'sidecar', name: 'sidecar.service', fragmentPath: '/etc/systemd/system/sidecar.service', configurationDigest: 'a'.repeat(64) },
+    { id: 'application', name: 'app.service', fragmentPath: '/etc/systemd/system/app.service', configurationDigest: 'b'.repeat(64), dependsOn: ['sidecar'] }];
+  for (const transaction of ['group', 'independent'] as const) {
+    const graph = compileSystemdDeployment({ stack: 'registered-services', units, transaction, releaseDigest: 'c'.repeat(64) });
+    const state: DashboardState = { revision: 0, busy: false, graph, mode: 'managed' };
+    const scene = projectBuildScene(state);
+    assert.ok(graph.resources.every(resource => ['SystemdService', 'SystemdServiceGroup'].includes(String(resource.spec.kind))));
+    assert.ok(scene.nodes.every(node => node.kind === 'compute' && node.title === 'Program'), `${transaction} is running program code, not a network endpoint`);
+    assert.ok(graph.resources.every(resource => describeResource(state, resource).family === 'compute'), 'Details must describe the same physical resources consistently');
+  }
+  const graph = compileGraph({ name: 'cluster-service', boundaries: [], memberships: [], relations: [], resources: [{ id: 'endpoint', provider: 'kubernetes', spec: { apiVersion: 'v1', kind: 'Service' } }] });
+  const state: DashboardState = { revision: 0, busy: false, graph, mode: 'managed' };
+  assert.equal(projectBuildScene(state).nodes[0]!.kind, 'network'); assert.equal(projectBuildScene(state).nodes[0]!.title, 'Network');
+  assert.equal(describeResource(state, graph.resources[0]!).family, 'network');
 });
 
 test('a real native chart and recorder drive grey → building → ready with stable positions', async t => {
