@@ -8,6 +8,7 @@ export * from './capabilities.ts';
 export * from './deployment-flow.ts';
 export * from './native-deployment-chart.ts';
 export * from './adapter-deployment.ts';
+export * from './topology-deployment-step.ts';
 export * from './resource-evidence.ts';
 export * from './build-scene.ts';
 export * from './revision-review.ts';

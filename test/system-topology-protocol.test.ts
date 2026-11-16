@@ -1,3 +1,5 @@
+import {flowChart} from 'footprintjs';
+import type {DeploymentChart} from 'footprintjs-iac/progress';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -67,4 +69,20 @@ test('topology resource bindings must refer to the current graph once it is publ
   assert.doesNotThrow(() => readDashboardState({ revision: 0, busy: false, graph: null, systemTopology: view }));
   assert.throws(() => readDashboardState({ revision: 0, busy: false, graph, systemTopology: view }), /resource binding/);
   assert.throws(() => readApplicationPublication({ graph, systemTopology: view }), /resource binding/);
+});
+
+test('terminal incomplete publication replaces current live actions and withdraws the stopped run capture without changing configuration',()=>{
+ const original=onboarding(),definition=defineSystemTopology({id:'terminal-system',label:'Existing application',boundaries:[],connections:[],nodes:[{id:'api',label:'Application',category:'compute',origin:'existing',bindings:{resourceIds:['services'],componentIds:['api-unit']}}]},{targetId:original.targetId,graphDigest:graph.digest});
+ const action={resourceId:'services',phase:'start' as const,status:'running' as const,evidence:{kind:'adapter' as const,runId:'native-current',runtimeStageId:'execute-services/provider/start#1',complete:false}};
+ const observations={...definition.binding,definitionDigest:definition.digest,configurationDigest:original.configurationDigest,resources:[],components:[],checks:[],actions:[action]};
+ const native=flowChart('Load',()=>{},'load').addDeciderFunction('Resource gate',()=> 'execute-services','gate-services').addFunctionBranch('execute-services','Reconcile services',()=>{}).addFunctionBranch('skip-services','Skip services',()=>{}).end().build();
+ const chart:DeploymentChart={version:1,runId:'deployment-current',stack:graph.name,graphDigest:graph.digest,structure:native.buildTimeStructure,resources:[{resourceId:'services',action:'update',batchIndex:0,gateStageId:'gate-services',executeStageId:'execute-services',skipStageId:'skip-services'}]};
+ const recording={snapshot:{runId:'native-current'},structure:native.buildTimeStructure,provenance:{runId:'deployment-current',stack:graph.name,graphDigest:graph.digest}};
+ const live:DashboardState={revision:1,busy:true,graph,target:{id:original.targetId},onboarding:{...original,status:'reviewed',busy:true,canDiscover:false,stages:original.stages.map(stage=>({...stage,status:stage.id==='deploy'?'running':'passed'}))},systemTopology:projectSystemTopology(definition,observations),run:{id:'deployment-current',status:'running',resources:[{id:'services',status:'deploying'}],events:[],chart,recording},recording,neoUrl:'http://127.0.0.1:55330',appAccess:{status:'ready'}};
+ const incomplete:OnboardingSnapshot={...original,status:'incomplete',busy:false,canDiscover:false,stages:original.stages.map(stage=>({...stage,status:stage.id==='deploy'?'unknown':'passed'})),deployment:{ok:false,promoted:false,status:'incomplete'}};
+ const terminal=readOnboardingPublicationState(live,{view:incomplete,publication:{graph,target:{id:original.targetId},recording:undefined,systemTopology:projectSystemTopology(definition,{...observations,actions:[{...action,status:'unknown'}]}),run:{id:'deployment-current',status:'failed',resources:[{id:'services',status:'pending'}],events:[],report:{outcome:'unconfirmed'}}}});
+ assert.equal(terminal.busy,false);assert.equal(terminal.onboarding?.status,'incomplete');assert.equal(terminal.onboarding?.configurationDigest,original.configurationDigest);assert.equal(terminal.target?.id,original.targetId);
+ assert.equal(terminal.run?.status,'failed');assert.equal(terminal.run?.recording,undefined);assert.equal(terminal.run?.chart,undefined);assert.equal(terminal.recording,undefined);assert.equal(terminal.neoUrl,undefined);assert.equal(terminal.appAccess,undefined);
+ const node=terminal.systemTopology!.nodes[0]!;assert.equal(node.originLabel,'Existing');assert.equal(node.progress.completed,0);assert.equal(node.facts.running,'unknown');assert(node.actions?.every(row=>row.status==='unknown'&&!row.evidence.complete));
+ assert.equal(terminal.systemTopology!.definition.digest,live.systemTopology!.definition.digest,'withdrawal does not invent a new system declaration');
 });

@@ -1,3 +1,4 @@
+import type {RecordedDeploymentStep} from '../../src/core/topology-deployment-step.ts';
 import { SystemTopologySlot } from '../features/system-topology/SystemTopologySlot.tsx';
 import { useState } from 'react';
 import type { DashboardState } from '../../src/core/types.ts';
@@ -5,7 +6,8 @@ import { ResourceCanvas } from './ResourceCanvas.tsx';
 import { SystemBlocks } from './SystemBlocks.tsx';
 import { DetailsPanel } from './DetailsPanel.tsx';
 
-export function RunningSystem({ state, selected, fitWindow = false, onSelect, onConnectionSelect }: {
+export function RunningSystem({ state, selected, fitWindow = false, onSelect, onConnectionSelect, onRecordedStep }: {
+  onRecordedStep?(step:RecordedDeploymentStep):void;
   state: DashboardState;
   selected?: string;
   fitWindow?: boolean;
@@ -13,7 +15,7 @@ export function RunningSystem({ state, selected, fitWindow = false, onSelect, on
   onConnectionSelect(id: string): void;
 }) {
   const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
-  if (state.systemTopology) return <SystemTopologySlot view={state.systemTopology}/>;
+  if (state.systemTopology) return <SystemTopologySlot view={state.systemTopology} state={state} onRecordedStep={onRecordedStep}/>;
   return <section className="running-system" aria-label="Running system">
     <div className="running-system-heading">
       <h2>Resources and communication</h2>

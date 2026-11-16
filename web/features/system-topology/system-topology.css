@@ -15,3 +15,32 @@
 .iac-lens .topology-edge-swatch{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:1px}.iac-lens .topology-edge.edge-incomplete .topology-wire-line,.iac-lens .topology-edge.edge-unknown .topology-wire-line{stroke-dasharray:3 5}
 
 .iac-lens .topology-boundary-progress-track{position:absolute;right:9px;top:23px;width:44px;height:3px;overflow:hidden;border-radius:3px;background:#dce4ed;pointer-events:none}
+
+/* Component facts and action progress occupy the card, never a connection lane. */
+.iac-lens .topology-node{padding:6px 9px;gap:2px;cursor:default}
+.iac-lens .topology-node-summary{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;min-width:0;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.iac-lens .topology-node-summary:focus-visible,.iac-lens .topology-node-action:focus-visible{outline:2px solid #7fa5dc;outline-offset:2px;border-radius:3px}
+.iac-lens .topology-node-summary>strong{font-size:12px;line-height:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.iac-lens .topology-node-meta{display:flex;align-items:center;justify-content:space-between;gap:3px;width:100%;height:13px;white-space:nowrap}
+.iac-lens .topology-node-meta .topology-node-category{font-size:7px;letter-spacing:.02em}
+.iac-lens .topology-node-meta .topology-origin{font-size:7px;line-height:11px;padding:0 3px}
+.iac-lens .topology-node .topology-technology{min-height:14px;font-size:9px}
+.iac-lens .topology-node-action{display:flex;align-items:center;justify-content:space-between;gap:4px;width:100%;min-width:0;padding:0;border:0;background:none;color:#627d9c;font:inherit;font-size:9px;line-height:12px;text-align:left}
+.iac-lens button.topology-node-action{cursor:pointer;color:#356fae}
+.iac-lens button.topology-node-action:hover{text-decoration:underline}
+.iac-lens .topology-node-action>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.iac-lens .topology-node-action.action-running{color:#527fc4}
+.iac-lens .topology-node-action.action-failed{color:#b64d60}
+.iac-lens .topology-node-progress{display:flex;align-items:center;gap:5px;width:100%;margin-top:auto;min-height:10px}
+.iac-lens .topology-node-progress-track{height:3px;flex:1;background:#e4eaf1;border-radius:2px;overflow:hidden}
+.iac-lens .topology-node-progress-track>i{display:block;height:100%;background:#8b9fb7;transition:width .2s ease}
+.iac-lens .topology-node-progress>small{font-size:7px;line-height:9px;color:#7b8ba0;white-space:nowrap}
+.iac-lens .topology-node.topology-ready .topology-node-progress-track>i,.iac-lens .topology-node.topology-connected .topology-node-progress-track>i{background:#5a9d84}
+.iac-lens .topology-node.topology-failed .topology-node-progress-track>i{background:#bc7181}
+.iac-lens .topology-action-result{flex-shrink:0;font-size:7px}.iac-lens .topology-node-action>small{font-size:7px;white-space:nowrap}
+
+/* Fit the entire placement diagram to the measured space, including boundary bottoms. */
+.iac-lens .topology-viewport{overflow:hidden}
+.iac-lens .topology-center{width:100%;height:100%;min-width:0;min-height:0}
+.iac-lens .topology-fit{position:relative;flex-shrink:0;overflow:hidden}
+.iac-lens .topology-fit>.topology-stage{position:absolute;left:0;top:0;transform-origin:top left}

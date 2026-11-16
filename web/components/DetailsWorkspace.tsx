@@ -1,3 +1,4 @@
+import type {RecordedDeploymentStep} from '../../src/core/topology-deployment-step.ts';
 import {ReleaseAutomationPanel} from './ReleaseAutomationPanel.tsx';
 import type {ReleaseAutomationAction} from '../../src/core/release-automation.ts';
 import { ChangeAssessmentStrip } from './ChangeAssessmentStrip.tsx';
@@ -35,7 +36,8 @@ import type { OnboardingVersionAction } from '../../src/core/onboarding-versions
 /** One full workspace for standalone deployments and orchestrated resource workflows. */
 export function DetailsWorkspace({ state, posting, error, neoUrl, fitWindow, view, selectedResource,
   selectedConnection, evidenceKind, setView, selectResource, selectConnection, setEvidenceKind,
-  selectActivity, run, resourceFlow, profileAction, hostAction, delivery, pipeline, migration, releaseAutomation, application, onboarding, onboardingVersion, dismissError }: {
+  selectActivity, run, resourceFlow, profileAction, hostAction, delivery, pipeline, migration, releaseAutomation, application, onboarding, onboardingVersion, dismissError, recordedStep, onRecordedStep, onClearRecordedStep }: {
+  recordedStep?:RecordedDeploymentStep; onRecordedStep?(step:RecordedDeploymentStep):void; onClearRecordedStep?():void;
   state: DashboardState; posting: boolean; error?: string; neoUrl?: string; fitWindow: boolean; view: View;
   selectedResource?: string; selectedConnection?: string; evidenceKind: EvidenceKind;
   setView(view: View): void; selectResource(id?: string): void; selectConnection(id?: string): void;
@@ -67,7 +69,7 @@ export function DetailsWorkspace({ state, posting, error, neoUrl, fitWindow, vie
       {revision && <ChangeReview view={revision} disabled={state.busy || posting} readOnly={!!state.resourceFlow || !!state.delivery || !!state.pipeline || !!state.releaseAutomation}
         onReview={() => run('revision-review')} onApply={() => run('revision-apply', revision.state.reviewId)}/>}
       {(!(state.onboarding || state.application) || !!state.graph || !!state.systemTopology || view === 'evidence' && !!state.recording) && (!state.migration||state.graph)&&<>{(!(state.onboarding || state.application) || !!state.graph) && !state.systemTopology && <Summary state={state}/>}
-      <InfrastructureWorkspace state={state} view={view} selected={selectedResource} evidenceKind={evidenceKind} fitWindow={fitWindow}
+      <InfrastructureWorkspace recordedStep={recordedStep} onRecordedStep={onRecordedStep} onClearRecordedStep={onClearRecordedStep} state={state} view={view} selected={selectedResource} evidenceKind={evidenceKind} fitWindow={fitWindow}
         onView={setView} onSelect={selectResource} onConnectionSelect={selectConnection} onEvidenceKind={setEvidenceKind} onOnboarding={onboarding} posting={posting}/></>}
       {!state.onboarding && !state.application && <><ConnectionChecks state={state} compact={fitWindow} selected={selectedConnection} onSelect={selectConnection} onCheck={() => { void run('connections'); }} onEvidence={() => { selectConnection(undefined); setEvidenceKind('connections'); setView('evidence'); }}/>
       <IdentityChecks state={state} compact={fitWindow} onCheck={() => { void run('identity'); }} onEvidence={() => { setEvidenceKind('identity'); setView('evidence'); }}/></>}

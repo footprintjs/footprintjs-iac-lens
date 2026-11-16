@@ -4,6 +4,7 @@ import { buildAdapterTopology } from './adapter-deployment-topology.ts';
 
 interface Instance { started: boolean; completed: boolean; failed: boolean; unknown: boolean }
 export interface AdapterObservationIndex {
+  nativeRunId: string;
   stages: Map<string, Map<string, Instance>>; decisions: Map<string, Set<string>>;
   providerStages: Set<string>; warnings: string[]; incomplete: boolean;
 }
@@ -34,7 +35,7 @@ export function adapterObservations(state: DashboardState, chart: DeploymentChar
   const recordedChart = readDeploymentChart({ ...chart, structure: recording.structure });
   if (JSON.stringify(recordedChart.structure) !== JSON.stringify(chart.structure)) throw Error('Foreign adapter structure');
   const topology = buildAdapterTopology(chart), all = new Map(topology.resources.flatMap(resource => resource.stages.map(stage => [stage.id, stage] as const)));
-  const output: AdapterObservationIndex = { stages: new Map(), decisions: new Map(), providerStages: new Set(), warnings: [], incomplete: false };
+  const output: AdapterObservationIndex = { nativeRunId, stages: new Map(), decisions: new Map(), providerStages: new Set(), warnings: [], incomplete: false };
   let work = 0;
   const spend = () => { if (++work > 150000) throw Error('Oversized native observation'); };
   function instance(runtimeInput: unknown, declaredId?: unknown): { id: string; value: Instance } | undefined {

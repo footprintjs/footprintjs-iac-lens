@@ -1,3 +1,4 @@
+import type {RecordedDeploymentStep} from '../../src/core/topology-deployment-step.ts';
 import { useMemo, useState } from 'react';
 import { Background, BackgroundVariant, Controls, ReactFlow } from '@xyflow/react';
 import type { DashboardState } from '../../src/core/types.ts';
@@ -12,12 +13,12 @@ import './deployment-flow.css';
 const nodeTypes = { 'deployment-step': DeploymentStep };
 
 /** The resource pipeline is ordered by captured execution, never by capability category. */
-export function DeploymentFlow({ state, selected, fitWindow = false, onSelect }: { state: DashboardState; selected?: string; fitWindow?: boolean; onSelect(id: string | undefined): void }) {
+export function DeploymentFlow({ state, selected, fitWindow = false, onSelect, recordedStep, onClearRecordedStep }: { recordedStep?:RecordedDeploymentStep; onClearRecordedStep?():void; state: DashboardState; selected?: string; fitWindow?: boolean; onSelect(id: string | undefined): void }) {
   const [prerequisites, setPrerequisites] = useState(false);
   const view = useMemo(() => buildDeploymentFlowView(state, selected, prerequisites), [state, selected, prerequisites]);
   const adapter = useMemo(() => projectAdapterDeployment(state, selected), [state, selected]);
   const { flow } = view;
-  if (adapter.available) return <AdapterDeploymentSlot state={state} view={adapter} fitWindow={fitWindow}/>;
+  if (adapter.available) return <AdapterDeploymentSlot state={state} view={adapter} fitWindow={fitWindow} recordedStep={recordedStep} onClearRecordedStep={onClearRecordedStep}/>;
   if (!flow.nodes.length) return null;
   const overlap = flow.columns.some(column => column.overlapping);
   const preview = flow.layoutSource === 'schedule-preview';

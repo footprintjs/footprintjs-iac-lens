@@ -1,3 +1,4 @@
+import type {RecordedDeploymentStep} from '../../src/core/topology-deployment-step.ts';
 import { useState } from 'react';
 import type { DashboardState } from '../../src/core/types.ts';
 import { workspaceViews, type View } from '../lib/workspace-views.ts';
@@ -14,7 +15,8 @@ import './synchronized-workspace.css';
 import { DetailsPanel } from './DetailsPanel.tsx';
 import type {OnboardingAction} from '../../src/core/onboarding.ts';
 
-export function InfrastructureWorkspace({ state, view, selected, evidenceKind, fitWindow = false, onView, onSelect, onConnectionSelect, onEvidenceKind, onOnboarding, posting = false }: {
+export function InfrastructureWorkspace({ state, view, selected, evidenceKind, fitWindow = false, onView, onSelect, onConnectionSelect, onEvidenceKind, onOnboarding, posting = false, recordedStep, onRecordedStep, onClearRecordedStep }: {
+  recordedStep?:RecordedDeploymentStep; onRecordedStep?(step:RecordedDeploymentStep):void; onClearRecordedStep?():void;
   state: DashboardState;
   view: View;
   selected?: string;
@@ -50,7 +52,7 @@ export function InfrastructureWorkspace({ state, view, selected, evidenceKind, f
           </button>)}
         </div>
         <span className="graph-count">{inventoryCount}</span>
-        {view==='deployment'&&onOnboarding&&deployReviewId&&<button type="button" className="button button-primary adapter-reviewed-deploy" disabled={state.busy||posting} onClick={()=>onOnboarding({action:'deploy',reviewId:deployReviewId})}>Deploy reviewed changes</button>}
+        {graphVisible&&onOnboarding&&deployReviewId&&<button type="button" className="button button-primary adapter-reviewed-deploy" disabled={state.busy||posting} onClick={()=>onOnboarding({action:'deploy',reviewId:deployReviewId})}>Deploy reviewed changes</button>}
       </div>
       {resource && step && view !== 'artifacts' && <div className="resource-selection" aria-label="Shared resource selection">
         <div><strong>{deploymentStepTitle(step)}</strong><code>{resource.id}</code>
@@ -62,13 +64,13 @@ export function InfrastructureWorkspace({ state, view, selected, evidenceKind, f
         </button><button className="icon-button" onClick={() => inspectResource(undefined)} aria-label="Clear resource selection"><Icon name="close" size={16}/></button></div>
       </div>}
       <div id="infrastructure-panel" role="tabpanel" aria-labelledby={`view-${view}`}>
-        {view === 'deployment' ? <DeploymentFlow state={state} selected={selected} fitWindow={fitWindow} onSelect={inspectResource}/>
-          : view === 'system' ? <RunningSystem state={state} selected={selected} fitWindow={fitWindow} onSelect={inspectResource} onConnectionSelect={onConnectionSelect}/>
+        {view === 'deployment' ? <DeploymentFlow recordedStep={recordedStep} onClearRecordedStep={onClearRecordedStep} state={state} selected={selected} fitWindow={fitWindow} onSelect={inspectResource}/>
+          : view === 'system' ? <RunningSystem onRecordedStep={onRecordedStep} state={state} selected={selected} fitWindow={fitWindow} onSelect={inspectResource} onConnectionSelect={onConnectionSelect}/>
             : view === 'evidence' ? <EvidenceSource state={state} kind={evidenceKind} selectedResource={selected} onKind={onEvidenceKind}/>
               : <ArtifactsView artifacts={state.artifacts ?? []}/>}
       </div>
       {resource && graphVisible && (fitWindow
-        ? inspectionOpen && <DetailsPanel title={step ? deploymentStepTitle(step) : resource.id} onClose={() => setInspectionOpen(false)}>
+        ? inspectionOpen && !recordedStep && <DetailsPanel title={step ? deploymentStepTitle(step) : resource.id} onClose={() => setInspectionOpen(false)}>
           <Inspector state={state} resource={resource} onClose={() => setInspectionOpen(false)} onEvidence={inspectEvidence}/>
         </DetailsPanel>
         : <Inspector state={state} resource={resource} onClose={() => onSelect(undefined)} onEvidence={inspectEvidence}/>) }

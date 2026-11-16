@@ -19,7 +19,7 @@ export interface AdapterDeploymentResource {
   resourceId: string; label: string; action: string; rootScope: string; adapterScope?: string;
   stages: AdapterDeploymentStage[]; edges: AdapterDeploymentEdge[]; scopes: AdapterDeploymentScope[];
 }
-export interface AdapterDeploymentView { available: boolean; runId?: string; resources: AdapterDeploymentResource[]; warnings: string[] }
+export interface AdapterDeploymentView { available: boolean; runId?: string; nativeRunId?: string; resources: AdapterDeploymentResource[]; warnings: string[] }
 
 /** View native adapter scopes; this never invokes a provider or schedules a deployment. */
 export function projectAdapterDeployment(state: DashboardState, resourceId?: string): AdapterDeploymentView {
@@ -61,6 +61,6 @@ export function projectAdapterDeployment(state: DashboardState, resourceId?: str
         .sort((a, b) => b.id.length - a.id.length)[0]?.id;
       return { ...resource, stages, edges, ...(resource.adapterScope || observedAdapterScope ? { adapterScope: resource.adapterScope ?? observedAdapterScope } : {}) };
     });
-    return { available: resources.length > 0, runId: chart.runId, resources, warnings: [...new Set([...warnings, ...observations?.warnings ?? []])] };
+    return { available: resources.length > 0, runId: chart.runId, ...(observations ? {nativeRunId:observations.nativeRunId} : {}), resources, warnings: [...new Set([...warnings, ...observations?.warnings ?? []])] };
   } catch { return { available: false, runId: state.run.id, resources: [], warnings: [...warnings, 'The adapter chart uses an unsupported structure.'] }; }
 }

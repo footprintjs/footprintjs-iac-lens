@@ -1,3 +1,4 @@
+import type {RecordedDeploymentStep} from '../../src/core/topology-deployment-step.ts';
 import { SystemTopologySlot } from '../features/system-topology/SystemTopologySlot.tsx';
 import {ReleaseAutomationPanel} from './ReleaseAutomationPanel.tsx';
 import type {ReleaseAutomationAction} from '../../src/core/release-automation.ts';
@@ -33,7 +34,8 @@ function checkLabel(status: string | undefined, passed: number, total: number) {
   return 'Not checked';
 }
 
-export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResourceFlow, onProfileAction, onHostAction, onDelivery, onPipeline, onMigration, onReleaseAutomation, onApplication, onOnboarding, onOnboardingVersion, onDismissError, onDetails, onSystem }: {
+export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResourceFlow, onProfileAction, onHostAction, onDelivery, onPipeline, onMigration, onReleaseAutomation, onApplication, onOnboarding, onOnboardingVersion, onDismissError, onDetails, onSystem, onRecordedStep }: {
+  onRecordedStep?(step:RecordedDeploymentStep):void;
   state: DashboardState; posting: boolean; error?: string; neoUrl?: string;
   onRun: (scenario: Scenario, reviewId?: string) => void; onDismissError: () => void; onDetails: () => void; onSystem?: () => void;
   onResourceFlow(input: ResourceFlowAction): void;
@@ -85,7 +87,7 @@ export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResour
     {error && <div className="simple-error" role="alert"><span>That didn’t finish. <button onClick={onDetails}>See details</button></span><button onClick={onDismissError} aria-label="Dismiss error"><Icon name="close" size={17}/></button></div>}
     {((!state.onboarding&&!state.application&&!state.pipeline&&!state.migration&&!state.releaseAutomation)||!!state.graph||!!state.systemTopology)&&<section className={`simple-stage phase-${scene.phase}`}>
       {!state.systemTopology && <div className="simple-stage-heading"><div><h2 aria-live="polite">{state.resourceFlow?.status === 'paused' ? 'Waiting for connection details' : state.resourceFlow?.status === 'idle' && state.resourceFlow.mode === 'existing' ? 'Ready to connect' : headline}</h2>{scene.subline && <p>{scene.subline}</p>}</div>{state.pipeline&&<button className="simple-button simple-secondary" onClick={onSystem??onDetails}>View running system<Icon name="external" size={14}/></button>}<span className="simple-count">{scene.counts.ready}<span> / {scene.counts.total} ready</span></span></div>}
-      <SystemTopologyFallback state={state} scene={scene} changes={revision?.resources}/>
+      <SystemTopologyFallback onRecordedStep={onRecordedStep} state={state} scene={scene} changes={revision?.resources}/>
       {scene.warnings.length > 0 && <div className="simple-warning"><span>Some results need a closer look.</span><button onClick={onDetails}>Details<Icon name="arrow" size={14}/></button></div>}
     </section>}
     <footer className="simple-checks">
@@ -96,6 +98,6 @@ export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResour
   </main>;
 }
 
-function SystemTopologyFallback({ state, scene, changes }: { state: DashboardState; scene: ReturnType<typeof projectBuildScene>; changes: Parameters<typeof BuildScene>[0]['changes'] }) {
-  return state.systemTopology ? <SystemTopologySlot view={state.systemTopology} simple/> : <BuildScene compact={!!state.releaseAutomation} scene={scene} execution={state.run?.status} workflowStatus={state.resourceFlow?.status} changes={changes}/>;
+function SystemTopologyFallback({ state, scene, changes, onRecordedStep }: { onRecordedStep?(step:RecordedDeploymentStep):void; state: DashboardState; scene: ReturnType<typeof projectBuildScene>; changes: Parameters<typeof BuildScene>[0]['changes'] }) {
+  return state.systemTopology ? <SystemTopologySlot view={state.systemTopology} state={state} onRecordedStep={onRecordedStep} simple/> : <BuildScene compact={!!state.releaseAutomation} scene={scene} execution={state.run?.status} workflowStatus={state.resourceFlow?.status} changes={changes}/>;
 }
