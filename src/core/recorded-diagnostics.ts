@@ -10,6 +10,11 @@ export interface DiagnosticTarget {
 export interface DiagnosticRun {
   id: string; runId: string; runtimeRunId: string | null; kind: DiagnosticKind; label: string;
   outcome: 'passed' | 'failed'; sequence: number; targets: readonly DiagnosticTarget[]; limitations: readonly string[];
+  configurationVersion?: DiagnosticConfigurationVersion;
+}
+export interface DiagnosticConfigurationVersion {
+  registryId: string; versionId: string; head: number; configurationDigest: string; releaseDigest: string;
+  association: 'admitted-registry-head' | 'matched-legacy-binding';
 }
 export interface RecordedDiagnostics { version: 1; binding: string; runs: readonly DiagnosticRun[]; omitted: number; limitations?: readonly string[]; persistenceError?: string }
 function object(value: unknown): Record<string, unknown> {
@@ -20,6 +25,14 @@ function object(value: unknown): Record<string, unknown> {
 function text(value: unknown, max = 4096): string { if (typeof value !== 'string' || value.length > max) throw Error('Invalid diagnostic text'); return value; }
 function count(value: unknown): number { if (!Number.isSafeInteger(value) || (value as number) < 0) throw Error('Invalid diagnostic count'); return value as number; }
 function list(value: unknown, max: number): unknown[] { if (!Array.isArray(value) || value.length > max) throw Error('Invalid diagnostic list'); return value; }
+export function readDiagnosticConfigurationVersion(input: unknown): DiagnosticConfigurationVersion {
+  const value = object(input);
+  if (Object.keys(value).some(key => !['registryId', 'versionId', 'head', 'configurationDigest', 'releaseDigest', 'association'].includes(key))) throw Error('Invalid diagnostic version fields');
+  for (const key of ['registryId', 'versionId']) if (typeof value[key] !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(value[key] as string) || ['__proto__', 'constructor', 'prototype'].includes(value[key] as string)) throw Error('Invalid diagnostic version ID');
+  for (const key of ['configurationDigest', 'releaseDigest']) if (typeof value[key] !== 'string' || !/^(?:sha256:)?[a-f0-9]{64}$/.test(value[key] as string)) throw Error('Invalid diagnostic version digest');
+  count(value.head); if (typeof value.association !== 'string' || !['admitted-registry-head', 'matched-legacy-binding'].includes(value.association)) throw Error('Declare the diagnostic version association');
+  return { registryId: value.registryId as string, versionId: value.versionId as string, head: value.head as number, configurationDigest: value.configurationDigest as string, releaseDigest: value.releaseDigest as string, association: value.association as DiagnosticConfigurationVersion['association'] };
+}
 const statuses = new Set(['passed','failed','connected','ready','pending','deploying','checking','untested','skipped','deleted','idle','running','paused','incomplete']);
 const verdicts = new Set(['authenticated','rejected','allowed','denied','available','unavailable']);
 const operations = new Set(['create','update','delete','noop','no-op','find','verify','check','read','observe']);
@@ -52,7 +65,8 @@ export function readRecordedDiagnostics(value: unknown): RecordedDiagnostics {
     });
     if (new Set(targets.map(target => target.id)).size !== targets.length) throw Error('Duplicate diagnostic target');
     return { id: text(run.id, 240), runId, runtimeRunId, kind: run.kind as DiagnosticKind, label: text(run.label, 200), outcome: run.outcome as DiagnosticRun['outcome'],
-      sequence: count(run.sequence), targets, limitations: list(run.limitations, 16).map(value => text(value, 1000)) };
+      sequence: count(run.sequence), targets, limitations: list(run.limitations, 16).map(value => text(value, 1000)),
+      ...(run.configurationVersion !== undefined ? { configurationVersion: readDiagnosticConfigurationVersion(run.configurationVersion) } : {}) };
   });
   if (new Set(runs.map(run => run.id)).size !== runs.length) throw Error('Duplicate diagnostic run');
   return { version: 1, binding: row.binding, runs, omitted: count(row.omitted),

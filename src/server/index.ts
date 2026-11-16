@@ -13,5 +13,5 @@ export type { ReleaseAutomationReviewOptions } from './release-automation.ts';
 export type { ApplicationHost, ApplicationHostContext, ApplicationHostSnapshot, ApplicationPublication, PublishApplication, CreateApplicationHost } from './application-host.ts';
 export { loadApplicationHost } from './load-application-host.ts';
 export { loadOnboardingHost } from './load-onboarding-host.ts';
-export type { OnboardingHost, OnboardingWorkflowPort, OnboardingHostContext, CreateOnboardingHost } from './onboarding-host.ts';
+export type { OnboardingHost, OnboardingWorkflowPort, OnboardingHostContext, CreateOnboardingHost, OnboardingVersionRegistryPort, OnboardingVersionPublicationPort, OnboardingVersionPublication } from './onboarding-host.ts';
 export type { AgentPlatformHost, AgentPlatformHostProvider, AgentPlatformContext, PublishAgentPlatform } from './agent-platform-host.ts';

@@ -2,6 +2,7 @@ import { readReleaseAutomationAction,readReleaseAutomationView,type ReleaseAutom
 import { readChangeAssessmentView } from './change-assessment.ts';
 import { readApplicationAction, readApplicationView, type ApplicationAction } from './application.ts';
 import { readOnboardingAction, readOnboardingSnapshot, type OnboardingAction } from './onboarding.ts';
+import { readOnboardingVersionAction, readOnboardingVersionSnapshot, onboardingVersionMatchesActive, type OnboardingVersionAction } from './onboarding-versions.ts';
 import { applicationSourceMatches, readApplicationSourceView } from './application-source.ts';
 import { readAgentPlatformAction, readAgentPlatformView } from './agent-platform-read.ts';
 import type { AgentPlatformAction } from './agent-platform.ts';
@@ -57,6 +58,11 @@ export function readDashboardState(value: unknown): DashboardState {
     if (state.target?.id !== undefined && state.target.id !== state.onboarding.targetId) throw Error('Onboarding publication belongs to another target');
     if (state.onboardingRecording && (state.onboardingRecording.snapshot as { runId?: unknown })?.runId !== state.onboarding.recording?.runId) throw Error('Onboarding evidence belongs to another run');
   }
+  if (state.onboardingRegistry !== undefined) {
+    state.onboardingRegistry = readOnboardingVersionSnapshot(state.onboardingRegistry);
+    if (!state.onboarding || !onboardingVersionMatchesActive(state.onboardingRegistry, state.onboarding)) throw Error('Active onboarding state differs from its registered version');
+    if (state.onboardingRegistryRecording && (state.onboardingRegistryRecording.snapshot as { runId?: unknown })?.runId !== state.onboardingRegistry.recording?.runId) throw Error('Configuration evidence belongs to another native run');
+  } else if (state.onboardingRegistryRecording !== undefined) throw Error('Register the owner of configuration evidence');
   if (state.onboardingError !== undefined && (typeof state.onboardingError !== 'string' || state.onboardingError.length > 1000)) throw Error('Invalid onboarding display error');
   if (state.source !== undefined) {
     state.source = readApplicationSourceView(state.source);
@@ -183,6 +189,14 @@ export function createDashboardClient(options: { baseUrl?: string; fetch?: JsonF
       throw Error(result.error ?? 'The onboarding step was refused. Check the retained result and current review.');
     }
   }
+  async function onboardingVersion(input: OnboardingVersionAction): Promise<void> {
+    const body = readOnboardingVersionAction(input);
+    const response = await request(endpoint('/api/onboarding/versions'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      throw Error(result.error ?? 'The setup update was refused. Review its retained ownership and sealed change.');
+    }
+  }
   async function delivery(input: DeliveryAction): Promise<void> {
     const body = readDeliveryAction(input);
     const response = await request(endpoint('/api/delivery'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -228,5 +242,5 @@ export function createDashboardClient(options: { baseUrl?: string; fetch?: JsonF
     const response = await request(endpoint('/api/agent-platform'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!response.ok) throw Error('The agent action was refused. Check its deployment and retained native records.');
   }
-  return { onboarding, agentPlatform, application, releaseAutomation, getState, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, subscribe };
+  return { onboardingVersion, onboarding, agentPlatform, application, releaseAutomation, getState, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, subscribe };
 }

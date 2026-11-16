@@ -21,6 +21,14 @@ function facts(status: string, observation?: { verdict?: string; latencyMs?: num
 /** Only already-admitted native runs and safe numeric/enum facts feed the history. */
 export function diagnosticCandidates(state: DashboardState): DiagnosticCandidate[] {
   const result: DiagnosticCandidate[] = [];
+  const registry = state.onboardingRegistry;
+  if (registry && !registry.busy && registry.recording && registry.review) {
+    const passed = !['blocked', 'incomplete'].includes(registry.status);
+    result.push({ id: 'configuration:' + registry.recording.runId, kind: 'workflow', runId: registry.recording.runId, label: 'Setup version update',
+      outcome: passed ? 'passed' : 'failed', recording: state.onboardingRegistryRecording,
+      targets: [{ id: 'review', key: 'review', label: 'Configuration and ownership review', outcome: passed ? 'passed' : 'failed', facts: [{ code: 'status', value: passed ? 'passed' : 'failed' }] }],
+      limitations: ['This recording reviews or activates desired setup. Resource deployment is a separate native workflow.'] });
+  }
   const onboarding = state.onboarding;
   if (onboarding && !onboarding.busy && onboarding.recording && onboarding.status !== 'idle') {
     const stage = [...onboarding.stages].reverse().find(item => item.status !== 'pending');

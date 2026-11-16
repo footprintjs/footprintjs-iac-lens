@@ -1,9 +1,11 @@
 # Reviewed core candidate
 
-The active core is `footprintjs-iac-0.5.0-alpha.2-onboarding-48be85eacbae.tgz`.
-SHA-256: `48be85eacbae72f16db20b49916d01e77585727ab629117ce33622564b123862`.
+The active core is `footprintjs-iac-0.5.0-alpha.2-versioned-57016a6be2d5.tgz`.
+SHA-256: `57016a6be2d51f3c983e486838bae4cf963cd47d5d150474852d4d5021b1f582`.
 
-It includes the reusable onboarding preset, recorded workflow and shared check
+It includes the stable-owner version registry with recorded configuration reviews,
+explicit activation and retained histories, plus the reusable onboarding preset,
+recorded workflow and shared check
 composition, plus the existing deployment, source, package and recovery APIs.
 The lockfile pins this relative archive and its npm integrity, so a clean
 checkout does not depend on another repository's local path. The `vendor/`

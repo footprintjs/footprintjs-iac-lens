@@ -23,6 +23,7 @@ import { DeliveryStrip } from './DeliveryStrip.tsx';
 import { ApplicationSetupPanel, type ApplicationActionHandler } from './ApplicationSetupPanel.tsx';
 import { OnboardingSlot } from '../features/onboarding/OnboardingSlot.tsx';
 import type { OnboardingAction } from '../../src/core/onboarding.ts';
+import type { OnboardingVersionAction } from '../../src/core/onboarding-versions.ts';
 
 function checkLabel(status: string | undefined, passed: number, total: number) {
   if (status === 'checking') return 'Checking…';
@@ -31,7 +32,7 @@ function checkLabel(status: string | undefined, passed: number, total: number) {
   return 'Not checked';
 }
 
-export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResourceFlow, onProfileAction, onHostAction, onDelivery, onPipeline, onMigration, onReleaseAutomation, onApplication, onOnboarding, onDismissError, onDetails, onSystem }: {
+export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResourceFlow, onProfileAction, onHostAction, onDelivery, onPipeline, onMigration, onReleaseAutomation, onApplication, onOnboarding, onOnboardingVersion, onDismissError, onDetails, onSystem }: {
   state: DashboardState; posting: boolean; error?: string; neoUrl?: string;
   onRun: (scenario: Scenario, reviewId?: string) => void; onDismissError: () => void; onDetails: () => void; onSystem?: () => void;
   onResourceFlow(input: ResourceFlowAction): void;
@@ -43,6 +44,7 @@ export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResour
   onDelivery?(input: DeliveryAction): void;
   onApplication?: ApplicationActionHandler;
   onOnboarding?(input: OnboardingAction): void;
+  onOnboardingVersion?(input: OnboardingVersionAction): void;
 }) {
   const scene = projectBuildScene(state);
   const revision = projectRevisionReview(state);
@@ -69,7 +71,7 @@ export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResour
       {neoUrl && !state.application && <a href={neoUrl} target="_blank" rel="noreferrer" className="simple-button simple-secondary">{state.resourceFlow || state.onboarding ? 'Open app' : 'Open Neo'}<Icon name="external" size={16}/></a>}
       {!revision && !state.deploymentReadOnly && scenario && <button className="simple-button simple-primary" disabled={disabled} onClick={() => onRun(scenario)}><Icon name="play" size={16}/>{disabled ? 'Working…' : state.run?.status === 'passed' ? 'Check setup' : 'Build system'}</button>}
     </div></section>
-    <OnboardingSlot state={state} posting={posting} onAction={onOnboarding}/>
+    <OnboardingSlot state={state} posting={posting} onAction={onOnboarding} onVersionAction={onOnboardingVersion}/>
     {state.application && <ApplicationSetupPanel state={state} posting={posting} onAction={onApplication} onProfileAction={onProfileAction}/>}
     {state.resourceFlow && <ResourceFlowStrip state={state} posting={posting} onAction={onResourceFlow} onProfileAction={onProfileAction}/>}
     {state.releaseAutomation&&<ReleaseAutomationPanel view={state.releaseAutomation} compact={!!state.graph} disabled={disabled} onAction={onReleaseAutomation}/>}

@@ -25,6 +25,7 @@ export * from './release-automation.ts';
 export * from './application.ts';
 export * from './application-source.ts';
 export * from './onboarding.ts';
+export * from './onboarding-versions.ts';
 export * from './agent-platform.ts';
 export { readAgentPlatformView, readAgentPlatformAction } from './agent-platform-read.ts';
 export { projectAgentPlatformView } from './agent-platform-project.ts';

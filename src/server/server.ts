@@ -14,6 +14,7 @@ import { readDeliveryRequest } from './delivery-request.ts';
 import { readApplicationRequest } from './application-request.ts';
 import { readAgentPlatformRequest } from './agent-platform-request.ts';
 import { readOnboardingRequest } from './onboarding-request.ts';
+import { readOnboardingVersionRequest } from './onboarding-version-request.ts';
 
 export interface DashboardOptions extends ControllerOptions { staticDirectory: string; port?: number }
 
@@ -41,6 +42,10 @@ export async function startDashboard(options: DashboardOptions): Promise<{
       }
       if (request.method === 'POST' && path === '/api/onboarding') {
         controller.onboardingAction(await readOnboardingRequest(request));
+        return json(response, 202, { accepted: true });
+      }
+      if (request.method === 'POST' && path === '/api/onboarding/versions') {
+        controller.onboardingVersionAction(await readOnboardingVersionRequest(request));
         return json(response, 202, { accepted: true });
       }
       if (request.method === 'POST' && path === '/api/agent-platform') {

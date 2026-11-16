@@ -44,8 +44,10 @@ import type { AgentPlatformReview } from './agent-platform-review.ts';
 import type { AgentPlatformAction } from '../core/agent-platform.ts';
 import { projectAgentPlatformView } from '../core/agent-platform-project.ts';
 import type { OnboardingAction } from '../core/onboarding.ts';
+import type { OnboardingVersionAction } from '../core/onboarding-versions.ts';
 import type { OnboardingHost } from './onboarding-host.ts';
 import { OnboardingSession, OnboardingRequestError } from './onboarding.ts';
+import { readOnboardingPublicationState } from './onboarding-publication.ts';
 
 const verificationAttention = 'The version was applied. Connection or access checks need attention; recorded results are available.';
 
@@ -175,13 +177,7 @@ export class DashboardController {
     this.state.artifacts = this.state.graph ? [...await graphArtifacts(this.state.graph), ...await cloudFormationExample()] : [];
     if (this.options.onboarding) {
       this.onboardingSession = new OnboardingSession(this.options.onboarding, value => {
-        const { phase: _phase, ...publication } = value.publication ?? {};
-        const ready = !value.view.busy && value.view.status === 'ready' && value.view.deployment?.promoted === true;
-        const patch = readApplicationPublication(publication, { ...this.state, target: { id: value.view.targetId, label: value.view.label }, onboarding: value.view, onboardingRecording: value.recording });
-        this.state = readDashboardState({ ...this.state, ...patch, onboarding: value.view,
-          onboardingRecording: value.recording, onboardingError: value.error, busy: value.view.busy || this.agentBusy,
-          target: patch.target ?? (this.state.target?.id === value.view.targetId ? this.state.target : { id: value.view.targetId, label: value.view.label }),
-          ...(!ready ? { neoUrl: undefined, appAccess: patch.appAccess?.status === 'ready' ? undefined : patch.appAccess } : {}) });
+        this.state = readOnboardingPublicationState(this.state, value); this.state.busy ||= this.agentBusy;
         this.publish();
       });
       await this.onboardingSession.initialize();
@@ -287,6 +283,12 @@ export class DashboardController {
     this.requireAgentIdle();
     if (!this.onboardingSession) throw new RequestError(409, 'No onboarding preset was registered');
     try { this.onboardingSession.action(input); this.completion = this.onboardingSession.whenIdle().then(() => this.persist()); }
+    catch (error) { if (error instanceof OnboardingRequestError) throw new RequestError(error.status, error.message); throw error; }
+  }
+  onboardingVersionAction(input: OnboardingVersionAction): void {
+    this.requireAgentIdle();
+    if (!this.onboardingSession) throw new RequestError(409, 'No onboarding preset was registered');
+    try { this.onboardingSession.versionAction(input); this.completion = this.onboardingSession.whenIdle().then(() => this.persist()); }
     catch (error) { if (error instanceof OnboardingRequestError) throw new RequestError(error.status, error.message); throw error; }
   }
   private agentContext(): AgentPlatformContext {

@@ -30,11 +30,12 @@ import { DeliveryStrip } from './DeliveryStrip.tsx';
 import { ApplicationSetupPanel, type ApplicationActionHandler } from './ApplicationSetupPanel.tsx';
 import { OnboardingSlot } from '../features/onboarding/OnboardingSlot.tsx';
 import type { OnboardingAction } from '../../src/core/onboarding.ts';
+import type { OnboardingVersionAction } from '../../src/core/onboarding-versions.ts';
 
 /** One full workspace for standalone deployments and orchestrated resource workflows. */
 export function DetailsWorkspace({ state, posting, error, neoUrl, fitWindow, view, selectedResource,
   selectedConnection, evidenceKind, setView, selectResource, selectConnection, setEvidenceKind,
-  selectActivity, run, resourceFlow, profileAction, hostAction, delivery, pipeline, migration, releaseAutomation, application, onboarding, dismissError }: {
+  selectActivity, run, resourceFlow, profileAction, hostAction, delivery, pipeline, migration, releaseAutomation, application, onboarding, onboardingVersion, dismissError }: {
   state: DashboardState; posting: boolean; error?: string; neoUrl?: string; fitWindow: boolean; view: View;
   selectedResource?: string; selectedConnection?: string; evidenceKind: EvidenceKind;
   setView(view: View): void; selectResource(id?: string): void; selectConnection(id?: string): void;
@@ -48,13 +49,14 @@ export function DetailsWorkspace({ state, posting, error, neoUrl, fitWindow, vie
   delivery?(input: DeliveryAction): void;
   application?: ApplicationActionHandler;
   onboarding?(input: OnboardingAction): void;
+  onboardingVersion?(input: OnboardingVersionAction): void;
 }) {
   const revision = projectRevisionReview(state);
   return <div className="app-layout"><Sidebar state={state} view={view} onView={setView}/><main className="main-content">
       <section className="page-heading"><div><div className="eyebrow">INFRASTRUCTURE OVERVIEW</div><h1>{state.onboarding?.label ?? state.application?.label ?? state.design?.name ?? state.resourceFlow?.label ?? state.graph?.name ?? 'Your system'}</h1>{!state.application && <AppAccess state={state} neoUrl={neoUrl}/>}</div><div className="page-actions"><RecordedTraceButton state={state} technical/><HostActionButtons state={state} posting={posting} onAction={hostAction}/>{neoUrl && !state.application && <a className="button button-secondary" href={neoUrl} target="_blank" rel="noreferrer">{state.resourceFlow || state.onboarding ? 'Open app' : 'Open Neo'}<Icon name="external" size={15}/></a>}<span className={`run-status run-${state.resourceFlow?.status ?? state.run?.status ?? 'idle'}`}><span/>{state.application ? state.application.phase === 'ready' ? 'Application verified' : state.application.busy ? 'Setup in progress' : 'Application setup' : state.resourceFlow ? state.resourceFlow.status === 'passed' ? 'Workflow complete' : projectResourceFlow(state)?.headline : state.run?.status === 'running' ? 'Deployment in progress' : state.run?.status === 'passed' ? 'Deployment complete' : state.run?.status === 'failed' ? 'Deployment failed' : 'Ready to deploy'}</span></div></section>
       {error && <div className="error-banner" role="alert"><Icon name="close" size={17}/><span>{error}</span><button className="icon-button" onClick={dismissError} aria-label="Dismiss error"><Icon name="close" size={15}/></button></div>}
       <div className="target-row"><div className="target-description"><span className={`mode-pill ${state.mode === 'simulator' ? 'mode-simulation' : 'mode-real'}`}>{state.mode === 'kubernetes' ? 'LOCAL KUBERNETES' : state.mode === 'simulator' ? 'SIMULATION' : 'CONFIGURED PROVIDERS'}</span><span className="target-name">{state.target?.context ?? state.target?.label ?? state.target?.id ?? (state.application ? 'Choose an application target' : 'Local simulator')}</span></div>{!state.onboarding && !state.application && !state.delivery && !state.pipeline && !state.migration && !state.releaseAutomation && <RunControls state={state} posting={posting} onRun={scenario => { void run(scenario); }}/>}</div>
-      <OnboardingSlot state={state} posting={posting} technical onAction={onboarding}/>
+      <OnboardingSlot state={state} posting={posting} technical onAction={onboarding} onVersionAction={onboardingVersion}/>
       {state.application && <ApplicationSetupPanel state={state} posting={posting} onAction={application} onProfileAction={profileAction} technical/>}
       {state.resourceFlow && <ResourceFlowStrip state={state} posting={posting} onAction={resourceFlow} onProfileAction={profileAction}/>}
       {state.releaseAutomation&&<ReleaseAutomationPanel view={state.releaseAutomation} disabled={state.busy||posting} onAction={releaseAutomation} technical/>}

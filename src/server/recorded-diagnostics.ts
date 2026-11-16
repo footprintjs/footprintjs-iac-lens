@@ -5,10 +5,11 @@ import { queryRecordedDependencies, type RecordedDependencyInput } from 'footpri
 import { diagnosticCandidates } from '../core/diagnostic-candidates.ts';
 import { DIAGNOSTIC_HISTORY_LIMIT, readRecordedDiagnostics, type DiagnosticRun, type RecordedDiagnostics } from '../core/recorded-diagnostics.ts';
 import type { DashboardState } from '../core/types.ts';
+import { registryHistoryBinding, legacyOnboardingHistoryBinding, currentDiagnosticVersion, legacyDiagnosticVersion, preserveLegacyDiagnostics } from './onboarding-history.ts';
 
 function binding(state: DashboardState): string {
-  if (state.onboarding) return createHash('sha256').update(JSON.stringify({ onboarding: state.onboarding.id, strategy: state.onboarding.strategyId,
-    target: state.onboarding.targetId, profile: state.onboarding.profileId ?? null, configuration: state.onboarding.configurationDigest })).digest('hex');
+  const registry = registryHistoryBinding(state); if (registry) return registry;
+  if (state.onboarding) return legacyOnboardingHistoryBinding(state.onboarding);
   return createHash('sha256').update(JSON.stringify({ graph: state.graph?.digest ?? null, target: state.resourceFlow?.target ?? state.target ?? null,
     workflow: state.resourceFlow?.definitionDigest ?? null })).digest('hex');
 }
@@ -17,25 +18,30 @@ export class RecordedDiagnosticHistory {
   private state?: RecordedDiagnostics;
   private completion: Promise<void> = Promise.resolve();
   private readonly file: string;
+  private readonly directory: string;
   private readonly onError: () => void;
   private readonly initialLimitations: string[] = [];
   private persistenceBlocked = false;
-  constructor(directory: string, onError: () => void) { this.file = join(directory, 'recorded-diagnostics.json'); this.onError = onError; }
+  constructor(directory: string, onError: () => void) { this.directory = directory; this.file = join(directory, 'recorded-diagnostics.json'); this.onError = onError; }
   async initialize(state: DashboardState): Promise<void> {
-    const expected = binding(state);
+    const expected = binding(state); let adopted = false;
     try {
       const info = await lstat(this.file);
       if (!info.isFile() || info.isSymbolicLink() || info.size > 16 * 1024 * 1024) throw Error('Unsupported history file');
-      const prior = readRecordedDiagnostics(JSON.parse(await readFile(this.file, 'utf8')));
+      const content = await readFile(this.file, 'utf8'), prior = readRecordedDiagnostics(JSON.parse(content));
       if (prior.binding === expected) this.state = prior;
-      else { this.initialLimitations.push('Earlier viewer history belongs to another system or workflow and is not included. Its file is retained; new reports in this view are not saved to it.'); this.persistenceBlocked = true; }
+      else {
+        const version = legacyDiagnosticVersion(state, prior);
+        if (version) { await preserveLegacyDiagnostics(this.directory, prior.binding, content); this.state = { ...prior, binding: expected, runs: prior.runs.map(run => ({ ...run, configurationVersion: run.configurationVersion ?? version })) }; adopted = true; }
+        else { this.initialLimitations.push('Earlier viewer history belongs to another system or workflow and is not included. Its file is retained; new reports in this view are not saved to it.'); this.persistenceBlocked = true; }
+      }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         this.initialLimitations.push('Earlier diagnostic history could not be read. This view includes only newly observed runs. The unreadable file is retained and new reports are not saved to it; native recordings remain authoritative.');
         this.persistenceBlocked = true;
       }
     }
-    this.update(state); await this.whenIdle();
+    this.update(state); if (adopted) this.persist(); await this.whenIdle();
   }
   snapshot(): RecordedDiagnostics | undefined { return this.state && structuredClone(this.state); }
   whenIdle(): Promise<void> { return this.completion; }
@@ -56,23 +62,27 @@ export class RecordedDiagnosticHistory {
       const targets = candidate.targets.map(target => ({ ...target, ...(raw && typeof raw === 'object' ? {
         trace: queryRecordedDependencies({ snapshot: raw as RecordedDependencyInput['snapshot'], ...(recording?.controlDeps ? { controlDeps: recording.controlDeps as RecordedDependencyInput['controlDeps'] } : {}) }, target.key),
       } : {}) }));
+      const configurationVersion = prior?.configurationVersion ?? currentDiagnosticVersion(input);
       const next: DiagnosticRun = { id: candidate.id, runId: candidate.runId, runtimeRunId, kind: candidate.kind, label: candidate.label,
         outcome: candidate.outcome, sequence: prior?.sequence ?? Math.max(0,...this.state.runs.map(run => run.sequence)) + 1, targets,
-        limitations };
+        limitations, ...(configurationVersion ? { configurationVersion } : {}) };
       const runs = [...this.state.runs.filter(run => run.id !== next.id), next].sort((a,b) => a.sequence - b.sequence);
       const removed = Math.max(0, runs.length - DIAGNOSTIC_HISTORY_LIMIT);
       this.state = { ...this.state, runs: runs.slice(-DIAGNOSTIC_HISTORY_LIMIT), omitted: this.state.omitted + removed }; changed = true;
     }
     if (changed) {
       const admitted = readRecordedDiagnostics(this.state); this.state = admitted;
-      if (this.persistenceBlocked) return;
-      const content = JSON.stringify(admitted, null, 2) + '\n';
-      this.completion = this.completion.then(async () => {
+      this.persist();
+    }
+  }
+  private persist(): void {
+    if (this.persistenceBlocked || !this.state) return;
+    const content = JSON.stringify(readRecordedDiagnostics(this.state), null, 2) + '\n';
+    this.completion = this.completion.then(async () => {
         const temporary = this.file + '.next'; await writeFile(temporary, content, { mode: 0o600 }); await rename(temporary, this.file);
       }).catch(() => {
         this.state = { ...this.state!, persistenceError: 'Diagnostic history could not be saved. Earlier native recordings remain authoritative.' };
         this.onError();
       });
-    }
   }
 }

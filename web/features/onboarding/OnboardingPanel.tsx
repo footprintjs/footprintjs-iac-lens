@@ -1,24 +1,27 @@
 import { lazy, Suspense, useState } from 'react';
 import { onboardingNextAction, type OnboardingAction } from '../../../src/core/onboarding.ts';
+import { onboardingVersionAllowsReadiness, type OnboardingVersionAction } from '../../../src/core/onboarding-versions.ts';
 import type { DashboardState } from '../../../src/core/types.ts';
 import { DetailsPanel } from '../../components/DetailsPanel.tsx';
 import { Icon } from '../../components/Icon.tsx';
 import { OnboardingCheckList, OnboardingCheckDetails } from './OnboardingChecks.tsx';
+import { OnboardingVersionSlot } from './versions/OnboardingVersionSlot.tsx';
 import onboardingStyles from './onboarding.css' with { type: 'text' };
 
 const EvidenceView = lazy(() => import('../../components/EvidenceView.tsx'));
 const statuses = { pending: 'Waiting', running: 'Working', passed: 'Ready', failed: 'Needs attention', unknown: 'Not confirmed' };
 const changes = { create: 'Create', update: 'Update', noop: 'Unchanged', replace: 'Replace', delete: 'Remove', blocked: 'Needs attention' };
 
-export default function OnboardingPanel({ state, posting, technical = false, onAction }: {
-  state: DashboardState; posting: boolean; technical?: boolean; onAction?(input: OnboardingAction): void;
+export default function OnboardingPanel({ state, posting, technical = false, onAction, onVersionAction }: {
+  state: DashboardState; posting: boolean; technical?: boolean; onAction?(input: OnboardingAction): void; onVersionAction?(input: OnboardingVersionAction): void;
 }) {
   const view = state.onboarding!, next = onboardingNextAction(view);
   const [panel, setPanel] = useState<'details' | 'recording'>();
   const disabled = posting || state.busy || view.busy;
   const current = view.stages.find(stage => stage.status === 'running');
-  const ready = !view.busy && view.status === 'ready' && view.deployment?.promoted;
-  const headline = ready ? 'Your app is ready' : current ? `${current.label}…` : view.busy ? 'Reading setup…' : view.status === 'incomplete' ? 'Inspect the recorded outcome' : view.status === 'failed' ? 'Setup needs attention' : view.status === 'reviewed' ? 'Ready for your review' : 'Connect your application';
+  const currentVersionReady = onboardingVersionAllowsReadiness(state.onboardingRegistry);
+  const ready = currentVersionReady && !view.busy && view.status === 'ready' && view.deployment?.promoted;
+  const headline = ready ? 'Your app is ready' : current ? `${current.label}…` : view.busy ? 'Reading setup…' : !currentVersionReady ? 'Inspect the setup update' : view.status === 'incomplete' ? 'Inspect the recorded outcome' : view.status === 'failed' ? 'Setup needs attention' : view.status === 'reviewed' ? 'Ready for your review' : 'Connect your application';
   const affected = view.review?.changes.filter(change => change.action !== 'noop').length;
   const applicationChecks = view.deployment?.checks;
   const checks = applicationChecks ?? view.checks;
@@ -26,6 +29,7 @@ export default function OnboardingPanel({ state, posting, technical = false, onA
     <section className="onboarding-panel" aria-label="Application onboarding">
       <style>{onboardingStyles}</style>
       <header><div><span className="onboarding-eyebrow">Application setup</span><h2 aria-live="polite">{headline}</h2><p>{technical ? `${view.strategyId} · ${view.targetId}` : 'One recorded flow, from existing setup to a verified deployment.'}</p></div><div className="onboarding-tools"><button type="button" onClick={() => setPanel('details')}>Details</button><button type="button" aria-label="Inspect onboarding recording" disabled={!state.onboardingRecording} onClick={() => setPanel('recording')}><Icon name="evidence" size={16}/></button></div></header>
+      <OnboardingVersionSlot state={state} posting={posting} technical={technical} onAction={onVersionAction}/>
       <ol className="onboarding-stages" aria-label="Recorded setup progress">{view.stages.map((stage, index) => <li key={stage.id} className={'onboarding-stage-' + stage.status} aria-label={`${stage.label}: ${statuses[stage.status]}`}><span className="onboarding-stage-number">{stage.status === 'passed' ? <Icon name="check" size={14}/> : index + 1}</span><strong>{stage.label}</strong><small>{statuses[stage.status]}</small></li>)}</ol>
       <OnboardingCheckList checks={checks} application={applicationChecks !== undefined} technical={technical}/>
       {view.review && <div className="onboarding-review"><strong>{affected ?? 0} {(affected ?? 0) === 1 ? 'change' : 'changes'}</strong><span>{view.review.changes.filter(change => change.action === 'noop').length} unchanged</span><button type="button" onClick={() => setPanel('details')}>Review details</button></div>}

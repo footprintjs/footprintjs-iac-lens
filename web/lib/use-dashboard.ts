@@ -11,6 +11,7 @@ import type { DeliveryAction } from '../../src/core/delivery.ts';
 import type { ApplicationAction } from '../../src/core/application.ts';
 import type { AgentPlatformAction } from '../../src/core/agent-platform.ts';
 import type { OnboardingAction } from '../../src/core/onboarding.ts';
+import type { OnboardingVersionAction } from '../../src/core/onboarding-versions.ts';
 
 export function useDashboard(baseUrl = '') {
   const [state, setState] = useState<DashboardState>();
@@ -78,6 +79,12 @@ export function useDashboard(baseUrl = '') {
     catch { setError('The setup step could not complete. Read its recorded result and current review.'); }
     finally { setPosting(false); }
   }, [client]);
+  const onboardingVersion = useCallback(async (input: OnboardingVersionAction) => {
+    setPosting(true); setError(undefined);
+    try { await client.onboardingVersion(input); }
+    catch { setError('The setup update could not complete. Read its reviewed diff and retained ownership.'); }
+    finally { setPosting(false); }
+  }, [client]);
   const agentPlatform = useCallback(async (input: AgentPlatformAction) => {
     setPosting(true); setAgentError(undefined);
     try {
@@ -89,5 +96,5 @@ export function useDashboard(baseUrl = '') {
     } catch { setAgentError('The agent action could not complete. Check its recorded result and current connection.'); }
     finally { setPosting(false); }
   }, [client]);
-  return { onboarding, agentPlatform, agentError, application, releaseAutomation, state, connected, error, posting, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, dismissError: () => setError(undefined), dismissAgentError: () => setAgentError(undefined) };
+  return { onboardingVersion, onboarding, agentPlatform, agentError, application, releaseAutomation, state, connected, error, posting, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, dismissError: () => setError(undefined), dismissAgentError: () => setAgentError(undefined) };
 }
