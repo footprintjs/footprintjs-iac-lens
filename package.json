@@ -19,7 +19,7 @@
     "build:server": "tsc -p tsconfig.server.json"
   },
   "dependencies": {
-    "footprintjs-iac": "file:vendor/footprintjs-iac-0.5.0-alpha.2-native-23b43c4bcd03.tgz"
+    "footprintjs-iac": "file:vendor/footprintjs-iac-0.5.0-alpha.2-live-5e4c90889d5d.tgz"
   },
   "devDependencies": {
     "@types/node": "24.9.1",
@@ -92,6 +92,7 @@
     "docs/agent-components.md",
     "docs/onboarding.md",
     "docs/system-topology.md",
+    "docs/adapter-deployment-steps.md",
     "web/features/system-topology/icons/LICENSE.simple-icons.md",
     "web/features/system-topology/icons/sources.json",
     "vendor"

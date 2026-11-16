@@ -5,6 +5,8 @@ import { buildDeploymentFlowView } from '../lib/deployment-flow-view.ts';
 import { DeploymentStep } from './DeploymentStep.tsx';
 import { Icon } from './Icon.tsx';
 import { CanvasFit } from './CanvasFit.tsx';
+import { projectAdapterDeployment } from '../../src/core/adapter-deployment.ts';
+import { AdapterDeploymentSlot } from '../features/adapter-deployment/AdapterDeploymentSlot.tsx';
 import './deployment-flow.css';
 
 const nodeTypes = { 'deployment-step': DeploymentStep };
@@ -13,7 +15,9 @@ const nodeTypes = { 'deployment-step': DeploymentStep };
 export function DeploymentFlow({ state, selected, fitWindow = false, onSelect }: { state: DashboardState; selected?: string; fitWindow?: boolean; onSelect(id: string | undefined): void }) {
   const [prerequisites, setPrerequisites] = useState(false);
   const view = useMemo(() => buildDeploymentFlowView(state, selected, prerequisites), [state, selected, prerequisites]);
+  const adapter = useMemo(() => projectAdapterDeployment(state, selected), [state, selected]);
   const { flow } = view;
+  if (adapter.available) return <AdapterDeploymentSlot state={state} view={adapter} fitWindow={fitWindow}/>;
   if (!flow.nodes.length) return null;
   const overlap = flow.columns.some(column => column.overlapping);
   const preview = flow.layoutSource === 'schedule-preview';
@@ -33,6 +37,6 @@ export function DeploymentFlow({ state, selected, fitWindow = false, onSelect }:
     </div>
     <div className="deployment-flow-explainer">{overlap ? <span><strong>Work overlapped.</strong> Some steps were active at the same time. Numbers follow their individual recorded starts.</span> : <span>{children ? 'Numbers belong to each child recording. Found resources have no deployment start or step number.' : native ? 'Scheduled together is the native fork; overlap is confirmed only when live execution records it.' : flow.basis === 'recorded' ? 'Numbers follow recorded starts, including checks of existing resources.' : 'Branches describe dependencies; they do not promise parallel execution.'}</span>}<span>Compute, Storage and Network are labels, not a fixed sequence.</span></div>
     {flow.existingPrerequisites.length > 0 && <p className="deployment-existing"><Icon name="check" size={13}/><strong>Already available:</strong> {flow.existingPrerequisites.map(item => item.label).join(', ')}. These are not deployment steps.</p>}
-    {flow.warnings.length > 0 && <p className="deployment-flow-warning" role="status">{flow.warnings.join(' ')}</p>}
+    {(flow.warnings.length > 0 || adapter.warnings.length > 0) && <p className="deployment-flow-warning" role="status">{[...new Set([...flow.warnings,...adapter.warnings])].join(' ')}</p>}
   </section>;
 }

@@ -11,7 +11,7 @@ import { projectSystemBlocks } from '../src/core/index.ts';
 
 async function fixture(t: { after(fn: () => Promise<void>): void }, options: {
   holdReady?: boolean; attachRecorder?: boolean; wrongGraph?: boolean; throws?: boolean;
-  missingEvidence?: boolean; cachedResult?: boolean; wrongRun?: boolean; providerFailure?: boolean;
+  missingEvidence?: boolean; cachedResult?: boolean; wrongRun?: boolean; providerFailure?: boolean; captureStages?: boolean;
 } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'iac-managed-review-'));
   const staticDirectory = join(directory, 'public'); await mkdir(staticDirectory);
@@ -32,7 +32,7 @@ async function fixture(t: { after(fn: () => Promise<void>): void }, options: {
   const { digest: _digest, ...body } = graph;
   const appliedGraph = options.wrongGraph ? compileGraph({ ...body,
     resources: graph.resources.map(resource => ({ ...resource, spec: { version: 2 } })) }) : graph;
-  const recorder = createDeploymentRecorder();
+  const recorder = createDeploymentRecorder({captureStages:options.captureStages});
   const provider = new Provider({ file: join(directory, 'provider.json') });
   if (options.providerFailure) provider.faults.failBeforeApply = new Set(['application']);
   const engine = new InfraEngine({ adapters: [provider],
@@ -64,7 +64,7 @@ async function fixture(t: { after(fn: () => Promise<void>): void }, options: {
 }
 
 test('managed review starts pending, streams native deployment, and reapply records real no-ops', async t => {
-  const running = await fixture(t, { holdReady: true });
+  const running = await fixture(t, { holdReady: true, captureStages:true });
   const updates: ReturnType<typeof running.controller.getSnapshot>[] = [];
   const stop = running.controller.subscribe(() => { updates.push(running.controller.getSnapshot()); });
   t.after(stop);
@@ -84,6 +84,11 @@ test('managed review starts pending, streams native deployment, and reapply reco
   assert.ok(inFlight.run?.resources.some(resource => resource.status === 'deploying'));
   assert.ok(inFlight.run?.resources.every(resource => resource.status !== 'ready'));
   assert.ok(inFlight.run?.events.every(event => !!event.runtimeStageId));
+  const live=inFlight.run?.recording?.snapshot as {sharedState?:unknown;recorders?:{id:string;data:{events:{type:string;runtimeStageId:string}[]}}[]} | undefined;
+  assert.ok(live,'explicit stage capture exposes live native observations while the provider is held');
+  assert.equal(live.sharedState,undefined,'live native progress omits scope payloads');
+  const observed=live.recorders?.find(row=>row.id==='iac-native-stage-progress')?.data.events??[];
+  assert.ok(observed.some(event=>event.type==='start'&&!observed.some(other=>['end','executed','error'].includes(other.type)&&other.runtimeStageId===event.runtimeStageId)));
   const chartOnly = updates.find(state => state.run?.chart && state.run.events.length === 0);
   assert.ok(chartOnly, 'the native chart is published before the first resource event');
   assert.equal(chartOnly.run!.chart!.runId, chartOnly.run!.id);
@@ -180,7 +185,7 @@ for (const [label, options] of [
   ['missing saved evidence', { missingEvidence: true }], ['a mismatched result run', { wrongRun: true }],
 ] as const) {
   test(`${label} cannot mark declared resources ready`, async t => {
-    const running = await fixture(t, options);
+    const running = await fixture(t, {...options,captureStages:true});
     assert.equal((await running.post({ scenario: 'review' })).status, 202);
     await running.controller.whenIdle();
     const state = running.controller.getSnapshot();

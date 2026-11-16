@@ -32,6 +32,7 @@ export async function executeManagedReview(options: ManagedReviewOptions, update
   const seenRuns = new Set<string>();
   let unsubscribe = () => {};
   let unsubscribeChart = () => {};
+  let unsubscribeRecording = () => {};
   try {
     options.recorder.clear?.();
     const empty = options.recorder.getSnapshot();
@@ -39,6 +40,11 @@ export async function executeManagedReview(options: ManagedReviewOptions, update
     unsubscribeChart = options.recorder.subscribeChart(chart => {
       run = { ...run, id: chart.runId, chart }; update(run);
     });
+    unsubscribeRecording = options.recorder.subscribeRecording?.(recording => {
+      if (recording.provenance.runId !== run.id || recording.provenance.stack !== options.graph.name
+        || recording.provenance.graphDigest !== options.graph.digest) return;
+      run = { ...run, recording }; update(run);
+    }) ?? (() => {});
     unsubscribe = options.recorder.subscribe(event => {
       seenRuns.add(event.runId);
       const snapshot = options.recorder.getSnapshot();
@@ -59,6 +65,8 @@ export async function executeManagedReview(options: ManagedReviewOptions, update
     const terminal = run.resources.every(resource => ['ready', 'failed', 'skipped', 'deleted'].includes(resource.status));
     if (!terminal) errors.push('Native resource progress is incomplete; missing outcomes remain pending.');
     if (result.ok && run.resources.some(resource => resource.status !== 'ready')) errors.push('Successful apply did not confirm every declared resource ready.');
+    // A partial live observation cannot substitute for the saved owning capture.
+    delete run.recording;
     let matchingEvidence = false;
     try {
       const evidence = await loadEvidence(result.evidencePath);
@@ -67,7 +75,8 @@ export async function executeManagedReview(options: ManagedReviewOptions, update
       if (!matchingEvidence) errors.push('Native evidence belongs to a different run or graph.');
       else if (!evidence.structure) errors.push('Native chart structure was not captured.');
       else run.recording = { snapshot: evidence.snapshot, structure: evidence.structure, controlDeps: evidence.controlDeps,
-        narrativeEntries: Array.isArray(evidence.narrative) ? evidence.narrative : [] };
+        narrativeEntries: Array.isArray(evidence.narrative) ? evidence.narrative : [],
+        provenance: { runId: result.runId, stack: options.graph.name, graphDigest: options.graph.digest } };
     } catch { errors.push('Native deployment evidence could not be loaded; capture is incomplete.'); }
     if (!matchingEvidence) run.resources = pendingManagedResources(options.graph);
     if (result.traceStatus && (result.traceStatus.failed > 0 || result.traceStatus.flushed === false)) {
@@ -78,7 +87,7 @@ export async function executeManagedReview(options: ManagedReviewOptions, update
         traceStatus: result.traceStatus, failure: result.failure, results: result.results,
         ...(errors.length ? { captureError: errors.join(' ') } : {}) } };
   } catch {
-    return { ...run, status: 'failed', finishedAt: new Date().toISOString(),
+    return { ...run, recording: undefined, status: 'failed', finishedAt: new Date().toISOString(),
       report: { error: 'The configured deployment could not complete. Inspect its trusted local evidence.' } };
-  } finally { unsubscribe(); unsubscribeChart(); }
+  } finally { unsubscribe(); unsubscribeChart(); unsubscribeRecording(); }
 }

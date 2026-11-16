@@ -12,8 +12,9 @@ import { RunningSystem } from './RunningSystem.tsx';
 import { StatusBadge } from './StatusBadge.tsx';
 import './synchronized-workspace.css';
 import { DetailsPanel } from './DetailsPanel.tsx';
+import type {OnboardingAction} from '../../src/core/onboarding.ts';
 
-export function InfrastructureWorkspace({ state, view, selected, evidenceKind, fitWindow = false, onView, onSelect, onConnectionSelect, onEvidenceKind }: {
+export function InfrastructureWorkspace({ state, view, selected, evidenceKind, fitWindow = false, onView, onSelect, onConnectionSelect, onEvidenceKind, onOnboarding, posting = false }: {
   state: DashboardState;
   view: View;
   selected?: string;
@@ -23,6 +24,8 @@ export function InfrastructureWorkspace({ state, view, selected, evidenceKind, f
   onSelect(id?: string): void;
   onConnectionSelect(id: string): void;
   onEvidenceKind(kind: EvidenceKind): void;
+  onOnboarding?(action:OnboardingAction):void;
+  posting?:boolean;
 }) {
   const [inspectionOpen, setInspectionOpen] = useState(false);
   const resource = state.graph?.resources.find(item => item.id === selected);
@@ -31,6 +34,7 @@ export function InfrastructureWorkspace({ state, view, selected, evidenceKind, f
   const resourceCount = state.graph?.resources.length ?? 0;
   const componentCount = state.systemTopology?.definition.nodes.length ?? 0;
   const inventoryCount = state.systemTopology ? `${componentCount} ${componentCount === 1 ? 'component' : 'components'} · ${resourceCount} deployment ${resourceCount === 1 ? 'resource' : 'resources'}` : `${resourceCount} resources`;
+  const deployReviewId=state.onboarding?.canDeploy?state.onboarding.review?.reviewId:undefined;
   const counterpart = view === 'deployment' ? 'system' : 'deployment';
   const inspectEvidence = (kind: EvidenceKind) => { setInspectionOpen(false); onEvidenceKind(kind); onView('evidence'); };
   const inspectResource = (id?: string) => { onSelect(id); setInspectionOpen(!!id); };
@@ -46,6 +50,7 @@ export function InfrastructureWorkspace({ state, view, selected, evidenceKind, f
           </button>)}
         </div>
         <span className="graph-count">{inventoryCount}</span>
+        {view==='deployment'&&onOnboarding&&deployReviewId&&<button type="button" className="button button-primary adapter-reviewed-deploy" disabled={state.busy||posting} onClick={()=>onOnboarding({action:'deploy',reviewId:deployReviewId})}>Deploy reviewed changes</button>}
       </div>
       {resource && step && view !== 'artifacts' && <div className="resource-selection" aria-label="Shared resource selection">
         <div><strong>{deploymentStepTitle(step)}</strong><code>{resource.id}</code>
