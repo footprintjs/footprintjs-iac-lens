@@ -1,3 +1,4 @@
+import { readSystemTopologyView } from 'footprintjs-iac/system-topology';
 import { readReleaseAutomationAction,readReleaseAutomationView,type ReleaseAutomationAction } from './release-automation.ts';
 import { readChangeAssessmentView } from './change-assessment.ts';
 import { readApplicationAction, readApplicationView, type ApplicationAction } from './application.ts';
@@ -57,6 +58,19 @@ export function readDashboardState(value: unknown): DashboardState {
     if (state.application) throw Error('Choose one application deployment owner');
     if (state.target?.id !== undefined && state.target.id !== state.onboarding.targetId) throw Error('Onboarding publication belongs to another target');
     if (state.onboardingRecording && (state.onboardingRecording.snapshot as { runId?: unknown })?.runId !== state.onboarding.recording?.runId) throw Error('Onboarding evidence belongs to another run');
+  }
+  if (state.systemTopology !== undefined) {
+    state.systemTopology = readSystemTopologyView(state.systemTopology);
+    const { definition, observations } = state.systemTopology;
+    if (state.graph) {
+      if (definition.binding.graphDigest !== state.graph.digest) throw Error('System topology belongs to another resource graph');
+      const resourceIds = new Set(state.graph.resources.map(resource => resource.id));
+      const bindings = [...definition.nodes.map(node => node.bindings), ...definition.boundaries.flatMap(boundary => boundary.bindings ? [boundary.bindings] : [])];
+      if (bindings.some(binding => binding.resourceIds.some(id => !resourceIds.has(id)))) throw Error('System topology has an unknown resource binding');
+    }
+    if (state.target?.id !== undefined && definition.binding.targetId !== state.target.id) throw Error('System topology belongs to another target');
+    if (state.application?.selection && definition.binding.targetId !== state.application.selection.targetId) throw Error('System topology belongs to another application target');
+    if (state.onboarding && (definition.binding.targetId !== state.onboarding.targetId || observations.configurationDigest !== state.onboarding.configurationDigest)) throw Error('System topology belongs to another onboarding configuration');
   }
   if (state.onboardingRegistry !== undefined) {
     state.onboardingRegistry = readOnboardingVersionSnapshot(state.onboardingRegistry);

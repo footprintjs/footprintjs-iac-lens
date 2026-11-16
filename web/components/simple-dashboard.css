@@ -21,9 +21,16 @@
 .iac-lens .simple-count { font-size: 25px; font-weight: 600; color: #3b9b80; }
 .iac-lens .simple-count > span { font-size: 12px; color: #67798b; font-weight: 400; }
 .iac-lens .simple-scene { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0 20px; position: relative; }
-.iac-lens .simple-scene-canvas { width: 100%; flex: 1; min-height: 0; overflow: visible; }
+.iac-lens .simple-scene-viewport { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.iac-lens .simple-scene-viewport:focus-visible { outline: 2px solid #6b9cec; outline-offset: -3px; border-radius: 9px; }
+.iac-lens .simple-scene-center { display: flex; align-items: center; justify-content: center; min-width: 100%; min-height: 100%; width: max-content; }
+.iac-lens .simple-scene-stage { position: relative; flex-shrink: 0; }
+.iac-lens .simple-scene-wires { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
 .iac-lens .simple-object { display: flex; align-items: center; flex-direction: column; color: #64768c; text-align: center; padding: 6px 0 0; font-family: inherit; }
-.iac-lens .simple-object > .bg-glyph { width: 126px; }
+.iac-lens .simple-scene-stage > .simple-object { position: absolute; width: 168px; min-height: 164px; }
+.iac-lens .simple-scene-stage > .simple-code { width: 132px; }
+.iac-lens .simple-object > .bg-glyph { width: 92px; }
+.iac-lens .simple-category { font-size: 10px; font-weight: 650; letter-spacing: .04em; line-height: 17px; color: #586d83; }
 .iac-lens .simple-object > strong { color: #51667c; font-size: 14px; line-height: 19px; font-weight: 600; max-width: 152px; }
 .iac-lens .simple-object-caption { font-size: 11px; line-height: 19px; }
 .iac-lens .simple-step { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: #71859b; line-height: 19px; }
@@ -38,7 +45,7 @@
 .iac-lens .simple-object.object-uncertain { color: #87652e; }
 .iac-lens .simple-embedded { display: flex; align-items: center; gap: 2px; font-size: 9px; color: #62786c; height: 26px; margin-top: 0; }
 .iac-lens .simple-embedded > .bg-glyph { width: 27px; }
-.iac-lens .simple-code > .bg-glyph { width: 100px; margin: 12px 0; }
+.iac-lens .simple-code > .bg-glyph { width: 80px; margin: 13px 0 8px; }
 .iac-lens .simple-code > strong { font-size: 12px; }
 .iac-lens .simple-build-link { color: #cdd8e3; stroke: currentColor; fill: none; stroke-width: 1.5; }
 .iac-lens .simple-build-link.build-link-dependency { stroke-dasharray: 3 5; }
@@ -73,3 +80,9 @@
 @media (prefers-reduced-motion: reduce) { .iac-lens .simple-wire.wire-checking > path { animation: none; } }
 @media (max-height: 740px) { .iac-lens .simple-dashboard { gap: 13px; padding-top: 18px; padding-bottom: 14px; } .iac-lens .simple-stage-heading { padding-top: 19px; } .iac-lens .simple-heading h1, .iac-lens .simple-stage h2 { font-size: 21px; } }
 @media (max-width: 760px) { .iac-lens.lens-simple .topbar { padding: 0 14px; } .iac-lens .simple-dashboard { padding: 15px 12px; } .iac-lens.lens-simple .connection-pill { display: none; } .iac-lens .simple-heading h1 { font-size: 17px; } .iac-lens .simple-stage-heading { padding-left: 17px; padding-right: 17px; } .iac-lens .simple-checks { gap: 13px; } .iac-lens .simple-recorded { display: none; } .iac-lens .simple-check { gap: 6px; } .iac-lens .simple-actions { gap: 5px; } .iac-lens .simple-button { padding: 9px; } }
+
+.iac-lens .simple-dashboard.has-system-topology{gap:10px;padding:14px 20px 10px}
+.iac-lens .has-system-topology .simple-heading h1{font-size:19px}
+.iac-lens .has-system-topology .simple-heading .simple-eyebrow{display:none}
+.iac-lens .has-system-topology .simple-checks:empty{display:none}
+.iac-lens .has-system-topology .simple-actions .simple-button{padding:6px 11px}

@@ -108,7 +108,8 @@ function topology(root: NativeStage): { spine: NativeStage[]; stages: Map<string
     stages.set(stage.id, stage);
     if (stage.next) pending.push(stage.next);
     if (stage.children) pending.push(...stage.children);
-    if (stage.subflowStructure) pending.push(stage.subflowStructure);
+    // Mounted charts own their stage-ID namespaces. The native reader above
+    // validates them; resource bindings and schedule gates belong to this chart.
   }
   const spine: NativeStage[] = [], seen = new Set<string>();
   let current: NativeStage | undefined = root;

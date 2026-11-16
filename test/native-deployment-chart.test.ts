@@ -117,3 +117,18 @@ test('malformed cyclic or accessor-bearing native input is rejected without exec
   reject(state, accessor);
   assert.equal(invoked, false);
 });
+
+test('native adapter mounts keep independent stage namespaces without changing outer resource bindings', async t => {
+  const { state, chart } = await fixture(t, [resource('api'), resource('tools')], 2);
+  const mounted = structuredClone(chart);
+  const pending = [mounted.structure];
+  while (pending.length) {
+    const stage = pending.pop()!;
+    if (mounted.resources.some(row => row.executeStageId === stage.id)) Object.assign(stage, { isSubflowRoot: true, subflowStructure: { id: 'unit-inspect', name: 'Inspect unit', type: 'stage', next: { id: 'unit-inspect', name: 'Inspect unit', type: 'stage', isLoopReference: true } } });
+    if (stage.next) pending.push(stage.next); if (stage.children) pending.push(...stage.children);
+  }
+  const expected = projectNativeDeploymentChart(state, chart);
+  assert.deepEqual(projectNativeDeploymentChart(state, mounted), expected, 'repeated unit-chart mounts do not alias each other or reorder resource deployment');
+  const forged = structuredClone(mounted); Object.assign(forged.resources[0]!, { executeStageId: 'unit-inspect' });
+  reject(state, forged);
+});

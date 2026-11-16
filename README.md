@@ -744,3 +744,10 @@ MIT. See [LICENSE](LICENSE). Bundled dependency notices are in [THIRD_PARTY_NOTI
 For a reusable, library-owned Discover → Configure → Verify → Review → Deploy
 flow, see [application onboarding](docs/onboarding.md). Neo and other apps
 supply private adapters while Lens remains a generic, lazy-loaded viewer.
+
+For host/runtime boundaries, installed components, Existing/Managed/Embedded
+origins and recorded live connections, see [system placement](docs/system-topology.md).
+Simple and System design consume the same native evidence; deployment ordering
+remains available in the separate Deployment flow view.
+
+Current native topology validation: typecheck, **369/369 tests** and production build pass. A real local Neo deployment and failed/recovered collector connection were verified in Simple/System design views at 1280×720. This uses real app processes with a scripted model and marked seed data. Individual connection Checking starts require actual recorded probe-start events; the current Neo host publishes admitted terminal check receipts.

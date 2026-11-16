@@ -554,3 +554,12 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Simple Icons — pinned SVG subset
+Copyright and related rights waived under CC0-1.0.
+Repository: https://github.com/simple-icons/simple-icons
+Pinned commit: 17cd4ee07612198a1d8777a060d4100423762a8b
+Bundled assets: Kubernetes, Node.js, Python, SQLite.
+Original license and exact source/hash manifest are in
+web/features/system-topology/icons/LICENSE.simple-icons.md and sources.json.
+The bundled viewer embeds these assets; product names remain their owners' trademarks.

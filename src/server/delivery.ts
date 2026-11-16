@@ -3,7 +3,7 @@ import { loadDeliveryRecording } from 'footprintjs-iac/delivery/workflow';
 import { projectDeliveryState, readDeliveryAction, readDeliveryView, type DeliveryAction, type DeliveryView } from '../core/delivery.ts';
 import type { DashboardState } from '../core/types.ts';
 
-export type DeliveryPublication = Partial<Pick<DashboardState,'graph'|'design'|'binding'|'schedulePreview'|'run'|'recording'|'connections'|'identity'|'revisionReview'|'neoUrl'|'appAccess'|'artifacts'|'target'|'systemView'|'changeAssessment'>>;
+export type DeliveryPublication = Partial<Pick<DashboardState,'graph'|'design'|'binding'|'schedulePreview'|'run'|'recording'|'connections'|'identity'|'revisionReview'|'neoUrl'|'appAccess'|'artifacts'|'target'|'systemView' | 'systemTopology'|'changeAssessment'>>;
 export interface DeliveryReviewOptions {
   id: string; buttonLabel?: string;
   workflow: { snapshot(): Promise<DeliveryState>; start(): Promise<DeliveryState>; subscribe(listener: (state: DeliveryState) => void): () => void };

@@ -1,7 +1,7 @@
 # Reviewed core candidate
 
-The active core is `footprintjs-iac-0.5.0-alpha.2-versioned-57016a6be2d5.tgz`.
-SHA-256: `57016a6be2d51f3c983e486838bae4cf963cd47d5d150474852d4d5021b1f582`.
+The active core is `footprintjs-iac-0.5.0-alpha.2-native-23b43c4bcd03.tgz`.
+SHA-256: `23b43c4bcd03e07cdf4cdcd32cdc09b1ff5911344202d80219bb82bf8258d9e7`.
 
 It includes the stable-owner version registry with recorded configuration reviews,
 explicit activation and retained histories, plus the reusable onboarding preset,
@@ -31,3 +31,5 @@ The repository continues to use the relative vendor archive and lock for
 production-only install, public core/server imports, native onboarding capture,
 CLI help and optional UI export checks, with optional UI peer imports explicitly
 blocked during headless verification.
+
+The current native candidate adds isolated core/registry/selected provider imports, native adapter apply and verification subflows, per-unit no-op verification, registered topology/default systemd diagrams, and native-file-backed component/progress admission. It preserves the physical service group and legacy target ownership.

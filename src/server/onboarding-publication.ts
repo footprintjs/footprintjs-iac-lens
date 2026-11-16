@@ -7,7 +7,7 @@ import type { OnboardingPublication } from './onboarding.ts';
 
 /** Current evidence is scoped to one immutable configuration. Retired records remain in native/history storage. */
 function resetCurrentPublication(state: DashboardState): DashboardState {
-  return { ...state, graph: null, design: undefined, binding: undefined, systemView: undefined, schedulePreview: undefined,
+  return { ...state, graph: null, design: undefined, binding: undefined, systemView: undefined, systemTopology: undefined, schedulePreview: undefined,
     run: undefined, recording: undefined, connections: undefined, identity: undefined, source: undefined, artifacts: [],
     changeAssessment: undefined, neoUrl: undefined, appAccess: undefined, connectionReviewAvailable: false, identityReviewAvailable: false };
 }

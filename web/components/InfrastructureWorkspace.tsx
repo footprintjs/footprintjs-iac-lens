@@ -28,6 +28,9 @@ export function InfrastructureWorkspace({ state, view, selected, evidenceKind, f
   const resource = state.graph?.resources.find(item => item.id === selected);
   const step = resource && projectDeploymentFlow(state).nodes.find(item => item.id === selected);
   const graphVisible = view === 'deployment' || view === 'system';
+  const resourceCount = state.graph?.resources.length ?? 0;
+  const componentCount = state.systemTopology?.definition.nodes.length ?? 0;
+  const inventoryCount = state.systemTopology ? `${componentCount} ${componentCount === 1 ? 'component' : 'components'} · ${resourceCount} deployment ${resourceCount === 1 ? 'resource' : 'resources'}` : `${resourceCount} resources`;
   const counterpart = view === 'deployment' ? 'system' : 'deployment';
   const inspectEvidence = (kind: EvidenceKind) => { setInspectionOpen(false); onEvidenceKind(kind); onView('evidence'); };
   const inspectResource = (id?: string) => { onSelect(id); setInspectionOpen(!!id); };
@@ -42,7 +45,7 @@ export function InfrastructureWorkspace({ state, view, selected, evidenceKind, f
             <Icon name={tab.icon} size={16}/>{tab.name}
           </button>)}
         </div>
-        <span className="graph-count">{state.graph?.resources.length ?? 0} resources</span>
+        <span className="graph-count">{inventoryCount}</span>
       </div>
       {resource && step && view !== 'artifacts' && <div className="resource-selection" aria-label="Shared resource selection">
         <div><strong>{deploymentStepTitle(step)}</strong><code>{resource.id}</code>

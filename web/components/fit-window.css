@@ -89,3 +89,8 @@
   .iac-lens.lens-fit .sidebar { display: none; }
   .iac-lens.lens-fit .main-content { padding-left: 10px; padding-right: 10px; }
 }
+
+.iac-lens .system-setup-details {flex-shrink:0;margin:0;border:1px solid #dce5ef;border-radius:7px;background:#f8fbfd;font-size:11px;color:#627991;}
+.iac-lens .system-setup-details>summary {cursor:pointer;padding:7px 12px;}
+.iac-lens .system-setup-details[open] {max-height:45dvh;overflow:auto;}
+.iac-lens.lens-fit .simple-stage>.system-topology {flex:1;min-height:0;}

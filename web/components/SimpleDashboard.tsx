@@ -1,3 +1,4 @@
+import { SystemTopologySlot } from '../features/system-topology/SystemTopologySlot.tsx';
 import {ReleaseAutomationPanel} from './ReleaseAutomationPanel.tsx';
 import type {ReleaseAutomationAction} from '../../src/core/release-automation.ts';
 import { ChangeAssessmentStrip } from './ChangeAssessmentStrip.tsx';
@@ -65,7 +66,7 @@ export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResour
         : state.application.phase === 'review' || state.application.phase === 'deploy' && !state.application.busy ? 'Deployment not started' : undefined);
   const headline = applicationCaption ?? (state.delivery?.status === 'running' ? `${deliveryPhase?.label ?? 'Updating'}…`
     : state.delivery?.status === 'failed' || state.delivery?.status === 'incomplete' ? 'Update needs attention' : scene.headline);
-  return <main className={`simple-dashboard${state.onboarding ? ' has-onboarding' : ''}${state.onboarding && state.graph ? ' onboarding-with-system' : ''}${state.application ? ' has-application' : ''}${state.application && state.graph ? ' application-with-system' : ''}${state.resourceFlow ? ' has-resource-flow' : ''}${state.pipeline ? ' has-pipeline' : ''}${state.pipeline&&state.graph ? ' pipeline-with-system' : ''}${state.migration?' has-migration':''}${state.releaseAutomation?' has-release-automation':''}`}>
+  return <main className={`simple-dashboard${state.systemTopology ? ' has-system-topology' : ''}${state.onboarding ? ' has-onboarding' : ''}${state.onboarding && (state.graph || state.systemTopology) ? ' onboarding-with-system' : ''}${state.application ? ' has-application' : ''}${state.application && state.graph ? ' application-with-system' : ''}${state.resourceFlow ? ' has-resource-flow' : ''}${state.pipeline ? ' has-pipeline' : ''}${state.pipeline&&state.graph ? ' pipeline-with-system' : ''}${state.migration?' has-migration':''}${state.releaseAutomation?' has-release-automation':''}`}>
     <section className="simple-heading"><div><div className="simple-eyebrow">{state.onboarding || state.application ? 'Application setup' : scene.simulation ? 'Simulation' : state.pipeline?.catalog.simulation ? 'Simulation' : state.deploymentReadOnly ? 'Recorded view' : 'Your system'}</div><h1>{state.onboarding?.label ?? state.application?.label ?? state.design?.name ?? (state.managedReviewAvailable || revision || state.resourceFlow || state.delivery || state.pipeline || state.migration || state.releaseAutomation ? state.target?.label : undefined) ?? (neoUrl ? 'Neo' : 'Your system')}</h1></div><div className="simple-actions">
       <RecordedTraceButton state={state}/><HostActionButtons state={state} posting={posting} onAction={onHostAction}/>
       {neoUrl && !state.application && <a href={neoUrl} target="_blank" rel="noreferrer" className="simple-button simple-secondary">{state.resourceFlow || state.onboarding ? 'Open app' : 'Open Neo'}<Icon name="external" size={16}/></a>}
@@ -82,9 +83,9 @@ export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResour
     {revision && !state.releaseAutomation && <ChangeReview view={revision} disabled={disabled} readOnly={!!state.resourceFlow || !!state.delivery || !!state.pipeline || !!state.releaseAutomation}
       onReview={() => onRun('revision-review')} onApply={() => onRun('revision-apply', revision.state.reviewId)}/>}
     {error && <div className="simple-error" role="alert"><span>That didn’t finish. <button onClick={onDetails}>See details</button></span><button onClick={onDismissError} aria-label="Dismiss error"><Icon name="close" size={17}/></button></div>}
-    {((!state.onboarding&&!state.application&&!state.pipeline&&!state.migration&&!state.releaseAutomation)||!!state.graph)&&<section className={`simple-stage phase-${scene.phase}`}>
-      <div className="simple-stage-heading"><div><h2 aria-live="polite">{state.resourceFlow?.status === 'paused' ? 'Waiting for connection details' : state.resourceFlow?.status === 'idle' && state.resourceFlow.mode === 'existing' ? 'Ready to connect' : headline}</h2>{scene.subline && <p>{scene.subline}</p>}</div>{state.pipeline&&<button className="simple-button simple-secondary" onClick={onSystem??onDetails}>View running system<Icon name="external" size={14}/></button>}<span className="simple-count">{scene.counts.ready}<span> / {scene.counts.total} ready</span></span></div>
-      <BuildScene compact={!!state.releaseAutomation} scene={scene} execution={state.run?.status} workflowStatus={state.resourceFlow?.status} changes={revision?.resources}/>
+    {((!state.onboarding&&!state.application&&!state.pipeline&&!state.migration&&!state.releaseAutomation)||!!state.graph||!!state.systemTopology)&&<section className={`simple-stage phase-${scene.phase}`}>
+      {!state.systemTopology && <div className="simple-stage-heading"><div><h2 aria-live="polite">{state.resourceFlow?.status === 'paused' ? 'Waiting for connection details' : state.resourceFlow?.status === 'idle' && state.resourceFlow.mode === 'existing' ? 'Ready to connect' : headline}</h2>{scene.subline && <p>{scene.subline}</p>}</div>{state.pipeline&&<button className="simple-button simple-secondary" onClick={onSystem??onDetails}>View running system<Icon name="external" size={14}/></button>}<span className="simple-count">{scene.counts.ready}<span> / {scene.counts.total} ready</span></span></div>}
+      <SystemTopologyFallback state={state} scene={scene} changes={revision?.resources}/>
       {scene.warnings.length > 0 && <div className="simple-warning"><span>Some results need a closer look.</span><button onClick={onDetails}>Details<Icon name="arrow" size={14}/></button></div>}
     </section>}
     <footer className="simple-checks">
@@ -93,4 +94,8 @@ export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResour
       <span className="simple-recorded"><span/>FootPrint</span>
     </footer>
   </main>;
+}
+
+function SystemTopologyFallback({ state, scene, changes }: { state: DashboardState; scene: ReturnType<typeof projectBuildScene>; changes: Parameters<typeof BuildScene>[0]['changes'] }) {
+  return state.systemTopology ? <SystemTopologySlot view={state.systemTopology} simple/> : <BuildScene compact={!!state.releaseAutomation} scene={scene} execution={state.run?.status} workflowStatus={state.resourceFlow?.status} changes={changes}/>;
 }

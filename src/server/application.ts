@@ -118,7 +118,7 @@ export class ApplicationReview {
     this.source = undefined; this.reviewSource = '';
     this.reconciliation = undefined;
     this.notify({ graph: null, design: undefined, binding: undefined, schedulePreview: undefined, run: undefined, recording: undefined,
-      connections: undefined, identity: undefined, artifacts: [], systemView: undefined, changeAssessment: undefined, neoUrl: undefined, appAccess: undefined,
+      connections: undefined, identity: undefined, artifacts: [], systemView: undefined, systemTopology: undefined, changeAssessment: undefined, neoUrl: undefined, appAccess: undefined,
       target: { id: target.id, label: target.label }, source: undefined });
   }
   private observer(generation: number, operation: ApplicationAction['action']): (publication: ApplicationPublication) => void {

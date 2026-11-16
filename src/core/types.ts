@@ -1,3 +1,4 @@
+import type { SystemTopologyView } from 'footprintjs-iac/system-topology';
 import type { ReleaseAutomationView } from './release-automation.ts';
 import type { ChangeAssessmentView } from './change-assessment.ts';
 import type { InfraGraph, BindingResult, SystemDesign } from 'footprintjs-iac';
@@ -133,6 +134,8 @@ export interface DashboardState {
   busy: boolean;
   mode?: 'simulator' | 'kubernetes' | 'managed';
   systemView?: SystemViewDefinition;
+  /** Declared placement and recorded component/check evidence; independent of deployment ordering. */
+  systemTopology?: SystemTopologyView;
   /** Pure native schedule preview. Supplies positions only; never a run or progress evidence. */
   schedulePreview?: DeploymentSchedulePreview;
   managedReviewAvailable?: boolean;

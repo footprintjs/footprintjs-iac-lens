@@ -32,3 +32,6 @@ export { projectAgentPlatformView } from './agent-platform-project.ts';
 export * from './agent-components.ts';
 export { readAgentComponentGraphView } from './agent-components-read.ts';
 export { agentComponentGraphStatus } from './agent-components-project.ts';
+
+export type * from 'footprintjs-iac/system-topology';
+export { readSystemTopologyView } from 'footprintjs-iac/system-topology';

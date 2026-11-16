@@ -1,0 +1,41 @@
+import { useId, useMemo, useState } from 'react';
+import type { SystemTopologyView } from 'footprintjs-iac/system-topology';
+import { layoutSystemTopology } from './topology-layout.ts';
+import {routeTopologyConnection,type TopologyRoute} from './topology-routing.ts';
+import { TopologyNodeCard } from './TopologyNodeCard.tsx';
+import { TopologyBoundaryBox } from './TopologyBoundaryBox.tsx';
+import { TopologyWires, TopologyConnectionLabels, TopologyUnplacedConnections } from './TopologyConnections.tsx';
+import { TopologyEvidence, type TopologySelection } from './TopologyEvidence.tsx';
+import styles from './system-topology.css' with { type: 'text' };
+
+/** Both views consume the same admitted native projection. Layout does not interpret outcomes. */
+export default function SystemTopologyGraph({ view, simple = false }: { view: SystemTopologyView; simple?: boolean }) {
+  const [selected, setSelected] = useState<TopologySelection>();
+  const marker = `topology-arrow-${useId().replace(/:/g, '')}`;
+  const {geometry,boxes,routes}=useMemo(()=>{
+    const geometry=layoutSystemTopology(view),boxes=new Map(geometry.boxes.map(box=>[box.id,box])),routes=new Map<string,TopologyRoute>();
+    for(const edge of view.definition.connections){const from=boxes.get(edge.from),to=boxes.get(edge.to);if(from&&to){const route=routeTopologyConnection(from,to,boxes,[...routes.values()]);routes.set(edge.id,edge.kind==='dependsOn'?{...route,labelHidden:true}:route);}}
+    return{geometry,boxes,routes};
+  },[view.definition.digest]);
+  const boundaries = [...view.boundaries].sort((a, b) => boxes.get(a.id)!.depth - boxes.get(b.id)!.depth);
+  return <section className={`system-topology${simple ? ' topology-simple' : ''}`} aria-label={simple ? 'Your system' : 'System design'}>
+    <style>{styles}</style>
+    <header className="topology-heading"><div><h2>{simple ? 'Your system' : view.definition.label}</h2>
+      <p>{simple ? 'What runs where, and what is connected.' : 'Declared placement · arrows show communication, not deployment order.'}</p>
+    </div><span className="topology-native">FootPrint evidence</span></header>
+    <div className="topology-viewport" role="region" aria-label="Installed components, host boundaries and live connections" tabIndex={0}>
+      <div className="topology-center"><div className="topology-stage" style={{ width: geometry.width, height: geometry.height }}>
+        {boundaries.map(boundary => <TopologyBoundaryBox key={boundary.id} boundary={boundary} box={boxes.get(boundary.id)!} onSelect={() => setSelected({ kind: 'boundary', id: boundary.id })}/>)}
+        <TopologyWires connections={view.connections} boxes={boxes} width={geometry.width} height={geometry.height} marker={marker} routes={routes}/>
+        {view.nodes.map(node => <TopologyNodeCard key={node.id} node={node} box={boxes.get(node.id)!} onSelect={() => setSelected({ kind: 'node', id: node.id })}/>)}
+        <TopologyConnectionLabels connections={view.connections} boxes={boxes} routes={routes} onSelect={id => setSelected({ kind: 'connection', id })}/>
+      </div></div>
+    </div>
+    <footer className="topology-legend"><span><i className="topology-pending"/>Waiting</span><span><i className="topology-installing"/>Building</span><span><i className="topology-ready"/>Ready</span><span><i className="topology-failed"/>Failed</span>
+      <small>Click a component or connection for evidence.</small>
+      <TopologyUnplacedConnections connections={view.connections} boxes={boxes} routes={routes} onSelect={id=>setSelected({kind:'connection',id})}/>
+      {view.limitations.length > 0 && <details><summary>Unconfirmed details ({view.limitations.length})</summary>{view.limitations.map((text, index) => <p key={index}>{text}</p>)}</details>}
+    </footer>
+    {selected && <TopologyEvidence view={view} selection={selected} onClose={() => setSelected(undefined)}/>}
+  </section>;
+}

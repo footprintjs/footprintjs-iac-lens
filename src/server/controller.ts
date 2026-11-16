@@ -1,3 +1,4 @@
+import { validateSystemTopologyView } from 'footprintjs-iac/system-topology/node';
 import {ReleaseAutomationReview,type ReleaseAutomationReviewOptions} from './release-automation.ts';
 import type {ReleaseAutomationAction} from '../core/release-automation.ts';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -362,8 +363,9 @@ export class DashboardController {
     } catch (error) { if (error instanceof DeliveryRequestError) throw new RequestError(error.status,error.message); throw error; }
   }
   private deliveryPublication(patch: DeliveryPublication): void {
-    const fields = new Set(['graph','design','binding','schedulePreview','run','recording','connections','identity','revisionReview','neoUrl','appAccess','artifacts','target','systemView','changeAssessment']);
+    const fields = new Set(['graph','design','binding','schedulePreview','run','recording','connections','identity','revisionReview','neoUrl','appAccess','artifacts','target','systemView','systemTopology','changeAssessment']);
     if (!patch || typeof patch !== 'object' || Object.keys(patch).some(key => !fields.has(key))) throw Error('Invalid delivery publication');
+    if (patch.systemTopology !== undefined) validateSystemTopologyView(patch.systemTopology);
     const admitted = readDashboardState({ ...this.state, ...structuredClone(patch) });
     if (admitted.graph) validateInfraGraph(admitted.graph);
     if (admitted.graph?.digest !== this.state.graph?.digest) {

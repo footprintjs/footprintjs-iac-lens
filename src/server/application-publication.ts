@@ -1,3 +1,4 @@
+import { validateSystemTopologyView } from 'footprintjs-iac/system-topology/node';
 import { validateInfraGraph } from 'footprintjs-iac/graph';
 import { readSystemDesign } from 'footprintjs-iac/system';
 import { readDeploymentChart, readDeploymentSchedulePreview } from 'footprintjs-iac/progress';
@@ -10,7 +11,7 @@ import { projectNativeDeploymentChart } from '../core/native-deployment-chart.ts
 import type { DashboardState } from '../core/types.ts';
 import type { ApplicationPublication } from './application-host.ts';
 
-const fields = ['graph', 'design', 'binding', 'schedulePreview', 'run', 'recording', 'connections', 'identity', 'artifacts', 'target', 'systemView', 'changeAssessment', 'neoUrl', 'appAccess', 'source', 'phase'];
+const fields = ['graph', 'design', 'binding', 'schedulePreview', 'run', 'recording', 'connections', 'identity', 'artifacts', 'target', 'systemView', 'systemTopology', 'changeAssessment', 'neoUrl', 'appAccess', 'source', 'phase'];
 function fail(): never { throw Error('Invalid application publication'); }
 function object(input: unknown, allowed?: readonly string[]): Record<string, any> {
   if (!input || typeof input !== 'object' || Array.isArray(input) || ![Object.prototype, null].includes(Object.getPrototypeOf(input))) fail();
@@ -176,6 +177,7 @@ export function readApplicationPublication(input: unknown, current?: DashboardSt
   if (row.connections !== undefined) observedRun(row.connections, false);
   if (row.identity !== undefined) observedRun(row.identity, true);
   if (row.systemView !== undefined) row.systemView = readSystemViewDefinition(row.systemView);
+  if (row.systemTopology !== undefined) row.systemTopology = validateSystemTopologyView(row.systemTopology);
   if (row.schedulePreview !== undefined) row.schedulePreview = readDeploymentSchedulePreview(row.schedulePreview);
   if (row.changeAssessment !== undefined) { row.changeAssessment = readChangeAssessmentView(row.changeAssessment); if (row.changeAssessment.recording) recording(row.changeAssessment.recording); }
   if (row.neoUrl !== undefined) applicationUrl(row.neoUrl);
@@ -198,7 +200,7 @@ export function readApplicationPublication(input: unknown, current?: DashboardSt
   }
   const context: DashboardState = { revision: 0, busy: false, graph: null, ...current, ...row };
   if (row.binding !== undefined && ((context.graph && row.binding.graph.digest !== context.graph.digest) || (context.design && row.binding.designDigest !== context.design.digest))) fail();
-  if (current || row.graph !== undefined) {
+  if (current || row.graph !== undefined || row.systemTopology !== undefined) {
     // A detached publication has no authority to choose an application. Its source
     // shape is admitted above; ownership is checked when attached to the real view.
     readDashboardState(current ? context : { ...context, source: undefined });

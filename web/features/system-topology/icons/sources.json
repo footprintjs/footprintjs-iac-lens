@@ -1,0 +1,32 @@
+{
+  "repository": "https://github.com/simple-icons/simple-icons",
+  "commit": "17cd4ee07612198a1d8777a060d4100423762a8b",
+  "license": "CC0-1.0",
+  "files": [
+    {
+      "file": "kubernetes.svg",
+      "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/17cd4ee07612198a1d8777a060d4100423762a8b/icons/kubernetes.svg",
+      "sha256": "ceee2f4e87fa1533600672190c156194039f744fa9b5da10e83f002178e84b47"
+    },
+    {
+      "file": "nodedotjs.svg",
+      "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/17cd4ee07612198a1d8777a060d4100423762a8b/icons/nodedotjs.svg",
+      "sha256": "021851b758cde7d3e04819c3ac02047d0ff281c712e8387afa0c76a6dac6db6c"
+    },
+    {
+      "file": "python.svg",
+      "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/17cd4ee07612198a1d8777a060d4100423762a8b/icons/python.svg",
+      "sha256": "a90c00fd441482b4867ad5d7fa68db56aab4891f1b1e6879fe1ea3b355cf378f"
+    },
+    {
+      "file": "sqlite.svg",
+      "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/17cd4ee07612198a1d8777a060d4100423762a8b/icons/sqlite.svg",
+      "sha256": "71d4153bc9661dfe6b92dad70f737ec2b6c7c839311e502b4ca66fe664fe12b6"
+    },
+    {
+      "file": "LICENSE.simple-icons.md",
+      "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/17cd4ee07612198a1d8777a060d4100423762a8b/LICENSE.md",
+      "sha256": "9046848b63a5c92bff14e4accca80bd987e0623b74adf9226ce5198d312b79d5"
+    }
+  ]
+}
