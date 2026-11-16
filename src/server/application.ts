@@ -1,7 +1,7 @@
 import { applicationId, applicationText, readApplicationAction, readApplicationDeployment, readApplicationInspection,
-  readApplicationReview, readApplicationSelection, readApplicationStrategies, readApplicationView,
+  readApplicationReview, readApplicationReconciliation, readApplicationSelection, readApplicationStrategies, readApplicationView,
   type ApplicationAction, type ApplicationDeployment, type ApplicationInspection, type ApplicationPhase,
-  type ApplicationReview as ReviewResult, type ApplicationSelection, type ApplicationTarget, type ApplicationView } from '../core/application.ts';
+  type ApplicationReview as ReviewResult, type ApplicationReconciliation, type ApplicationSelection, type ApplicationTarget, type ApplicationView } from '../core/application.ts';
 import type { ConnectionProfileSummary } from '../core/connection-profiles.ts';
 import type { ApplicationHost, ApplicationHostSnapshot, ApplicationPublication } from './application-host.ts';
 import { readApplicationPublication } from './application-publication.ts';
@@ -30,6 +30,7 @@ export class ApplicationReview {
   private inspection?: ApplicationInspection;
   private review?: ReviewResult;
   private deployment?: ApplicationDeployment;
+  private reconciliation?: ApplicationReconciliation;
   private reviewSelection?: ApplicationSelection;
   private source?: ApplicationSourceView;
   private reviewSource = '';
@@ -51,7 +52,8 @@ export class ApplicationReview {
     if (this.metadata.strategies.some(strategy => strategy.targets.some(target => target.requiresProfile && !host.connectionProfiles))) throw Error('Register the application connection catalog');
     this.host = Object.freeze({ ...this.metadata, version: 1,
       ...(host.connectionProfiles ? { connectionProfiles: host.connectionProfiles } : {}),
-      inspect: host.inspect.bind(host), plan: host.plan.bind(host), apply: host.apply.bind(host), snapshot: host.snapshot.bind(host) });
+      inspect: host.inspect.bind(host), plan: host.plan.bind(host), apply: host.apply.bind(host), snapshot: host.snapshot.bind(host),
+      ...(typeof host.reconcile === 'function' ? { reconcile: host.reconcile.bind(host) } : {}) });
   }
   get isBusy(): boolean { return this.pending; }
   whenIdle(): Promise<void> { return this.completion; }
@@ -63,12 +65,12 @@ export class ApplicationReview {
   snapshot(): ApplicationView {
     const ready = this.connectionReady(), inspection = this.inspectionReady();
     return readApplicationView({ ...this.metadata, ...(this.selection ? { selection: this.selection } : {}),
-      phase: this.phase, busy: this.pending, canInspect: !this.pending && ready,
+      phase: this.phase, busy: this.pending, canInspect: !this.pending && !this.uncertain && ready,
       canReview: !this.pending && !this.uncertain && ready && inspection && !this.deployment,
       canDeploy: !this.pending && !this.uncertain && ready && inspection && !!this.review?.ok && !this.deployment
         && !this.consumedReviews.has(this.review.reviewId!) && same(this.selection, this.reviewSelection) && this.reviewSource === applicationSourceIdentity(this.source),
       ...(this.inspection ? { inspection: this.inspection } : {}), ...(this.review ? { review: this.review } : {}),
-      ...(this.deployment ? { deployment: this.deployment } : {}), ...(this.error ? { error: this.error } : {}) });
+      ...(this.deployment ? { deployment: this.deployment } : {}), ...(this.reconciliation ? { reconciliation: this.reconciliation } : {}), ...(this.error ? { error: this.error } : {}) });
   }
   action(input: ApplicationAction): void {
     let action: ApplicationAction;
@@ -76,12 +78,15 @@ export class ApplicationReview {
     if (this.pending) throw new ApplicationRequestError(409, 'Wait for the current application task to finish');
     if (action.action === 'select') { this.select(action); return; }
     if (action.action === 'inspect' && !this.connectionReady()) throw new ApplicationRequestError(409, 'Choose a registered target and saved connection before checking setup');
+    if (action.action === 'inspect' && this.uncertain) throw new ApplicationRequestError(409, 'Inspect the uncertain outcome before checking setup');
+    if (action.action === 'reconcile' && (!this.uncertain || !this.selection || !this.host.reconcile || this.reconciliation?.status !== 'available'
+      || action.reviewId !== this.reconciliation.reviewId)) throw new ApplicationRequestError(409, 'Inspect only the registered uncertain outcome');
     if (action.action === 'review' && !this.snapshot().canReview) throw new ApplicationRequestError(409, 'Check setup and resolve recorded uncertainty before reviewing changes');
     if (action.action === 'deploy' && (!this.snapshot().canDeploy || action.reviewId !== this.review?.reviewId)) throw new ApplicationRequestError(409, 'Review the current changes before deploying this exact review');
     if (action.action === 'deploy' && this.consumedReviews.size >= 256) throw new ApplicationRequestError(409, 'This viewer has reached its deployment history limit');
     this.pending = true; this.error = undefined;
     const generation = ++this.generation;
-    if (action.action === 'inspect') { this.inspection = undefined; this.review = undefined; this.reviewSelection = undefined; this.deployment = undefined; this.source = undefined; this.phase = 'inspect'; this.notify({ source: undefined }); }
+    if (action.action === 'inspect') { this.inspection = undefined; this.review = undefined; this.reviewSelection = undefined; this.deployment = undefined; this.reconciliation = undefined; this.source = undefined; this.phase = 'inspect'; this.notify({ source: undefined }); }
     if (action.action === 'review') { this.review = undefined; this.reviewSelection = undefined; this.deployment = undefined; this.phase = 'review'; }
     if (action.action === 'deploy') { this.consumedReviews.add(action.reviewId); this.reviewSelection = undefined; this.inspection = undefined; this.phase = 'deploy'; }
     this.notify();
@@ -111,6 +116,7 @@ export class ApplicationReview {
     this.selection = structuredClone(selection); this.inspection = undefined; this.review = undefined; this.reviewSelection = undefined;
     this.deployment = undefined; this.error = undefined; this.phase = 'choose';
     this.source = undefined; this.reviewSource = '';
+    this.reconciliation = undefined;
     this.notify({ graph: null, design: undefined, binding: undefined, schedulePreview: undefined, run: undefined, recording: undefined,
       connections: undefined, identity: undefined, artifacts: [], systemView: undefined, changeAssessment: undefined, neoUrl: undefined, appAccess: undefined,
       target: { id: target.id, label: target.label }, source: undefined });
@@ -120,6 +126,8 @@ export class ApplicationReview {
       if (!this.pending || generation !== this.generation) return;
       try {
         const value = readApplicationPublication(publication);
+        if (operation === 'reconcile' && (value.neoUrl !== undefined || value.appAccess?.status === 'ready'
+          || Object.hasOwn(value, 'source') && applicationSourceIdentity(value.source) !== applicationSourceIdentity(this.source))) throw Error('Reconciliation cannot promote or change source');
         if (Object.hasOwn(value, 'source')) {
           if (value.source && !applicationSourceMatches(value.source, this.selection)) throw Error('Source selection changed');
           this.source = value.source;
@@ -136,7 +144,11 @@ export class ApplicationReview {
       if (action.action === 'refresh') { await this.restore(); return; }
       const selection = structuredClone(this.selection!);
       const publish = this.observer(generation, action.action);
-      if (action.action === 'inspect') {
+      if (action.action === 'reconcile') {
+        const sourceIdentity = applicationSourceIdentity(this.source);
+        await this.host.reconcile!({ ...selection, reviewId: action.reviewId }, publish);
+        await this.restore({ reviewId: action.reviewId, sourceIdentity });
+      } else if (action.action === 'inspect') {
         const value = record(await this.host.inspect(selection, publish), ['ok', 'checks', 'publication']);
         const { publication, ...result } = value; this.inspection = readApplicationInspection(result);
         if (publication !== undefined) publish(publication as ApplicationPublication);
@@ -168,9 +180,9 @@ export class ApplicationReview {
       }
     } catch {
       if (action.action === 'deploy') { this.uncertain = true; this.phase = 'incomplete'; this.deployment = { ok: false, promoted: false, status: 'incomplete' }; }
-      else if (action.action === 'refresh') {
+      else if (action.action === 'refresh' || action.action === 'reconcile') {
         this.uncertain = true; this.phase = 'incomplete'; this.deployment = { ok: false, promoted: false, status: 'incomplete' };
-        if (this.source) { this.source = { ...this.source, status: 'incomplete' }; this.notify({ source: this.source }); }
+        if (this.source && action.action === 'refresh') { this.source = { ...this.source, status: 'incomplete' }; this.notify({ source: this.source }); }
       }
       else this.phase = this.uncertain ? 'incomplete' : 'failed';
       this.reviewSelection = undefined;
@@ -179,15 +191,16 @@ export class ApplicationReview {
         : 'The application host could not confirm this step. Check the registered setup and retained recording.';
     }
   }
-  private async restore(): Promise<void> {
+  private async restore(reconciling?: { reviewId: string; sourceIdentity: string }): Promise<void> {
     const value = record(await this.host.snapshot(this.selection ? structuredClone(this.selection) : undefined),
-      ['selection', 'inspection', 'review', 'deployment', 'publication', 'incomplete']);
+      ['selection', 'inspection', 'review', 'deployment', 'publication', 'incomplete', 'reconciliation']);
     if (value.incomplete !== undefined && typeof value.incomplete !== 'boolean') throw Error('Invalid native application state');
     const selected = value.selection === undefined ? this.selection : readApplicationSelection(value.selection);
     if (selected && (!this.target(selected) || (this.selection && !same(selected, this.selection)))) throw Error('Native application selection changed');
     const inspection = value.inspection === undefined ? undefined : readApplicationInspection(value.inspection);
     const review = value.review === undefined ? undefined : readApplicationReview(value.review);
     const deployment = value.deployment === undefined ? undefined : readApplicationDeployment(value.deployment);
+    const reconciliation = value.reconciliation === undefined ? undefined : readApplicationReconciliation(value.reconciliation);
     const target = this.target(selected);
     if (deployment?.promoted && (!target || !passes(deployment.checks, target.requiredVerificationCheckIds))) throw Error('Required native application verification is missing');
     const patch = value.publication === undefined ? undefined : readApplicationPublication(value.publication);
@@ -195,9 +208,14 @@ export class ApplicationReview {
     const source = patch?.source;
     if (source && !applicationSourceMatches(source, selected)) throw Error('Retained source selection changed');
     if (deployment?.promoted && (target?.requiresSource || source) && source?.status !== 'ready') throw Error('Retained source proof is missing');
+    if (reconciliation && (!selected || deployment?.promoted || review || (reconciliation.status === 'available' ? value.incomplete !== true : value.incomplete !== false))) throw Error('Invalid retained reconciliation');
+    if (reconciling && (deployment?.promoted || patch?.neoUrl !== undefined || patch?.appAccess?.status === 'ready'
+      || applicationSourceIdentity(source) !== reconciling.sourceIdentity || reconciliation?.reviewId !== reconciling.reviewId)) throw Error('Reconciliation cannot promote or change source');
     this.selection = selected; this.inspection = inspection; this.review = review; this.deployment = deployment;
     this.source = source; this.reviewSource = applicationSourceIdentity(source);
-    if (value.incomplete === true || this.deployment?.status === 'incomplete') this.uncertain = true;
+    this.reconciliation = reconciliation?.status === 'available' && !this.host.reconcile ? undefined : reconciliation;
+    const closedFailure = reconciliation?.status === 'reconciled-failed' && value.incomplete === false;
+    if (value.incomplete === true || this.deployment?.status === 'incomplete' && !closedFailure) this.uncertain = true;
     else if (value.incomplete === false) this.uncertain = false;
     if (this.uncertain && this.deployment?.promoted) this.deployment = { ok: false, promoted: false, status: 'incomplete' };
     this.reviewSelection = !this.uncertain && this.inspectionReady() && this.review?.ok && !this.deployment

@@ -11,6 +11,7 @@ import type { ApplicationSourceView } from '../src/core/application-source.ts';
 import type { DashboardState } from '../src/core/types.ts';
 import type { ConnectionProfilesView } from '../src/core/connection-profiles.ts';
 import { compileGraph } from 'footprintjs-iac/graph';
+import { applicationNextAction } from '../web/lib/application-setup.ts';
 
 const compiled = await build({ stdin: { contents: "export { ApplicationSetupPanel, ApplicationSetupDetails } from './web/components/ApplicationSetupPanel.tsx'; export { applicationSelectionAction, applicationSetupSteps } from './web/lib/application-setup.ts'; export { SimpleDashboard } from './web/components/SimpleDashboard.tsx';", resolveDir: import.meta.dirname + '/..', loader: 'ts' },
   bundle: true, write: false, platform: 'node', format: 'esm', packages: 'external', jsx: 'automatic', loader: { '.css': 'empty' }, logLevel: 'silent' });
@@ -74,6 +75,17 @@ test('public selection actions contain only registered identifiers', () => {
   assert.deepEqual(components.applicationSelectionAction(application(), 'process', 'office', 'saved-office'), { action: 'select', strategyId: 'process', targetId: 'office', profileId: 'saved-office' });
   assert.equal(components.applicationSelectionAction(application(), 'process', 'lab'), undefined);
   assert.equal(components.applicationSelectionAction(application(), '../../commands', 'office'), undefined);
+});
+
+test('an exact retained uncertain attempt offers Inspect outcome and displays its separate failed closure', () => {
+  const view: ApplicationView = { ...application(), selection: { strategyId: 'cluster', targetId: 'lab' }, phase: 'incomplete', canInspect: false,
+    deployment: { ok: false, promoted: false, status: 'incomplete' }, reconciliation: { reviewId: 'original-review', status: 'available' } };
+  const html = render(view); assert.match(html, />Inspect outcome<\/button>/); assert.doesNotMatch(html, />Deploy<\/button>|>Open app</);
+  assert.deepEqual(applicationNextAction(view).action, { action: 'reconcile', reviewId: 'original-review' });
+  const closed: ApplicationView = { ...view, phase: 'failed', canInspect: true, reconciliation: { reviewId: 'original-review', status: 'reconciled-failed', recording: { runId: 'native-settlement' } } };
+  const details = renderToStaticMarkup(createElement(components.ApplicationSetupDetails, { state: state(closed) }));
+  assert.match(details, /original-review/); assert.match(details, /native-settlement/); assert.match(details, /Failure confirmed/); assert.match(render(closed), />Check setup<\/button>/);
+  assert.equal(components.applicationSetupSteps(closed).find((step: { id: string }) => step.id === 'deploy').status, 'failed');
 });
 
 test('technical details preserve actual changes and check identities without inventing evidence', () => {

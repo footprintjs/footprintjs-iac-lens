@@ -1,5 +1,5 @@
 import type { ConnectionProfileCatalog } from 'footprintjs-iac/connection-profiles';
-import type { ApplicationDeployment, ApplicationInspection, ApplicationReview, ApplicationSelection, ApplicationStrategy } from '../core/application.ts';
+import type { ApplicationDeployment, ApplicationInspection, ApplicationReconciliation, ApplicationReview, ApplicationSelection, ApplicationStrategy } from '../core/application.ts';
 import type { DashboardState } from '../core/types.ts';
 import type { AgentPlatformHostProvider } from './agent-platform-host.ts';
 
@@ -10,6 +10,7 @@ export type PublishApplication = (publication: ApplicationPublication) => void;
 export interface ApplicationHostSnapshot {
   selection?: ApplicationSelection; inspection?: ApplicationInspection; review?: ApplicationReview;
   deployment?: ApplicationDeployment; publication?: ApplicationPublication;
+  reconciliation?: ApplicationReconciliation;
   /** Explicit false may clear an earlier uncertain effect after native reconciliation. */
   incomplete?: boolean;
 }
@@ -21,6 +22,8 @@ export interface ApplicationHost {
   inspect(selection: ApplicationSelection, publish: PublishApplication): Promise<ApplicationInspection & { publication?: ApplicationPublication }>;
   plan(selection: ApplicationSelection, publish: PublishApplication): Promise<ApplicationReview & { publication?: ApplicationPublication }>;
   apply(selection: ApplicationSelection & { reviewId: string }, publish: PublishApplication): Promise<ApplicationDeployment & { publication?: ApplicationPublication }>;
+  /** Observe the exact retained uncertain attempt. Never apply, retry, restart or promote it. */
+  reconcile?(selection: ApplicationSelection & { reviewId: string }, publish: PublishApplication): Promise<unknown>;
   /** Read retained native receipts only; never discover, create, reconnect or retry provider effects. */
   snapshot(selection?: ApplicationSelection): Promise<ApplicationHostSnapshot>;
 }

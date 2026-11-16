@@ -175,7 +175,7 @@ export class DashboardController {
       }
       this.applicationReview = new ApplicationReview(host, (view, publication) => {
         if (publication) {
-          const patch = readApplicationPublication(publication, this.state);
+          const patch = readApplicationPublication(publication, { ...this.state, application: view });
           const admitted = readDashboardState({ ...this.state, ...patch, application: view, busy: view.busy || this.agentBusy });
           if (admitted.graph) validateInfraGraph(admitted.graph);
           this.state = admitted;

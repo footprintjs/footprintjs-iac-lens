@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readApplicationSourceView, type ApplicationSourceView } from '../src/core/application-source.ts';
+import { applicationSourceIdentity, readApplicationSourceView, type ApplicationSourceView } from '../src/core/application-source.ts';
 import { readApplicationPublication } from '../src/server/application-publication.ts';
 import { ApplicationReview } from '../src/server/application.ts';
 import type { ApplicationHost } from '../src/server/application-host.ts';
@@ -10,6 +10,10 @@ import { projectAgentPlatformView, agentContextKey } from '../src/core/agent-pla
 import { readAgentPlatformView } from '../src/core/agent-platform-read.ts';
 import type { DashboardState } from '../src/core/types.ts';
 import type { AgentPlatformView } from '../src/core/agent-platform.ts';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { ReleasePreparationWorkflow, FileReleasePreparationStore, loadReleaseBuildRecording } from 'footprintjs-iac/releases/node';
 
 const selection = { strategyId: 'systemd', targetId: 'office' };
 function source(version = 'a'): ApplicationSourceView {
@@ -42,6 +46,55 @@ test('source views retain native phase identities and reject paths, credentials 
   Object.defineProperty(accessor.stages, '0', { enumerable: true, get() { invoked = true; return {}; } });
   assert.throws(() => readApplicationSourceView(accessor)); assert.equal(invoked, false);
   assert.deepEqual(readApplicationPublication({ source: source() }).source, source());
+});
+test('one prepared release can supply source proof without being relabelled as another native workflow', () => {
+  const release = { ...source(), recording: { ...source().recording!, kind: 'release-build' } };
+  const admitted = readApplicationSourceView(release);
+  assert.equal(admitted.recording?.kind, 'release-build');
+  assert.equal(readApplicationPublication({ source: release }).source?.recording?.kind, 'release-build');
+  assert.equal(readDashboardState({ ...readyContext(), source: release }).source?.recording?.kind, 'release-build');
+  assert.notEqual(applicationSourceIdentity(source()), applicationSourceIdentity(admitted));
+  assert.throws(() => readApplicationSourceView({ ...release, recording: { ...release.recording, kind: 'deployment' } }));
+});
+test('a native shared release build completes the existing inspect review deploy lifecycle without rebuilding', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'lens-shared-release-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const selected = source(), nativeCalls: string[] = [];
+  const definition = { id: 'build-once', label: 'Build once', target: { id: 'build-host', scope: 'approved-artifacts' },
+    source: { repository: selected.repository, ref: selected.ref }, recipe: { id: 'application', digest: selected.recipeDigest }, configurationDigest: selected.configurationDigest };
+  const preparation = new ReleasePreparationWorkflow({ definition, store: new FileReleasePreparationStore(directory), adapters: {
+    source: { async resolve(input) { nativeCalls.push('resolve'); return { ...input, commit: selected.commit!, tree: selected.tree! }; },
+      async fetch(revision) { nativeCalls.push('fetch'); return { revision, location: '/private/native-shared-source' }; } },
+    build: { async build(_source, recipe) { nativeCalls.push('build'); return { recipeDigest: recipe.digest,
+      artifacts: [{ id: 'application', digest: 'e'.repeat(64), reference: 'registry.example/application@sha256:' + 'e'.repeat(64) }] }; } },
+    artifacts: { async publish(build) { nativeCalls.push('publish'); return { artifacts: build.artifacts }; } },
+  } });
+  const prepared = await preparation.start(); assert.equal(prepared.status, 'passed');
+  const proof = prepared.recordings[0]!;
+  await loadReleaseBuildRecording(proof.evidencePath, proof.tracePath, { runId: proof.runId, executionId: prepared.executionId!, definitionDigest: prepared.definitionDigest });
+  const admitted: ApplicationSourceView = { ...selected, id: prepared.definition.id, label: prepared.definition.label,
+    definitionDigest: prepared.definitionDigest, receiptDigest: prepared.release!.digest,
+    commit: prepared.release!.source.commit, tree: prepared.release!.source.tree,
+    stages: prepared.stages.map(stage => ({ ...stage, id: stage.id as ApplicationSourceView['stages'][number]['id'] })),
+    recording: { id: 'release-' + proof.runId, kind: 'release-build', runId: proof.runId, complete: true, source: 'native' } };
+  const f = fixture(); f.setSource(admitted);
+  f.host.strategies[0]!.targets[0]!.requiredVerificationCheckIds = ['health', 'source-runtime'];
+  const apply = f.host.apply.bind(f.host);
+  f.host.apply = async (...args) => { const result = await apply(...args); return { ...result,
+    checks: [...result.checks!, { id: 'source-runtime', label: 'Running package', status: 'passed' as const }], appUrl: 'https://app.example.test' }; };
+  const published: ApplicationSourceView[] = [];
+  const review = new ApplicationReview(f.host, (_view, publication) => { if (publication?.source) published.push(publication.source); });
+  await review.initialize(); review.action({ action: 'select', ...selection });
+  review.action({ action: 'inspect' }); await review.whenIdle(); assert.equal(review.snapshot().canReview, true);
+  review.action({ action: 'review' }); await review.whenIdle(); assert.equal(review.snapshot().canDeploy, true);
+  assert.equal(published.at(-1)?.recording?.kind, 'release-build'); assert.equal(published.at(-1)?.recording?.runId, proof.runId);
+  for (let i = 0; i < 3; i++) review.snapshot();
+  review.action({ action: 'deploy', reviewId: 'sealed-1' }); await review.whenIdle();
+  assert.equal(review.snapshot().phase, 'ready'); assert.equal(review.snapshot().deployment?.appUrl, 'https://app.example.test');
+  assert.deepEqual(f.counts(), { plans: 1, applies: 1, reads: 1 });
+  assert.deepEqual(nativeCalls, ['resolve', 'fetch', 'build', 'publish']);
+  assert.throws(() => review.action({ action: 'deploy', reviewId: 'sealed-1' }), /review/i);
+  assert.deepEqual(await preparation.start(), prepared); assert.equal(nativeCalls.length, 4);
 });
 test('a source-required application cannot review or deploy without a complete bound source receipt', async () => {
   for (const value of [undefined, { ...source(), status: 'incomplete' as const }, { ...source(), binding: { ...selection, targetId: 'foreign' } }]) {

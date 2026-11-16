@@ -199,7 +199,9 @@ export function readApplicationPublication(input: unknown, current?: DashboardSt
   const context: DashboardState = { revision: 0, busy: false, graph: null, ...current, ...row };
   if (row.binding !== undefined && ((context.graph && row.binding.graph.digest !== context.graph.digest) || (context.design && row.binding.designDigest !== context.design.digest))) fail();
   if (current || row.graph !== undefined) {
-    readDashboardState(context);
+    // A detached publication has no authority to choose an application. Its source
+    // shape is admitted above; ownership is checked when attached to the real view.
+    readDashboardState(current ? context : { ...context, source: undefined });
     if (context.run?.chart !== undefined && !projectNativeDeploymentChart(context).chart) fail();
     const provenance = context.run?.recording?.provenance;
     if (provenance && (provenance.runId !== context.run!.id || (provenance.graphDigest !== undefined && provenance.graphDigest !== context.graph?.digest)

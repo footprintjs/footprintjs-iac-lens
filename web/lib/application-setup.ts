@@ -34,14 +34,16 @@ export function applicationSetupSteps(view: ApplicationView): SetupStep[] {
     { id: 'choose', label: 'Choose setup', status: view.selection ? 'selected' : 'pending' },
     { id: 'inspect', label: 'Check', status: running('inspect') ? 'running' : view.inspection ? view.inspection.ok ? 'passed' : 'failed' : 'pending' },
     { id: 'review', label: 'Review', status: running('review') ? 'running' : view.review ? view.review.ok ? 'passed' : 'failed' : 'pending' },
-    { id: 'deploy', label: 'Deploy', status: uncertain ? 'unknown' : running('deploy') ? 'running' : deployment?.promoted ? 'passed' : deployment?.status === 'incomplete' || deployment?.status === 'verification-failed' ? 'unknown' : deployment ? 'failed' : 'pending' },
+    { id: 'deploy', label: 'Deploy', status: uncertain ? 'unknown' : running('deploy') ? 'running' : view.reconciliation?.status === 'reconciled-failed' ? 'failed' : deployment?.promoted ? 'passed' : deployment?.status === 'incomplete' || deployment?.status === 'verification-failed' ? 'unknown' : deployment ? 'failed' : 'pending' },
     { id: 'verify', label: 'Verify', status: uncertain ? 'unknown' : running('verify') ? 'running' : deployment?.promoted ? 'passed' : deployment?.status === 'verification-failed' ? 'failed' : 'pending' },
   ];
 }
 
 export function applicationNextAction(view: ApplicationView): { label: string; action?: ApplicationAction; enabled: boolean } {
   if (view.busy) return { label: view.phase === 'inspect' ? 'Checking…' : view.phase === 'review' ? 'Reviewing…' : view.phase === 'verify' ? 'Verifying…' : view.phase === 'deploy' ? 'Deploying…' : 'Refreshing status…', enabled: false };
-  if (view.phase === 'incomplete') return { label: 'Refresh status', action: { action: 'refresh' }, enabled: true };
+  if (view.phase === 'incomplete') return view.reconciliation?.status === 'available'
+    ? { label: 'Inspect outcome', action: { action: 'reconcile', reviewId: view.reconciliation.reviewId }, enabled: true }
+    : { label: 'Refresh status', action: { action: 'refresh' }, enabled: true };
   if (view.deployment) return { label: 'Check setup', action: { action: 'inspect' }, enabled: view.canInspect };
   if (view.canDeploy && view.review?.reviewId) return { label: 'Deploy', action: { action: 'deploy', reviewId: view.review.reviewId }, enabled: true };
   if (view.canReview) return { label: 'Review changes', action: { action: 'review' }, enabled: true };

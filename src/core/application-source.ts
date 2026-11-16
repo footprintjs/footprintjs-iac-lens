@@ -10,7 +10,7 @@ export interface ApplicationSourceView {
   status: 'pending' | 'running' | 'ready' | 'failed' | 'incomplete';
   commit?: string; tree?: string;
   stages: { id: 'resolve' | 'fetch' | 'build' | 'publish'; label: string; status: 'pending' | 'running' | 'passed' | 'failed' }[];
-  recording?: { id: string; kind: 'source-preparation'; runId: string; complete: true; source: 'native' };
+  recording?: { id: string; kind: 'source-preparation' | 'release-build'; runId: string; complete: true; source: 'native' };
 }
 function row(input: unknown, keys: readonly string[]): Record<string, any> {
   if (!input || typeof input !== 'object' || Array.isArray(input) || ![Object.prototype, null].includes(Object.getPrototypeOf(input))
@@ -47,8 +47,8 @@ export function readApplicationSourceView(input: unknown): ApplicationSourceView
   let recording: ApplicationSourceView['recording'];
   if (value.recording !== undefined) {
     const proof = row(value.recording, ['id', 'kind', 'runId', 'complete', 'source']);
-    if (proof.kind !== 'source-preparation' || proof.source !== 'native' || proof.complete !== true) throw Error('Invalid source proof');
-    recording = { id: applicationText(proof.id, 256), kind: 'source-preparation', runId: applicationText(proof.runId, 512), complete: true, source: 'native' };
+    if (!['source-preparation', 'release-build'].includes(proof.kind) || proof.source !== 'native' || proof.complete !== true) throw Error('Invalid source proof');
+    recording = { id: applicationText(proof.id, 256), kind: proof.kind, runId: applicationText(proof.runId, 512), complete: true, source: 'native' };
   }
   if (value.status === 'ready' && (!commit || !tree || !recording || !receiptDigest || stages.some((stage: ApplicationSourceView['stages'][number]) => stage.status !== 'passed'))
     || value.status === 'pending' && stages.some((stage: ApplicationSourceView['stages'][number]) => stage.status !== 'pending')) throw Error('Unconfirmed source readiness');
@@ -61,5 +61,5 @@ export function applicationSourceMatches(source: ApplicationSourceView, selectio
 }
 /** Identity sealed into the application review; changing any admitted input requires another review. */
 export function applicationSourceIdentity(source: ApplicationSourceView | undefined): string {
-  return source ? JSON.stringify([source.id, source.binding, source.definitionDigest, source.recipeDigest, source.configurationDigest, source.repository, source.ref, source.commit, source.tree, source.recording?.runId, source.receiptDigest]) : '';
+  return source ? JSON.stringify([source.id, source.binding, source.definitionDigest, source.recipeDigest, source.configurationDigest, source.repository, source.ref, source.commit, source.tree, source.recording?.kind, source.recording?.id, source.recording?.runId, source.receiptDigest]) : '';
 }

@@ -24,6 +24,8 @@ export function ApplicationSetupDetails({ state }: { state: DashboardState }) {
       {view.review?.reviewId && <div><dt>Sealed review</dt><dd><code>{view.review.reviewId}</code></dd></div>}
       <div><dt>Current setup status</dt><dd>{view.phase}</dd></div>
       {view.deployment && <div><dt>Last deployment result</dt><dd>{view.deployment.status}</dd></div>}
+      {view.reconciliation && <div><dt>Outcome inspection</dt><dd>{view.reconciliation.status === 'reconciled-failed' ? 'Failure confirmed' : 'Available'}<small>Review <code>{view.reconciliation.reviewId}</code></small>
+        {view.reconciliation.status === 'reconciled-failed' && <small>Native recording <code>{view.reconciliation.recording.runId}</code></small>}</dd></div>}
     </dl>
     {view.description && <p>{view.description}</p>}
     {state.source && <ApplicationSourceDetails source={state.source}/>}
@@ -98,7 +100,8 @@ export function ApplicationSetupPanel({ state, posting, onAction, onProfileActio
       {current && changes && <div className="application-change-summary" aria-label="Changes ready for review"><strong>{affected} {affected === 1 ? 'change' : 'changes'}</strong><span>{unchanged} unchanged</span><button type="button" onClick={() => setPanel('details')}>Review details<Icon name="arrow" size={13}/></button></div>}
       {checks && checks.length > 0 && <div>{view.phase === 'incomplete' && <small className="application-recorded-note">Last recorded checks</small>}<ul className="application-quick-checks" aria-label={view.phase === 'incomplete' ? 'Last recorded checks' : view.deployment ? 'Application checks' : 'Setup checks'}>{checks.map(check => <li key={check.id} className={'application-check-' + check.status}><span/>{check.label}<strong>{checkLabels[check.status]}</strong></li>)}</ul></div>}
       {showOutcome && view.error && <p className="application-issue" role="status">{view.error}</p>}
-      {uncertain && <p className="application-issue">The last operation has an unconfirmed result. Refresh its recorded status before deciding what to do next.</p>}
+      {uncertain && <p className="application-issue">The last operation has an unconfirmed result. {view.reconciliation?.status === 'available' ? 'Inspect its outcome before continuing.' : 'Refresh its recorded status before deciding what to do next.'}</p>}
+      {current && view.reconciliation?.status === 'reconciled-failed' && <p className="application-issue">Failure confirmed. Check setup and review a new change to recover.</p>}
       <footer className="application-setup-footer"><span>{uncertain ? 'Inspect the last record before continuing' : !target ? 'Choose a target to continue' : !current ? 'Waiting for this selection to be confirmed' : target.requiresProfile && !profileId ? 'Choose a saved connection before checking' : view.phase === 'ready' && view.deployment?.promoted ? 'Deployment and application checks passed' : 'Changes are applied only after you review them'}</span>
         {appUrl && <a className="simple-button simple-secondary" href={appUrl} target="_blank" rel="noreferrer">Open app<Icon name="external" size={14}/></a>}
         <button type="button" className="simple-button simple-primary" disabled={disabled || !onAction || !next.enabled || (!current && next.action?.action !== 'refresh')} onClick={() => { if (next.action) onAction?.(next.action); }}>{next.label}</button>

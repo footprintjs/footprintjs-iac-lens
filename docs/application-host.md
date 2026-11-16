@@ -162,6 +162,26 @@ Lens coordinates the UI: a changed target or profile invalidates the displayed
 inspection and review, only the current admitted review can deploy, and actions
 run serially. That coordination does not replace the core's durable safeguards.
 
+## Optional outcome inspection
+
+A trusted host may register `reconcile({ ...selection, reviewId }, publish)` for
+an exact uncertain attempt. Lens offers **Inspect outcome** only when its retained
+snapshot declares `reconciliation: { reviewId, status: 'available' }` together with
+`incomplete: true`. The browser submits that review ID only. This optional method
+must observe the original operation and admit its native settlement; it cannot
+apply, restart, repair, switch releases, restore data or promote an application.
+Existing hosts without this method retain **Refresh status**.
+
+The callback's return value is never deployment authority. Lens reopens the
+read-only snapshot. A known failed closure returns `incomplete: false` and
+`reconciliation: { reviewId, status: 'reconciled-failed', recording: { runId } }`.
+Keep the original incomplete deployment as history. The separate closure permits
+a fresh Check setup and review, with no retry of the consumed review. Missing or
+unknown native evidence stays incomplete. Reconciliation cannot publish an app
+URL, readiness or a different source receipt; private evidence paths stay out of
+the descriptor. The host must re-admit the native proof whenever it reopens the
+closure, rather than trusting a saved viewer flag.
+
 ## Saved connections and secrets
 
 Provide `connectionProfiles` when a target needs a user-entered connection. It

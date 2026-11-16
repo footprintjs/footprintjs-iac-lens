@@ -24,17 +24,21 @@ export interface ApplicationDeployment {
   status: 'promoted' | 'blocked' | 'apply-failed' | 'verification-failed' | 'incomplete';
   checks?: readonly ApplicationCheck[]; appUrl?: string;
 }
+/** An optional registered, observation-only closure of an earlier uncertain attempt. */
+export type ApplicationReconciliation =
+  | { reviewId: string; status: 'available' }
+  | { reviewId: string; status: 'reconciled-failed'; recording: { runId: string } };
 export type ApplicationPhase = 'choose' | 'inspect' | 'review' | 'deploy' | 'verify' | 'ready' | 'failed' | 'incomplete';
 export interface ApplicationView {
   id: string; label: string; description?: string; strategies: readonly ApplicationStrategy[];
   selection?: ApplicationSelection; phase: ApplicationPhase; busy: boolean;
   canInspect: boolean; canReview: boolean; canDeploy: boolean;
-  inspection?: ApplicationInspection; review?: ApplicationReview; deployment?: ApplicationDeployment; error?: string;
+  inspection?: ApplicationInspection; review?: ApplicationReview; deployment?: ApplicationDeployment; reconciliation?: ApplicationReconciliation; error?: string;
 }
 export type ApplicationAction =
   | ({ action: 'select' } & ApplicationSelection)
   | { action: 'inspect' | 'review' | 'refresh' }
-  | { action: 'deploy'; reviewId: string };
+  | { action: 'deploy' | 'reconcile'; reviewId: string };
 
 function object(input: unknown, allowed: readonly string[]): Record<string, unknown> {
   if (!input || typeof input !== 'object' || Array.isArray(input)
@@ -133,6 +137,14 @@ export function readApplicationDeployment(input: unknown): ApplicationDeployment
   return { ok: value.ok, promoted: value.promoted, status: value.status as ApplicationDeployment['status'],
     ...(value.checks !== undefined ? { checks: readApplicationChecks(value.checks) } : {}), ...(appUrl ? { appUrl } : {}) };
 }
+export function readApplicationReconciliation(input: unknown): ApplicationReconciliation {
+  const value = object(input, ['reviewId', 'status', 'recording']);
+  const reviewId = applicationId(value.reviewId);
+  if (value.status === 'available' && value.recording === undefined) return { reviewId, status: 'available' };
+  if (value.status !== 'reconciled-failed') throw Error('Invalid application reconciliation');
+  const recording = object(value.recording, ['runId']);
+  return { reviewId, status: 'reconciled-failed', recording: { runId: applicationId(recording.runId) } };
+}
 export function readApplicationAction(input: unknown): ApplicationAction {
   const value = object(input, ['action', 'strategyId', 'targetId', 'profileId', 'reviewId']);
   if (value.action === 'select') {
@@ -140,13 +152,13 @@ export function readApplicationAction(input: unknown): ApplicationAction {
     const { action: _action, ...selection } = value;
     return { action: 'select', ...readApplicationSelection(selection) };
   }
-  if (Object.keys(value).some(key => key !== 'action' && !(value.action === 'deploy' && key === 'reviewId'))) throw Error('Choose registered application IDs only');
-  if (value.action === 'deploy') return { action: 'deploy', reviewId: applicationId(value.reviewId) };
+  if (Object.keys(value).some(key => key !== 'action' && !(['deploy', 'reconcile'].includes(String(value.action)) && key === 'reviewId'))) throw Error('Choose registered application IDs only');
+  if (value.action === 'deploy' || value.action === 'reconcile') return { action: value.action, reviewId: applicationId(value.reviewId) };
   if (['inspect', 'review', 'refresh'].includes(String(value.action))) return { action: value.action as 'inspect' | 'review' | 'refresh' };
   throw Error('Unknown application action');
 }
 export function readApplicationView(input: unknown): ApplicationView {
-  const value = object(input, ['id', 'label', 'description', 'strategies', 'selection', 'phase', 'busy', 'canInspect', 'canReview', 'canDeploy', 'inspection', 'review', 'deployment', 'error']);
+  const value = object(input, ['id', 'label', 'description', 'strategies', 'selection', 'phase', 'busy', 'canInspect', 'canReview', 'canDeploy', 'inspection', 'review', 'deployment', 'reconciliation', 'error']);
   if (!['choose', 'inspect', 'review', 'deploy', 'verify', 'ready', 'failed', 'incomplete'].includes(String(value.phase))
     || ['busy', 'canInspect', 'canReview', 'canDeploy'].some(key => typeof value[key] !== 'boolean')) throw Error('Invalid application view');
   const strategies = readApplicationStrategies(value.strategies);
@@ -155,6 +167,7 @@ export function readApplicationView(input: unknown): ApplicationView {
   const inspection = value.inspection === undefined ? undefined : readApplicationInspection(value.inspection);
   const review = value.review === undefined ? undefined : readApplicationReview(value.review);
   const deployment = value.deployment === undefined ? undefined : readApplicationDeployment(value.deployment);
+  const reconciliation = value.reconciliation === undefined ? undefined : readApplicationReconciliation(value.reconciliation);
   const target = selection && strategies.find(strategy => strategy.id === selection.strategyId)?.targets.find(target => target.id === selection.targetId);
   const requiredPassed = (checks: readonly ApplicationCheck[] | undefined, ids: readonly string[]) => ids.every(id => checks?.some(check => check.id === id && check.status === 'passed'));
   if ((value.busy && (value.canInspect || value.canReview || value.canDeploy))
@@ -163,11 +176,13 @@ export function readApplicationView(input: unknown): ApplicationView {
     || (value.canReview && !inspection?.ok) || (value.canDeploy && (!review?.ok || !review.reviewId || deployment))
     || (deployment?.promoted && (!target || !requiredPassed(deployment.checks, target.requiredVerificationCheckIds)))
     || (deployment?.promoted && !['deploy', 'verify', 'ready'].includes(String(value.phase)))
-    || (value.phase === 'ready' && !deployment?.promoted)) throw Error('Invalid application activity admission');
+    || (value.phase === 'ready' && !deployment?.promoted)
+    || (reconciliation && (!selection || deployment?.promoted || value.canReview || value.canDeploy || value.phase === 'ready'))
+    || (reconciliation?.status === 'available' && (value.phase !== 'incomplete' || value.canInspect))) throw Error('Invalid application activity admission');
   return { id: applicationId(value.id), label: applicationText(value.label, 160),
     ...(value.description !== undefined ? { description: applicationText(value.description, 2000) } : {}), strategies,
     ...(selection ? { selection } : {}), phase: value.phase as ApplicationPhase, busy: value.busy as boolean,
     canInspect: value.canInspect as boolean, canReview: value.canReview as boolean, canDeploy: value.canDeploy as boolean,
-    ...(inspection ? { inspection } : {}), ...(review ? { review } : {}), ...(deployment ? { deployment } : {}),
+    ...(inspection ? { inspection } : {}), ...(review ? { review } : {}), ...(deployment ? { deployment } : {}), ...(reconciliation ? { reconciliation } : {}),
     ...(value.error !== undefined ? { error: applicationText(value.error, 4000) } : {}) };
 }
