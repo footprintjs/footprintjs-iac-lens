@@ -32,7 +32,7 @@ export default function SystemTopologyGraph({ view, simple = false }: { view: Sy
       </div></div>
     </div>
     <footer className="topology-legend"><span><i className="topology-pending"/>Waiting</span><span><i className="topology-installing"/>Building</span><span><i className="topology-ready"/>Ready</span><span><i className="topology-failed"/>Failed</span>
-      <small>Click a component or connection for evidence.</small>
+      <small>Line colours identify connections · badges show status.</small>
       <TopologyUnplacedConnections connections={view.connections} boxes={boxes} routes={routes} onSelect={id=>setSelected({kind:'connection',id})}/>
       {view.limitations.length > 0 && <details><summary>Unconfirmed details ({view.limitations.length})</summary>{view.limitations.map((text, index) => <p key={index}>{text}</p>)}</details>}
     </footer>

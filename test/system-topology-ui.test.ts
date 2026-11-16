@@ -41,13 +41,13 @@ test('simple and system design retain the same component IDs, connections and tr
 });
 test('connection failures and recovery use only supplied check states', () => {
   const view = topology(); (view.connections[0] as {status: string}).status = 'failed'; assert.match(render(view), /class="topology-edge-label edge-failed"[^>]*>Failed/);
-  (view.connections[0] as {status: string}).status = 'connected'; assert.match(render(view), /class="topology-edge-label edge-connected"[^>]*>Connected/);
+  (view.connections[0] as {status: string}).status = 'connected'; assert.match(render(view), /class="topology-edge-label edge-connected"[^>]*aria-label="Sign-in service: Connected"/);
   (view.connections[0] as {status: string}).status = 'untested'; const html = render(view); assert.match(html, /class="topology-edge-label edge-untested"[^>]*>Not checked/); assert.doesNotMatch(html, /class="topology-edge-label edge-connected"/);
 });
 test('live arrows use explicit-size status-coloured heads and a separate crossing halo', () => {
   const html = render();
   assert.match(html, /markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8"/);
-  assert.match(html, /fill="#598ce5"/);
+  assert.match(html, /fill="#b67a18"/);
   assert.match(html, /class="topology-wire-halo"/);
   assert.match(html, /class="topology-wire-line"[^>]+marker-end="url\(#[^)]+-checking\)"/);
   assert.doesNotMatch(html, /context-stroke/);

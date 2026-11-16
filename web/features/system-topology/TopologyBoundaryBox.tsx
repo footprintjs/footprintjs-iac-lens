@@ -12,10 +12,10 @@ export function TopologyBoundaryBox({ boundary, box, onSelect }: { boundary: Top
       <strong title={boundary.label}>{boundary.label}</strong><span>{boundary.technology ? <TechnologyMark technology={boundary.technology}/> : boundary.kind}</span>
       <small>{status}</small>
     </button>
-    <div className={`topology-boundary-progress${boundary.progress.indeterminate ? ' indeterminate' : ''}`}
+    <div className="topology-boundary-progress-track"><div className={`topology-boundary-progress${boundary.progress.indeterminate ? ' indeterminate' : ''}`}
       role="progressbar" aria-label={`${boundary.label}: recorded component progress`} aria-valuemin={0}
       aria-valuemax={boundary.progress.total || undefined} aria-valuenow={boundary.progress.indeterminate ? undefined : boundary.progress.completed}
       aria-valuetext={boundary.progress.indeterminate ? 'Not fully verified' : `${boundary.progress.completed} of ${boundary.progress.total} observed`}
-      style={{ width: `${boundary.progress.total ? boundary.progress.completed / boundary.progress.total * 100 : 0}%` }}/>
+      style={{ width: `${boundary.progress.total ? boundary.progress.completed / boundary.progress.total * 100 : 0}%` }}/></div>
   </div>;
 }
