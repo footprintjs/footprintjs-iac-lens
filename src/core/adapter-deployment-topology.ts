@@ -40,7 +40,7 @@ export function buildAdapterTopology(chart: DeploymentChart, selected?: string):
         if (node.isLoopReference) return { exits: [], column };
         if (byId.has(full)) throw Error('Ambiguous adapter stage');
         const kind = node.subflowStructure ? 'subflow' : ['decider', 'selector', 'fork'].includes(node.type) ? 'decision' : node.type === 'loop' ? 'loop' : 'stage';
-        const stage: AdapterDeploymentStage = { id: full, stageId: node.id, label: node.name.split('/').at(-1)!, kind,
+        const stage: AdapterDeploymentStage = { id: full, stageId: node.id, label: node.name.split('/').at(-1)!, kind, nativeKind:node.type,
           scope: id, resourceId: binding.resourceId, status: 'pending', runtimeStageIds: [], executions: 0, column, row: lane };
         byId.set(full, stage); resource.stages.push(stage); ancestry.set(full, ancestors);
         if (node.subflowStructure) {

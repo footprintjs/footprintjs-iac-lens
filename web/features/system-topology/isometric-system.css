@@ -1,0 +1,19 @@
+.iac-lens .topology-isometric .topology-viewport{background:radial-gradient(var(--fp-border,#dce4ee) .7px,transparent .7px);background-size:22px 22px}
+.iac-lens .topology-isometric-floor{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.iac-lens .topology-isometric-floor polygon,.iac-lens .topology-isometric-floor path{stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.iac-lens .topology-isometric-floor .isometric-depth{fill:var(--fp-border,#dce4ee);stroke:var(--fp-border,#dce4ee);stroke-width:1}
+.iac-lens .topology-isometric-floor .depth-left{fill:color-mix(in srgb,var(--fp-border,#dce4ee) 70%,var(--fp-bg-secondary,#f6f9fc))}
+.iac-lens .topology-isometric-floor .isometric-plane{fill:color-mix(in srgb,var(--fp-bg-secondary,#f6f9fc) 88%,transparent);stroke:var(--fp-border,#cbd9e8);stroke-width:1}
+.iac-lens .topology-isometric-floor.floor-component .isometric-plane{fill:var(--fp-bg-elevated,#fff);stroke:var(--fp-text-muted,#94a6bb);stroke-width:1}
+.iac-lens .topology-isometric-floor.floor-component .isometric-depth{fill:color-mix(in srgb,var(--fp-color-primary,#6a8fbd) 20%,var(--fp-bg-secondary,#f6f9fc))}
+.iac-lens .topology-isometric-floor .isometric-progress{fill:none;stroke:var(--fp-color-success,#5a9d84);stroke-width:2;stroke-linecap:round}
+.iac-lens .topology-isometric-floor.topology-failed .isometric-plane{stroke:var(--fp-color-error,#bc7181)}
+.iac-lens .topology-isometric-floor.topology-failed .isometric-progress{stroke:var(--fp-color-error,#bc7181)}
+.iac-lens .topology-isometric .topology-node{box-shadow:4px 7px 0 color-mix(in srgb,var(--fp-border,#dce4ee) 70%,transparent),0 5px 12px color-mix(in srgb,var(--fp-text-primary,#334b63) 10%,transparent)}
+.iac-lens .topology-isometric .topology-boundary{background:var(--fp-bg-elevated,#fff);box-shadow:0 2px 4px color-mix(in srgb,var(--fp-text-primary,#334b63) 5%,transparent);border-radius:5px}
+.iac-lens .topology-isometric .topology-boundary-heading{height:36px;background:var(--fp-bg-elevated,#fff);border-bottom:0;gap:6px;padding:5px 8px}
+.iac-lens .topology-isometric .topology-boundary-heading strong{flex:1;min-width:0}
+.iac-lens .topology-isometric .topology-boundary-heading>span{flex-shrink:0}
+.iac-lens .topology-isometric .topology-boundary-heading small{font-size:8px}
+.iac-lens .topology-isometric .topology-wire-line,.iac-lens .topology-isometric .topology-wire-halo{stroke-linejoin:round;stroke-linecap:round}
+.iac-lens .topology-isometric .topology-wire-label-leader{stroke:currentColor;stroke-width:1;stroke-dasharray:2 3;opacity:.65;fill:none}

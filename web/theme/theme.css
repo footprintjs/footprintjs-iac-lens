@@ -1,0 +1,13 @@
+.iac-lens[data-lens-theme]{
+  --ink:var(--fp-text-primary);--muted:var(--fp-text-muted);--line:var(--fp-border);--blue:var(--fp-color-primary);
+  --surface:var(--fp-bg-elevated);--border:var(--fp-border);
+  --lens-success-bg:color-mix(in srgb,var(--fp-color-success) 9%,var(--fp-bg-elevated));
+  --lens-error-bg:color-mix(in srgb,var(--fp-color-error) 9%,var(--fp-bg-elevated));
+  --lens-warning-bg:color-mix(in srgb,var(--fp-color-warning) 10%,var(--fp-bg-elevated));
+  --lens-pending-bg:var(--fp-bg-secondary);
+  --lens-focus:color-mix(in srgb,var(--fp-accent) 60%,var(--fp-bg-elevated));
+  --lens-shadow:0 2px 8px color-mix(in srgb,var(--fp-text-primary) 5%,transparent);
+  color:var(--fp-text-primary);background:var(--fp-bg-primary);font-family:var(--fp-font-sans);
+}
+.iac-lens[data-lens-theme] .mono,.iac-lens[data-lens-theme] code,.iac-lens[data-lens-theme] pre{font-family:var(--fp-font-mono)}
+.iac-lens[data-lens-theme] button:focus-visible,.iac-lens[data-lens-theme] a:focus-visible,.iac-lens[data-lens-theme] select:focus-visible{outline-color:var(--lens-focus)}

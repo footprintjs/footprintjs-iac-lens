@@ -1,48 +1,48 @@
-.iac-lens .pipeline-panel{display:flex;flex-direction:column;gap:16px;border:1px solid #dce5ed;background:#fff;border-radius:16px;padding:18px;color:#253d56;min-height:0}
+.iac-lens .pipeline-panel{display:flex;flex-direction:column;gap:16px;border:1px solid var(--fp-border, #dce5ed);background:var(--fp-bg-elevated, #fff);border-radius:var(--fp-radius, 16px);padding:18px;color:var(--fp-text-primary, #253d56);min-height:0}
 .iac-lens .pipeline-toolbar{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
 .iac-lens .pipeline-toolbar>div{display:flex;flex-direction:column;gap:5px;margin-right:auto}
-.iac-lens .pipeline-toolbar>div>span,.iac-lens .pipeline-muted{font-size:11px;color:#738399}
-.iac-lens .pipeline-toolbar label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#6b7d91}
-.iac-lens .pipeline-panel select,.iac-lens .pipeline-configuration select,.iac-lens .pipeline-configuration input[type=number]{font:inherit;color:#253d56;border:1px solid #d4dfea;background:white;border-radius:7px;padding:9px;max-width:100%}
-.iac-lens .pipeline-section-label{font-size:11px;font-weight:650;color:#536a83;display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.iac-lens .pipeline-section-label>span{font-size:10px;font-weight:400;color:#8090a3}
-.iac-lens .pipeline-preview{border:1px dashed #cdd7e3;background:#fafbfd;border-radius:11px;padding:12px}
+.iac-lens .pipeline-toolbar>div>span,.iac-lens .pipeline-muted{font-size:11px;color:var(--fp-text-secondary, #738399)}
+.iac-lens .pipeline-toolbar label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--fp-text-secondary, #6b7d91)}
+.iac-lens .pipeline-panel select,.iac-lens .pipeline-configuration select,.iac-lens .pipeline-configuration input[type=number]{font:inherit;color:var(--fp-text-primary, #253d56);border:1px solid var(--fp-border, #d4dfea);background:var(--fp-bg-elevated, #fff);border-radius:var(--fp-radius, 7px);padding:9px;max-width:100%}
+.iac-lens .pipeline-section-label{font-size:11px;font-weight:650;color:var(--fp-text-secondary, #536a83);display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.iac-lens .pipeline-section-label>span{font-size:10px;font-weight:400;color:var(--fp-text-secondary, #8090a3)}
+.iac-lens .pipeline-preview{border:1px dashed var(--fp-border, #cdd7e3);background:var(--lens-pending-bg, #fafbfd);border-radius:var(--fp-radius, 11px);padding:12px}
 .iac-lens .pipeline-preview-columns,.iac-lens .pipeline-environments{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .iac-lens .pipeline-preview-columns>div{font-size:11px;min-width:0}
 .iac-lens .pipeline-preview-columns strong{font-weight:600}
 .iac-lens .pipeline-preview-columns>div>div{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:7px}
-.iac-lens .pipeline-preview-step{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#6f8093}
-.iac-lens .pipeline-preview-step i{font-style:normal;color:#9eadbd}
-.iac-lens .pipeline-preview>small{display:block;font-size:10px;color:#7d7187;margin-top:9px}
-.iac-lens .pipeline-environment{border:1px solid #dfe6ee;border-radius:12px;padding:15px;min-width:0;background:#f8fafc;display:flex;flex-direction:column;gap:12px}
+.iac-lens .pipeline-preview-step{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--fp-text-secondary, #6f8093)}
+.iac-lens .pipeline-preview-step i{font-style:normal;color:var(--fp-text-muted, #9eadbd)}
+.iac-lens .pipeline-preview>small{display:block;font-size:10px;color:var(--fp-text-secondary, #7d7187);margin-top:9px}
+.iac-lens .pipeline-environment{border:1px solid var(--fp-border, #dfe6ee);border-radius:var(--fp-radius, 12px);padding:15px;min-width:0;background:var(--lens-pending-bg, #f8fafc);display:flex;flex-direction:column;gap:12px}
 .iac-lens .pipeline-environment-heading{display:flex;align-items:center;gap:7px;font-size:13px}
-.iac-lens .pipeline-environment-heading>span:last-child{font-size:10px;margin-left:auto;color:#77889a}
-.iac-lens .pipeline-state-dot{height:8px;width:8px;border-radius:50%;background:#bdc7d4;flex-shrink:0}
+.iac-lens .pipeline-environment-heading>span:last-child{font-size:10px;margin-left:auto;color:var(--fp-text-secondary, #77889a)}
+.iac-lens .pipeline-state-dot{height:8px;width:8px;border-radius:50%;background:var(--fp-bg-tertiary, #bdc7d4);flex-shrink:0}
 .iac-lens .pipeline-stage-inspect{font:inherit;text-align:left;border:0;background:transparent;padding:0;color:inherit;cursor:pointer;display:flex;flex-direction:column;gap:8px;font-size:14px;min-height:50px}
-.iac-lens .pipeline-stage-inspect small,.iac-lens .pipeline-environment>small{font-size:10px;color:#7c8b9d}
-.iac-lens .pipeline-state-running{border-color:#99b9ec;background:#f1f6ff}
-.iac-lens .pipeline-state-running .pipeline-state-dot{background:#5086df;box-shadow:0 0 0 4px #5086df1a}
-.iac-lens .pipeline-state-passed,.iac-lens .pipeline-state-recovered{border-color:#b1daca;background:#f1faf6}
-.iac-lens .pipeline-state-passed .pipeline-state-dot,.iac-lens .pipeline-state-recovered .pipeline-state-dot{background:#47a082}
-.iac-lens .pipeline-state-failed,.iac-lens .pipeline-state-incomplete{border-color:#e3b5b4;background:#fff7f6}
-.iac-lens .pipeline-state-failed .pipeline-state-dot,.iac-lens .pipeline-state-incomplete .pipeline-state-dot{background:#c67672}
-.iac-lens .pipeline-state-awaiting-promotion{border-color:#d6ca9e;background:#fffdf4}
-.iac-lens .pipeline-progress-feed{margin-top:12px;border-top:1px solid #eef1f5;padding-top:8px;min-height:26px}
-.iac-lens .pipeline-progress-feed p{display:flex;gap:12px;font-size:11px;margin:5px 0;color:#536b83}
+.iac-lens .pipeline-stage-inspect small,.iac-lens .pipeline-environment>small{font-size:10px;color:var(--fp-text-secondary, #7c8b9d)}
+.iac-lens .pipeline-state-running{border-color:var(--fp-color-primary, #99b9ec);background:var(--lens-pending-bg, #f1f6ff)}
+.iac-lens .pipeline-state-running .pipeline-state-dot{background:var(--fp-color-primary, #5086df);box-shadow:var(--lens-shadow, 0 0 0 4px #5086df1a)}
+.iac-lens .pipeline-state-passed{border-color:var(--fp-color-success, #b1daca);background:var(--lens-success-bg, #f1faf6)}.iac-lens .pipeline-state-recovered{border-color:var(--fp-border, #b1daca);background:var(--lens-success-bg, #f1faf6)}
+.iac-lens .pipeline-state-passed .pipeline-state-dot,.iac-lens .pipeline-state-recovered .pipeline-state-dot{background:var(--fp-color-success, #47a082)}
+.iac-lens .pipeline-state-failed{border-color:var(--fp-color-error, #e3b5b4);background:var(--lens-error-bg, #fff7f6)}.iac-lens .pipeline-state-incomplete{border-color:var(--fp-color-warning, #e3b5b4);background:var(--lens-warning-bg, #fff7f6)}
+.iac-lens .pipeline-state-failed .pipeline-state-dot{background:var(--fp-color-error, #c67672)}.iac-lens .pipeline-state-incomplete .pipeline-state-dot{background:var(--fp-color-warning, #c67672)}
+.iac-lens .pipeline-state-awaiting-promotion{border-color:var(--fp-border, #d6ca9e);background:var(--lens-warning-bg, #fffdf4)}
+.iac-lens .pipeline-progress-feed{margin-top:12px;border-top:1px solid var(--fp-border, #eef1f5);padding-top:8px;min-height:26px}
+.iac-lens .pipeline-progress-feed p{display:flex;gap:12px;font-size:11px;margin:5px 0;color:var(--fp-text-secondary, #536b83)}
 .iac-lens .pipeline-progress-feed p>span{min-width:65px;font-weight:600}
-.iac-lens .pipeline-error{font-size:12px;color:#a05b58;margin:0}
+.iac-lens .pipeline-error{font-size:12px;color:var(--fp-color-error, #a05b58);margin:0}
 .iac-lens .pipeline-configuration{display:flex;flex-direction:column;gap:16px;font-size:12px}
-.iac-lens .pipeline-configuration fieldset{border:1px solid #dce5ed;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.iac-lens .pipeline-configuration fieldset{border:1px solid var(--fp-border, #dce5ed);border-radius:var(--fp-radius, 12px);padding:16px;display:flex;flex-direction:column;gap:12px}
 .iac-lens .pipeline-configuration legend{font-weight:650;padding:0 5px}
 .iac-lens .pipeline-configuration fieldset>label{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.iac-lens .pipeline-configuration fieldset p{font-size:11px;color:#77879a;margin:0}
+.iac-lens .pipeline-configuration fieldset p{font-size:11px;color:var(--fp-text-secondary, #77879a);margin:0}
 .iac-lens .pipeline-check-options{display:flex;flex-direction:column;gap:9px}
 .iac-lens .pipeline-check-options label{display:flex;align-items:center;gap:7px}
 .iac-lens .pipeline-configuration+button{margin-top:16px}
 .iac-lens .pipeline-details{font-size:12px;overflow-wrap:anywhere}
 .iac-lens .pipeline-details table{width:100%;border-collapse:collapse}
-.iac-lens .pipeline-details td,.iac-lens .pipeline-details th{text-align:left;padding:9px;border-bottom:1px solid #e7edf3}
-.iac-lens .pipeline-details small{color:#8290a0;font-size:10px}
+.iac-lens .pipeline-details td,.iac-lens .pipeline-details th{text-align:left;padding:9px;border-bottom:1px solid var(--fp-border, #e7edf3)}
+.iac-lens .pipeline-details small{color:var(--fp-text-secondary, #8290a0);font-size:10px}
 .iac-lens .simple-dashboard.has-pipeline{gap:12px}
 .iac-lens .simple-dashboard.has-pipeline .pipeline-panel{flex-shrink:0}
 .iac-lens .simple-dashboard.has-pipeline:not(.pipeline-with-system) .pipeline-panel{flex:1;overflow:auto}
@@ -61,11 +61,11 @@
 .iac-lens .pipeline-compact .pipeline-recorded{display:grid;grid-template-columns:minmax(0,3fr) minmax(230px,2fr);gap:4px 16px}
 .iac-lens .pipeline-compact .pipeline-section-label{grid-column:1/-1;margin:0;font-size:10px}
 .iac-lens .pipeline-compact .pipeline-environments{gap:8px;align-items:stretch}
-.iac-lens .pipeline-compact .pipeline-environment{padding:8px 11px;gap:4px;border-radius:9px}
+.iac-lens .pipeline-compact .pipeline-environment{padding:8px 11px;gap:4px;border-radius:var(--fp-radius, 9px)}
 .iac-lens .pipeline-compact .pipeline-environment-heading{font-size:12px}
 .iac-lens .pipeline-compact .pipeline-stage-inspect{font-size:12px;min-height:0;gap:0}
 .iac-lens .pipeline-compact .pipeline-stage-inspect small{display:none}
-.iac-lens .pipeline-compact .pipeline-progress-feed{margin:0;padding:4px 0 0 14px;border-top:0;border-left:1px solid #e6edf4;min-height:0}
+.iac-lens .pipeline-compact .pipeline-progress-feed{margin:0;padding:4px 0 0 14px;border-top:0;border-left:1px solid var(--fp-border, #e6edf4);min-height:0}
 .iac-lens .pipeline-compact .pipeline-progress-feed p{margin:4px 0;font-size:11px;line-height:15px}
 .iac-lens .pipeline-compact .pipeline-progress-feed p:nth-of-type(n+3){display:none}
 .iac-lens .pipeline-with-system{padding-top:17px;padding-bottom:14px;gap:10px}

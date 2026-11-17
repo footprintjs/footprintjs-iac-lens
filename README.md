@@ -2,6 +2,26 @@
 
 A separate live system view for [footprintjs-iac](https://github.com/footprintjs/footprintjs-iac). Resource nodes start grey for pending work, become blue while reconciling, and become green only after the configured provider confirms readiness. Failures and skipped work remain visible. The execution view lazily loads [Flow Lens](https://github.com/footprintjs/explainable-ui) over the actual native FootPrint recording.
 
+Lens opens with [Recent runs](docs/runs-ui.md). Select a run to watch its
+progress, move through recorded steps and open the verified application.
+**Details** reveals architecture and native execution evidence when needed.
+The local server retains a bounded replay history; older results without
+captured progress stay labelled as summary only. The headless `RunRepository`
+contract lets another host supply its own recorded catalog without adding a
+deployment executor.
+
+The [shared theme bridge](docs/shared-theme.md) applies current-release color,
+font and border tokens across the dashboard and lazy evidence views through
+`IacLens.theme`. Light, dark and partial host palettes share the same recordings.
+The [diagram adapters](docs/diagram-adapters.md) reuse Explainable UI 0.46.0 for
+both deployment execution and system placement while keeping their arrow meanings
+and native evidence separate.
+
+For Neo's existing systemd integration, use the portable
+[setup, deployment and replay prompt for Rahul's agent](docs/rahul-agent-prompt.md).
+It reuses the registered host and records the private configuration still needed
+on another laptop.
+
 Most logic is framework-neutral TypeScript. The root and `/core` exports contain the protocol, state projection, dependency layout and injectable transport client. `/react` is the optional React adapter. `/server` is the separate Node loopback server. React, React DOM, XYFlow and Flow Lens are optional peers; importing the headless API does not load them. Angular, Svelte and Vue adapters can consume the same headless contract; those adapters are not implemented yet.
 
 The optional [Agents workspace](docs/agent-platform.md) loads when selected.
@@ -227,7 +247,7 @@ inside the adapters. Viewer requests cannot choose a destination or credentials.
 ### Recording reader compatibility
 
 The paired core currently pins FootPrintJS 12.1.0 and FootTrace 1.15.0. Lens
-keeps `footprint-explainable-ui` 0.41.0; that viewer has React/XYFlow peers and
+keeps `footprint-explainable-ui` 0.46.0; that viewer has React/XYFlow peers and
 does not require an older FootPrintJS or FootTrace runtime. Native recordings
 and chart bindings remain unchanged. The display adapter admits bounded linked
 stage trees and chain/branch trees, including subflow contexts; the actual
@@ -235,7 +255,7 @@ FootPrintJS 12 snapshots exercised here still use the linked form.
 
 Serial evidence without additional provenance keeps the full existing Flow
 Lens. For recorded read windows, values built on an earlier view, additive
-merge/append writes or nested-path writes, the embedded viewer's older causal
+merge/append writes or nested-path writes, the embedded viewer's causal
 resolver cannot safely interpret every dependency. Lens uses the same viewer
 library's presentation-only graph, timeline and value inspector alongside the
 base library's updated recorded-dependency reader. The original commits, provenance fields and

@@ -7,6 +7,8 @@ import { adapterObservations, type AdapterObservationIndex } from './adapter-dep
 export type AdapterDeploymentStatus = 'pending' | 'running' | 'completed' | 'skipped' | 'failed' | 'unknown';
 export interface AdapterDeploymentStage {
   id: string; stageId: string; label: string; kind: 'stage' | 'decision' | 'subflow' | 'loop';
+  /** Exact native constructor kind when retained; older captures may not distinguish forks from decisions. */
+  nativeKind?: string;
   scope: string; resourceId: string; status: AdapterDeploymentStatus;
   runtimeStageIds: string[]; executions: number; column: number; row: number;
   childScope?: string; reason?: string;

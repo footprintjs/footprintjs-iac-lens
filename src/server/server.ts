@@ -31,6 +31,11 @@ export async function startDashboard(options: DashboardOptions): Promise<{
       admitRequest(request, port);
       const path = new URL(request.url ?? '/', `http://127.0.0.1:${port}`).pathname;
       if (request.method === 'GET' && path === '/api/state') return json(response, 200, controller.getSnapshot());
+      if(request.method==='GET'&&path==='/api/runs')return json(response,200,await controller.listRuns());
+      if(request.method==='GET'&&path.startsWith('/api/runs/')){
+        const id=path.slice('/api/runs/'.length),record=await controller.readRun(id);
+        if(!record)throw new RequestError(404,'This recorded run is not available');return json(response,200,record);
+      }
       if (request.method === 'GET' && path === '/api/events') {
         if (streams.size >= 32) throw new RequestError(429, 'Too many viewer connections');
         const stop = streamState(response, controller); streams.set(response, stop);

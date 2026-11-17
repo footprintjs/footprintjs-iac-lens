@@ -1,14 +1,18 @@
-import { useMemo } from 'react';
-import { Background, BackgroundVariant, BaseEdge, Controls, Handle, Position, ReactFlow, type EdgeProps, type NodeProps, type FitViewOptions } from '@xyflow/react';
-import { buildResourceView, type ResourceFlowEdge, type ResourceFlowNode } from '../lib/resource-view.ts';
+import { createContext, useContext, useMemo } from 'react';
+import { BackgroundVariant, BaseEdge, Controls, Handle, Position, type EdgeProps, type NodeProps } from '@xyflow/react';
+import {FootprintTheme,TracedFlow} from 'footprint-explainable-ui/flowchart';
+import { buildResourceView, type ResourceFlowEdge } from '../lib/resource-view.ts';
+import {createResourceTraceGraph,resourceTraceBounds,type ResourceTraceNode} from '../lib/create-resource-trace-graph.ts';
+import {useDiagramCamera} from '../lib/diagram-camera.ts';
 import { resourceEdgePath, type ResourceLayoutMode } from '../../src/core/layout.ts';
 import { COMMUNICATION_SOURCE_OFFSET, COMMUNICATION_TARGET_OFFSET } from '../../src/core/resource-geometry.ts';
 import type { DashboardState } from '../../src/core/types.ts';
 import { Icon } from './Icon.tsx';
 import { StatusBadge } from './StatusBadge.tsx';
-import { CanvasFit } from './CanvasFit.tsx';
+import {useLensTheme} from '../theme/LensThemeContext.tsx';
 
-function ResourceNode({ data, selected }: NodeProps<ResourceFlowNode>) {
+function ResourceNode({ data:renderData, selected }: NodeProps<ResourceTraceNode>) {
+  const data=renderData.resourceView;
   return <div className={`resource-node resource-${data.progress.status}${selected ? ' resource-selected' : ''}`} style={{ height: data.size.height }}>
     {data.deploymentHandles && <Handle id="order-in" type="target" position={Position.Left} className="resource-handle"/>}
     <div className="resource-heading"><span className={`resource-icon family-${data.description.family}`}><Icon name={data.description.family}/></span>
@@ -23,31 +27,42 @@ function ResourceNode({ data, selected }: NodeProps<ResourceFlowNode>) {
 }
 const nodeTypes = { resource: ResourceNode };
 
-function ResourceEdge({ id, data, markerEnd, style }: EdgeProps<ResourceFlowEdge>) {
+const ResourceEdgeContext=createContext<{edges:ReadonlyMap<string,ResourceFlowEdge>;onConnectionSelect?:(id:string)=>void}>({edges:new Map()});
+
+function ResourceEdge({ id, markerEnd, style }: EdgeProps<ResourceFlowEdge>) {
+  const {edges,onConnectionSelect}=useContext(ResourceEdgeContext);
+  const data=edges.get(id)?.data;
   if (!data) return null;
-  return <BaseEdge id={id} path={resourceEdgePath(data.route.points)} markerEnd={markerEnd} style={style}
+  const inspect=data.kind==='communication'&&onConnectionSelect?()=>onConnectionSelect(id):undefined;
+  return <g role={inspect?'button':undefined} tabIndex={inspect?0:undefined} aria-label={edges.get(id)?.ariaLabel}
+    onClick={inspect?event=>{event.stopPropagation();inspect();}:undefined}
+    onKeyDown={inspect?event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();inspect();}}:undefined}>
+    <BaseEdge id={id} path={resourceEdgePath(data.route.points)} markerEnd={markerEnd} style={style}
     label={data.label}
     labelX={data.route.labelPosition?.x} labelY={data.route.labelPosition?.y}
-    labelStyle={{ fill: style?.stroke ?? '#687d97', fontSize: 11, fontWeight: data.connectionStatus === 'untested' ? 400 : 600 }} labelBgStyle={{ fill: '#fafbfd' }} labelBgPadding={[8, 4]} labelBgBorderRadius={4}/>;
+    labelStyle={{ fill: style?.stroke ?? 'var(--fp-text-secondary)', fontSize: 11, fontWeight: data.connectionStatus === 'untested' ? 400 : 600 }} labelBgStyle={{ fill: 'var(--fp-bg-elevated)' }} labelBgPadding={[8, 4]} labelBgBorderRadius={4}/>
+  </g>;
 }
 const edgeTypes = { resource: ResourceEdge };
 
 export function ResourceCanvas({ state, selected, mode, fitWindow = false, onSelect, onConnectionSelect }: { state: DashboardState; selected?: string; mode?: ResourceLayoutMode; fitWindow?: boolean; onSelect: (id: string | undefined) => void; onConnectionSelect?: (id: string) => void }) {
+  const theme=useLensTheme();
   const view = useMemo(() => buildResourceView(state, selected, mode), [state, selected, mode]);
+  const graph=useMemo(()=>createResourceTraceGraph(view),[view]);
+  const bounds=useMemo(()=>resourceTraceBounds(view),[view]);
+  const camera=useDiagramCamera(bounds);
+  const edgeContext=useMemo(()=>({edges:new Map(view.edges.map(edge=>[edge.id,edge])),onConnectionSelect}),[view,onConnectionSelect]);
   if (!view.nodes.length) return <div className="canvas-empty"><Icon name="graph" size={38}/><h3>No resource graph available</h3><p>A validated desired graph will appear here before deployment begins.</p></div>;
-  const nodeBottom = Math.max(...view.nodes.map(node => node.position.y + node.data.size.height));
-  const laneSpace = Math.max(0, ...view.edges.flatMap(edge => edge.data?.route.points.map(point => point.y - nodeBottom) ?? []));
-  const padding: FitViewOptions['padding'] = { top: '24px', left: '32px', right: '48px', bottom: `${laneSpace + 26}px` };
-  const layoutKey = JSON.stringify(view.nodes.map(node => [node.id, node.position.x, node.position.y, node.width, node.height]));
-  return <div className="resource-canvas" data-testid="resource-canvas">
-    <ReactFlow nodes={view.nodes} edges={view.edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} fitView
-      fitViewOptions={{ padding, minZoom: fitWindow ? .15 : mode === 'running-system' ? .35 : .7, maxZoom: 1 }}
-      minZoom={fitWindow ? .15 : .25} maxZoom={1.6} nodesDraggable={false} nodesConnectable={false} elementsSelectable
-      onNodeClick={(_, node) => onSelect(node.id)} onEdgeClick={(_, edge) => { if (edge.data?.kind === 'communication') onConnectionSelect?.(edge.id); }}
-      onPaneClick={() => onSelect(undefined)} proOptions={{ hideAttribution: false }}>
-      <CanvasFit enabled={fitWindow} layoutKey={layoutKey} padding={padding}/>
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#dce2e9"/>
+  return <div ref={camera.containerRef} className="resource-canvas" data-testid="resource-canvas" onClick={event=>{
+    if(event.target instanceof Element&&event.target.classList.contains('react-flow__pane'))onSelect(undefined);
+  }}>
+    <ResourceEdgeContext.Provider value={edgeContext}><FootprintTheme tokens={theme.tokens}>
+      <TracedFlow graph={graph} layout="passthrough" unstyled style={{minHeight:0}} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
+        currentSubflowId={null} breadcrumb={false} autoFit={false} viewport={camera.viewport} onViewportChange={camera.onViewportChange}
+        minZoom={.01} maxZoom={1.6} onNodeClick={onSelect}
+        background={{variant:BackgroundVariant.Dots,gap:22,size:1,color:'var(--fp-border)'}}>
       <Controls showInteractive={false} position="bottom-left"/>
-    </ReactFlow>
+      </TracedFlow>
+    </FootprintTheme></ResourceEdgeContext.Provider>
   </div>;
 }

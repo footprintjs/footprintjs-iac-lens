@@ -1,12 +1,14 @@
 import {currentRecordedDeploymentStep,type RecordedDeploymentStep} from '../../../src/core/topology-deployment-step.ts';
 import {useMemo,useState} from 'react';
-import {Background,BackgroundVariant,Controls,ReactFlow} from '@xyflow/react';
+import {BackgroundVariant,Controls} from '@xyflow/react';
+import {FootprintTheme,TracedFlow} from 'footprint-explainable-ui/flowchart';
 import type {DashboardState} from '../../../src/core/types.ts';
 import type {AdapterDeploymentView,AdapterDeploymentStage,AdapterDeploymentResource} from '../../../src/core/adapter-deployment.ts';
-import {CanvasFit} from '../../components/CanvasFit.tsx';
 import {DetailsPanel} from '../../components/DetailsPanel.tsx';
 import {AdapterStepCard,AdapterStatus} from './AdapterStepCard.tsx';
 import {adapterFlowLayout} from './adapter-flow-layout.ts';
+import {createAdapterTraceGraph} from './create-adapter-trace-graph.ts';
+import {useLensTheme} from '../../theme/LensThemeContext.tsx';
 import './adapter-deployment.css';
 const nodeTypes={'adapter-step':AdapterStepCard};
 function initialScope(resource:AdapterDeploymentResource):string {
@@ -15,6 +17,7 @@ function initialScope(resource:AdapterDeploymentResource):string {
   return [...resource.scopes].sort((a,b)=>resource.stages.filter(stage=>stage.scope===b.id&&stage.kind==='decision').length-resource.stages.filter(stage=>stage.scope===a.id&&stage.kind==='decision').length||b.id.length-a.id.length)[0]?.id??resource.rootScope;
 }
 export default function AdapterDeploymentFlow({state,view,fitWindow,recordedStep,onClearRecordedStep}:{recordedStep?:RecordedDeploymentStep;onClearRecordedStep?():void;state:DashboardState;view:AdapterDeploymentView;fitWindow:boolean}) {
+  const theme=useLensTheme();
   const [selectedResource,setResource]=useState<string>(),[selectedScope,setScope]=useState<string>(),[fullChart,setFullChart]=useState(false),[selectedStage,setSelectedStage]=useState<AdapterDeploymentStage>();
   const focus=currentRecordedDeploymentStep(view,recordedStep);
   const resource=view.resources.find(row=>row.resourceId===(focus?.resourceId??selectedResource))??view.resources[0]!;
@@ -23,7 +26,7 @@ export default function AdapterDeploymentFlow({state,view,fitWindow,recordedStep
   const inspectedStage=resource.stages.find(stage=>stage.id===(focus?.stageId??selectedStage?.id));
   const unchanged=resource.action==='noop'&&resource.stages.filter(stage=>stage.scope===scopeId).every(stage=>stage.status==='skipped');
   const layout=useMemo(()=>adapterFlowLayout(resource,scopeId,fullChart,setSelectedStage,setScope),[resource,scopeId,fullChart]);
-  const layoutKey=JSON.stringify(layout.nodes.map(node=>[node.id,node.position]));
+  const graph=useMemo(()=>createAdapterTraceGraph(layout),[layout]);
   const existing=state.systemTopology?.nodes.filter(node=>node.origin==='existing').map(node=>node.label)??[];
   return <section className="adapter-deployment" aria-label="Recorded adapter deployment steps">
     <header className="adapter-flow-heading"><div><h2>Inside the deployment</h2><p>{resource.resourceId} · {resource.action==='noop'?'Checking existing setup':resource.action==='update'?'Updating existing setup':'Recorded resource operation'}</p></div><span className="adapter-recorded">{state.run?.status==='running'?'Live FootPrint progress':'FootPrint recording'}</span></header>
@@ -35,9 +38,11 @@ export default function AdapterDeploymentFlow({state,view,fitWindow,recordedStep
     </div>
     {unchanged&&<p className="adapter-unchanged" role="status">No provider change was needed. These steps were skipped; the parent flow records the checks.</p>}
     <div className="adapter-flow-canvas" style={fitWindow?undefined:{height:390}}>
-      <ReactFlow nodes={layout.nodes} edges={layout.edges} nodeTypes={nodeTypes} nodesDraggable={false} nodesConnectable={false} fitView fitViewOptions={{padding:.04,maxZoom:1,minZoom:.25}} minZoom={.2} maxZoom={1.7} proOptions={{hideAttribution:false}}>
-        <CanvasFit enabled layoutKey={layoutKey} padding={.04} maxZoom={1}/><Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#dce3ed"/><Controls showInteractive={false} position="bottom-left"/>
-      </ReactFlow>
+      <FootprintTheme tokens={theme.tokens}><TracedFlow graph={graph} layout="passthrough" unstyled style={{minHeight:0}} nodeTypes={nodeTypes}
+        currentSubflowId={null} breadcrumb={false} autoFit={{padding:.04,maxZoom:1}} minZoom={.2} maxZoom={1.7}
+        background={{variant:BackgroundVariant.Dots,gap:20,size:1,color:'var(--fp-border, #dce3ed)'}}>
+        <Controls showInteractive={false} position="bottom-left"/>
+      </TracedFlow></FootprintTheme>
     </div>
     {existing.length>0&&<div className="adapter-existing"><strong>Existing</strong><span title={existing.join(' · ')}>{existing.join(' · ')}</span></div>}
     <footer className="adapter-flow-footer">{(['pending','running','completed','skipped','failed'] as const).map(status=><AdapterStatus key={status} status={status}/>)}<small>Arrows follow the native chart · click a step for evidence.</small></footer>

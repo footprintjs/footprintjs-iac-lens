@@ -57,15 +57,15 @@ export function buildDeploymentFlowView(state: DashboardState, selected?: string
     const observed = edge.kind === 'observed-order';
     const scheduled = edge.kind === 'native-schedule';
     const target = nodeById.get(edge.target)!;
-    const color = target.progress.status === 'failed' ? '#be6266' : target.progress.status === 'deploying' ? '#4382d7'
-      : observed && target.progress.status === 'ready' ? '#559980' : '#a6b3c5';
+    const color = target.progress.status === 'failed' ? 'var(--fp-color-error,#be6266)' : target.progress.status === 'deploying' ? 'var(--fp-color-primary,#4382d7)'
+      : observed && target.progress.status === 'ready' ? 'var(--fp-color-success,#559980)' : 'var(--fp-text-muted,#a6b3c5)';
     return { id: edge.id, source: edge.source, target: edge.target, type: 'smoothstep',
       label: observed ? prerequisites && dependencyPairs.has(JSON.stringify([edge.source, edge.target])) ? 'then · needs' : 'then' : scheduled ? 'next' : 'needs',
       ariaLabel: `${titles.get(edge.source)} ${observed ? 'finished before' : scheduled ? 'is scheduled before' : 'is required by'} ${titles.get(edge.target)}${observed && prerequisites && dependencyPairs.has(JSON.stringify([edge.source, edge.target])) ? '; also a prerequisite' : ''}`,
       animated: target.progress.status === 'deploying',
       style: { stroke: color, strokeWidth: observed ? 2.2 : 1.5, ...(!observed ? { strokeDasharray: scheduled ? '3 4' : '7 5' } : {}) },
       markerEnd: { type: MarkerType.ArrowClosed, color, width: 15, height: 15 },
-      labelStyle: { fill: '#718198', fontSize: 11 }, labelBgStyle: { fill: '#f8fafc' }, labelBgPadding: [6, 3] as [number, number],
+      labelStyle: { fill: 'var(--fp-text-secondary,#718198)', fontSize: 11 }, labelBgStyle: { fill: 'var(--fp-bg-elevated,#f8fafc)' }, labelBgPadding: [6, 3] as [number, number],
     };
   });
   return { flow, nodes, edges };

@@ -18,16 +18,18 @@ export function TopologyWires({ connections, boxes, width, height, marker, route
     })}
   </svg>;
 }
-export function TopologyConnectionLabels({ connections, boxes, onSelect, routes }: Props & { onSelect(id: string): void }) {
+export function TopologyConnectionLabels({ connections, boxes, onSelect, routes }: Props & { onSelect?(id: string): void }) {
   const colours = connectionColours(connections);
   return <>{connections.map((edge, index) => {
     if (edge.kind !== 'communicatesWith') return null;
     const from = boxes.get(edge.from), to = boxes.get(edge.to); if (!from || !to) return null;
     const route = routes?.get(edge.id) ?? topologyConnectionPath(from, to, index % 2);
     if ('labelHidden' in route && route.labelHidden) return null;
+    const content=<>{edge.status==='connected'&&<i className="topology-edge-swatch" aria-hidden="true" style={{background:connectionColour(edge,colours)}}/>}{labels[edge.status]}</>;
+    if(!onSelect)return <span key={edge.id} className={`topology-edge-label edge-${edge.status}`} style={{left:route.x,top:route.y}} title={edge.label} aria-label={`${edge.label??edge.kind}: ${labels[edge.status]}`}>{content}</span>;
     return <button type="button" key={edge.id} className={`topology-edge-label edge-${edge.status}`} style={{ left: route.x, top: route.y }}
       onClick={() => onSelect(edge.id)} title={`${edge.label ?? `${edge.from} to ${edge.to}`}: ${labels[edge.status]}`} aria-live="polite" aria-label={`${edge.label ?? `${edge.from} to ${edge.to}`}: ${labels[edge.status]}`}>
-      {edge.status==='connected'&&<i className="topology-edge-swatch" aria-hidden="true" style={{background:connectionColour(edge,colours)}}/>}{labels[edge.status]}</button>;
+      {content}</button>;
   })}</>;
 }
 

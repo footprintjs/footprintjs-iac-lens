@@ -1,91 +1,91 @@
 .iac-lens .bg-glyph {
-  --bg-ink: #7d91aa;
-  --bg-surface: #f0f4f8;
-  --bg-lid: #f9fbfd;
-  --bg-accent: #9caec2;
-  --bg-halo: #f5f7fa;
-  --bg-base: #e8eef4;
-  display: inline-grid;
-  place-items: center;
-  width: 128px;
-  max-width: 100%;
-  aspect-ratio: 12 / 11;
-  color: var(--bg-ink);
-  flex: 0 0 auto;
+  --bg-ink:var(--fp-text-secondary, #7d91aa);
+  --bg-surface:var(--fp-text-muted, #f0f4f8);
+  --bg-lid:var(--fp-text-muted, #f9fbfd);
+  --bg-accent:var(--fp-text-muted, #9caec2);
+  --bg-halo:var(--fp-text-muted, #f5f7fa);
+  --bg-base:var(--fp-text-muted, #e8eef4);
+  display:inline-grid;
+  place-items:center;
+  width:128px;
+  max-width:100%;
+  aspect-ratio:12 / 11;
+  color:var(--bg-ink);
+  flex:0 0 auto;
 }
-.iac-lens .bg-glyph.bg-small { width: 60px; }
-.iac-lens .bg-glyph > svg { display: block; width: 100%; height: auto; overflow: visible; }
-.iac-lens .bg-glyph .bg-halo { fill: var(--bg-halo); stroke: none; }
-.iac-lens .bg-glyph .bg-ground { fill: var(--bg-base); stroke: none; opacity: .7; }
-.iac-lens .bg-glyph .bg-solid { fill: var(--bg-surface); }
-.iac-lens .bg-glyph .bg-lid { fill: var(--bg-lid); }
-.iac-lens .bg-glyph .bg-light { fill: var(--bg-accent); stroke: none; }
-.iac-lens .bg-glyph .bg-detail { opacity: .65; }
-.iac-lens .bg-glyph .bg-boundary { stroke-dasharray: 4 5; opacity: .45; }
-.iac-lens .bg-glyph .bg-shackle { stroke-width: 7; }
-.iac-lens .bg-glyph .bg-network-links { stroke-width: 2.6; }
-.iac-lens .bg-glyph .bg-code { stroke-width: 3.5; }
-.iac-lens .bg-glyph .bg-object { transition: opacity .35s ease; }
-.iac-lens .bg-glyph .bg-piece { transform-box: fill-box; transform-origin: center; }
-.iac-lens .bg-glyph.bg-pending .bg-object { opacity: .55; }
+.iac-lens .bg-glyph.bg-small { width:60px; }
+.iac-lens .bg-glyph > svg { display:block; width:100%; height:auto; overflow:visible; }
+.iac-lens .bg-glyph .bg-halo { fill:var(--bg-halo); stroke:none; }
+.iac-lens .bg-glyph .bg-ground { fill:var(--bg-base); stroke:none; opacity:.7; }
+.iac-lens .bg-glyph .bg-solid { fill:var(--bg-surface); }
+.iac-lens .bg-glyph .bg-lid { fill:var(--bg-lid); }
+.iac-lens .bg-glyph .bg-light { fill:var(--bg-accent); stroke:none; }
+.iac-lens .bg-glyph .bg-detail { opacity:.65; }
+.iac-lens .bg-glyph .bg-boundary { stroke-dasharray:4 5; opacity:.45; }
+.iac-lens .bg-glyph .bg-shackle { stroke-width:7; }
+.iac-lens .bg-glyph .bg-network-links { stroke-width:2.6; }
+.iac-lens .bg-glyph .bg-code { stroke-width:3.5; }
+.iac-lens .bg-glyph .bg-object { transition:opacity .35s ease; }
+.iac-lens .bg-glyph .bg-piece { transform-box:fill-box; transform-origin:center; }
+.iac-lens .bg-glyph.bg-pending .bg-object { opacity:.55; }
 .iac-lens .bg-glyph.bg-pending .bg-solid,
-.iac-lens .bg-glyph.bg-pending .bg-lid { fill: #fafbfd; stroke-dasharray: 5 5; }
-.iac-lens .bg-glyph.bg-pending .bg-light { opacity: .4; }
+.iac-lens .bg-glyph.bg-pending .bg-lid { fill:var(--lens-pending-bg, #fafbfd); stroke-dasharray:5 5; }
+.iac-lens .bg-glyph.bg-pending .bg-light { opacity:.4; }
 .iac-lens .bg-glyph.bg-deploying {
-  --bg-ink: #477de0;
-  --bg-surface: #e4eeff;
-  --bg-lid: #f6f9ff;
-  --bg-accent: #6798f2;
-  --bg-halo: #edf4ff;
-  --bg-base: #dce9ff;
+  --bg-ink:var(--fp-color-primary, #477de0);
+  --bg-surface:var(--fp-text-muted, #e4eeff);
+  --bg-lid:var(--fp-text-muted, #f6f9ff);
+  --bg-accent:var(--fp-color-primary, #6798f2);
+  --bg-halo:var(--fp-text-muted, #edf4ff);
+  --bg-base:var(--fp-text-muted, #dce9ff);
 }
-.iac-lens .bg-glyph.bg-deploying .bg-piece { animation: bg-assemble 2.8s ease-in-out infinite; }
-.iac-lens .bg-glyph.bg-deploying .bg-piece-1 { animation-delay: -.7s; }
-.iac-lens .bg-glyph.bg-deploying .bg-piece-2 { animation-delay: -1.4s; }
-.iac-lens .bg-glyph.bg-deploying .bg-network-links { stroke-dasharray: 5 7; animation: bg-wire 1.8s linear infinite; }
-.iac-lens .bg-glyph.bg-deploying .bg-code-cursor { animation: bg-cursor 1.1s ease-in-out infinite; }
-.iac-lens .bg-glyph .bg-scan { stroke: #9ac0ff; stroke-width: 1.7; opacity: .35; animation: bg-scan 2.8s ease-in-out infinite; }
-.iac-lens .bg-glyph.bg-deploying.bg-checking .bg-piece { animation: none; opacity: 1; }
-.iac-lens .bg-glyph.bg-deploying.bg-checking .bg-network-links { animation: none; stroke-dasharray: none; }
-.iac-lens .bg-glyph.bg-deploying.bg-checking .bg-code-cursor { animation: none; }
-.iac-lens .bg-glyph.bg-deploying.bg-checking .bg-halo { animation: bg-verify-glow 2.4s ease-in-out infinite; }
+.iac-lens .bg-glyph.bg-deploying .bg-piece { animation:bg-assemble 2.8s ease-in-out infinite; }
+.iac-lens .bg-glyph.bg-deploying .bg-piece-1 { animation-delay:-.7s; }
+.iac-lens .bg-glyph.bg-deploying .bg-piece-2 { animation-delay:-1.4s; }
+.iac-lens .bg-glyph.bg-deploying .bg-network-links { stroke-dasharray:5 7; animation:bg-wire 1.8s linear infinite; }
+.iac-lens .bg-glyph.bg-deploying .bg-code-cursor { animation:bg-cursor 1.1s ease-in-out infinite; }
+.iac-lens .bg-glyph .bg-scan { stroke:var(--fp-text-muted, #9ac0ff); stroke-width:1.7; opacity:.35; animation:bg-scan 2.8s ease-in-out infinite; }
+.iac-lens .bg-glyph.bg-deploying.bg-checking .bg-piece { animation:none; opacity:1; }
+.iac-lens .bg-glyph.bg-deploying.bg-checking .bg-network-links { animation:none; stroke-dasharray:none; }
+.iac-lens .bg-glyph.bg-deploying.bg-checking .bg-code-cursor { animation:none; }
+.iac-lens .bg-glyph.bg-deploying.bg-checking .bg-halo { animation:bg-verify-glow 2.4s ease-in-out infinite; }
 .iac-lens .bg-glyph.bg-ready {
-  --bg-ink: #258c72;
-  --bg-surface: #e4f5ed;
-  --bg-lid: #f5fcf8;
-  --bg-accent: #5fba97;
-  --bg-halo: #f1faf5;
-  --bg-base: #dfefe7;
+  --bg-ink:var(--fp-color-success, #258c72);
+  --bg-surface:var(--fp-text-muted, #e4f5ed);
+  --bg-lid:var(--fp-text-muted, #f5fcf8);
+  --bg-accent:var(--fp-color-success, #5fba97);
+  --bg-halo:var(--fp-text-muted, #f1faf5);
+  --bg-base:var(--fp-text-muted, #dfefe7);
 }
 .iac-lens .bg-glyph.bg-failed {
-  --bg-ink: #c16b68;
-  --bg-surface: #fff0ed;
-  --bg-lid: #fff9f7;
-  --bg-accent: #d98880;
-  --bg-halo: #fff5f3;
-  --bg-base: #f1e1de;
+  --bg-ink:var(--fp-color-error, #c16b68);
+  --bg-surface:var(--fp-text-muted, #fff0ed);
+  --bg-lid:var(--fp-text-muted, #fff9f7);
+  --bg-accent:var(--fp-color-error, #d98880);
+  --bg-halo:var(--fp-text-muted, #fff5f3);
+  --bg-base:var(--fp-text-muted, #f1e1de);
 }
-.iac-lens .bg-glyph .bg-verdict > circle { fill: var(--bg-ink); stroke: #fff; stroke-width: 3; }
-.iac-lens .bg-glyph .bg-verdict > path { stroke: #fff; stroke-width: 2.5; }
+.iac-lens .bg-glyph .bg-verdict > circle { fill:var(--bg-ink); stroke:var(--fp-text-muted, #fff); stroke-width:3; }
+.iac-lens .bg-glyph .bg-verdict > path { stroke:var(--fp-text-muted, #fff); stroke-width:2.5; }
 .iac-lens .bg-glyph.bg-skipped,
-.iac-lens .bg-glyph.bg-deleted { --bg-ink: #a5a3aa; --bg-accent: #bcb9c2; opacity: .55; }
+.iac-lens .bg-glyph.bg-deleted { --bg-ink:var(--fp-text-muted, #a5a3aa); --bg-accent:var(--fp-text-muted, #bcb9c2); opacity:.55; }
 .iac-lens .bg-glyph.bg-skipped .bg-solid,
-.iac-lens .bg-glyph.bg-skipped .bg-lid { stroke-dasharray: 4 5; }
-.iac-lens .bg-glyph .bg-removed { stroke: #a990a0; stroke-width: 3; }
+.iac-lens .bg-glyph.bg-skipped .bg-lid { stroke-dasharray:4 5; }
+.iac-lens .bg-glyph .bg-removed { stroke:var(--fp-text-muted, #a990a0); stroke-width:3; }
 @keyframes bg-assemble {
-  0%, 100% { transform: translateY(0); opacity: .85; }
-  50% { transform: translateY(-5px); opacity: .5; }
+  0%, 100% { transform:translateY(0); opacity:.85; }
+  50% { transform:translateY(-5px); opacity:.5; }
 }
-@keyframes bg-wire { to { stroke-dashoffset: -24; } }
-@keyframes bg-cursor { 0%, 100% { opacity: .2; } 50% { opacity: .85; } }
-@keyframes bg-verify-glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
-@keyframes bg-scan { 0%, 100% { transform: translateY(-43px); opacity: 0; } 15%, 70% { opacity: .4; } 85% { transform: translateY(43px); opacity: 0; } }
+@keyframes bg-wire { to { stroke-dashoffset:-24; } }
+@keyframes bg-cursor { 0%, 100% { opacity:.2; } 50% { opacity:.85; } }
+@keyframes bg-verify-glow { 0%, 100% { opacity:.55; } 50% { opacity:1; } }
+@keyframes bg-scan { 0%, 100% { transform:translateY(-43px); opacity:0; } 15%, 70% { opacity:.4; } 85% { transform:translateY(43px); opacity:0; } }
 @media (prefers-reduced-motion: reduce) {
-  .iac-lens .bg-glyph .bg-object { transition: none; }
+  .iac-lens .bg-glyph .bg-object { transition:none; }
   .iac-lens .bg-glyph.bg-deploying .bg-piece,
   .iac-lens .bg-glyph.bg-deploying .bg-network-links,
   .iac-lens .bg-glyph.bg-deploying .bg-code-cursor,
   .iac-lens .bg-glyph.bg-deploying.bg-checking .bg-halo,
-  .iac-lens .bg-glyph .bg-scan { animation: none; }
-  .iac-lens .bg-glyph .bg-scan { display: none; }
+  .iac-lens .bg-glyph .bg-scan { animation:none; }
+  .iac-lens .bg-glyph .bg-scan { display:none; }
 }

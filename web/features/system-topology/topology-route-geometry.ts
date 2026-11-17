@@ -2,7 +2,7 @@ import type { TopologyBox } from './topology-layout.ts';
 
 export interface TopologyPoint { x: number; y: number }
 export interface TopologyRoute {
-  path: string; x: number; y: number; points: readonly TopologyPoint[]; labelHidden?: boolean;
+  path: string; x: number; y: number; points: readonly TopologyPoint[]; labelHidden?: boolean; labelAnchor?:TopologyPoint;
 }
 export interface Rect { x: number; y: number; width: number; height: number }
 export interface Port { edge: TopologyPoint; out: TopologyPoint; penalty: number }

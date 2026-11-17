@@ -1,10 +1,10 @@
 /* Only navigation/loading chrome is eager; the agent scene and its styles are lazy. */
 .iac-lens.lens-agent-navigation .topbar-right{gap:12px}
-.iac-lens .agents-opening{display:flex;flex:1;min-height:0;align-items:center;justify-content:center;flex-direction:column;padding:24px;gap:10px;text-align:center;color:#6c7d91}
-.iac-lens .agents-opening h1{margin:4px 0;font-size:22px;color:#253d56}
+.iac-lens .agents-opening{display:flex;flex:1;min-height:0;align-items:center;justify-content:center;flex-direction:column;padding:24px;gap:10px;text-align:center;color:var(--fp-text-secondary,#526174)}
+.iac-lens .agents-opening h1{margin:4px 0;font-size:22px;color:var(--fp-text-primary,#293d52)}
 .iac-lens .agents-opening p{margin:0;font-size:12px;line-height:1.6}
 .iac-lens .agents-opening>div{display:flex;gap:9px;margin-top:9px}
-.iac-lens .agents-transport-error{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;padding:8px 24px;background:#fff4f2;color:#9b5550;font-size:11px}
+.iac-lens .agents-transport-error{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;padding:8px 24px;background:var(--lens-error-bg,color-mix(in srgb, var(--fp-color-error,#b34a59) 8%, var(--fp-bg-elevated,#fff)));color:var(--fp-color-error,#b34a59);font-size:11px}
 .iac-lens .agents-transport-error button{display:grid;place-items:center;border:0;background:transparent;color:inherit;padding:3px}
 @media(max-width:950px){.iac-lens.lens-agent-navigation .topbar{padding-left:12px;padding-right:12px}.iac-lens.lens-agent-navigation .brand>span:last-child{font-size:0}.iac-lens.lens-agent-navigation .brand-divider{display:none}.iac-lens.lens-agent-navigation .brand strong{font-size:14px}.iac-lens.lens-agent-navigation .display-modes button{padding-left:10px;padding-right:10px}.iac-lens.lens-agent-navigation .topbar-right{gap:8px}}
 @media(max-width:650px){.iac-lens.lens-agent-navigation .topbar{height:78px;min-height:78px;gap:8px;align-items:center}.iac-lens.lens-agent-navigation .brand strong{display:none}.iac-lens.lens-agent-navigation .brand{gap:0}.iac-lens.lens-agent-navigation .topbar-right{flex-wrap:wrap;justify-content:flex-end;gap:5px}.iac-lens.lens-agent-navigation .display-modes button{font-size:11px;padding:5px 8px}.iac-lens.lens-agent-navigation .connection-pill{padding:5px 7px}.iac-lens .agents-opening>div{flex-direction:column}}

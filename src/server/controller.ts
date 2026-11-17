@@ -49,6 +49,8 @@ import type { OnboardingVersionAction } from '../core/onboarding-versions.ts';
 import type { OnboardingHost } from './onboarding-host.ts';
 import { OnboardingSession, OnboardingRequestError } from './onboarding.ts';
 import { readOnboardingPublicationState } from './onboarding-publication.ts';
+import {FileRunRepository} from './run-repository.ts';
+import {readRunCatalog,readRunRecord,type RunRepository,type RunCatalog,type RunRecord} from '../core/run-history.ts';
 
 const verificationAttention = 'The version was applied. Connection or access checks need attention; recorded results are available.';
 
@@ -57,6 +59,8 @@ export interface InitialReview {
   graph: InfraGraph; run: DashboardRun; target?: DashboardState['target']; neoUrl?: string;
 }
 export interface ControllerOptions {
+  /** Optional registered read-only history adapter. The default archives this viewer's native publications. */
+  runRepository?:RunRepository;
   onboarding?: OnboardingHost;
   applicationHost?: ApplicationHost;
   agentPlatform?: AgentPlatformHostProvider;
@@ -102,6 +106,7 @@ export class DashboardController {
   private agentReview?: AgentPlatformReview;
   private agentActivation?: Promise<void>;
   private agentBusy = false;
+  private ownedRunRepository?:FileRunRepository;
 
   constructor(options: ControllerOptions) {
     if (options.onboarding && (options.applicationHost || options.releaseAutomation || options.migration || options.pipeline || options.delivery || options.resourceFlow || options.revisionWorkflow || options.managedReview || options.neo || options.initialScenario || options.initialReview || options.identityReview || options.connectionReview)) throw Error('Choose one registered onboarding deployment owner');
@@ -265,6 +270,7 @@ export class DashboardController {
     }
     this.diagnosticHistory = new RecordedDiagnosticHistory(this.options.directory, () => this.publish());
     await this.diagnosticHistory.initialize(this.state);
+    if(!this.options.runRepository){this.ownedRunRepository=new FileRunRepository(this.options.directory);await this.ownedRunRepository.initialize(this.state);}
     this.publish();
   }
   getSnapshot(): DashboardState {
@@ -274,10 +280,18 @@ export class DashboardController {
     return state;
   }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
+  async listRuns():Promise<RunCatalog>{try{return readRunCatalog(await (this.options.runRepository??this.ownedRunRepository)!.list());}catch{throw new RequestError(503,'Run history could not be opened. Its original recordings are retained.');}}
+  async readRun(id:string):Promise<RunRecord|undefined>{
+    if(!/^[a-f0-9]{64}$/.test(id))return;
+    try{const value=await (this.options.runRepository??this.ownedRunRepository)!.read(id);if(!value)return;
+      const record=readRunRecord(value);if(record.summary.id!==id)throw Error('Run identity differs');return record;
+    }catch{throw new RequestError(409,'The saved run could not be opened. Its original recording is retained.');}
+  }
   async whenIdle(): Promise<void> {
     await Promise.all([this.completion, this.profileCompletion, this.onboardingSession?.whenIdle(), this.applicationReview?.whenIdle(), this.hostActionReview?.whenIdle(), this.deliveryReview?.whenIdle(), this.pipelineReview?.whenIdle(),this.migrationReview?.whenIdle(),this.releaseAutomationReview?.whenIdle(), this.agentActivation]);
     await this.agentReview?.whenIdle();
     await this.diagnosticHistory?.whenIdle();
+    await this.ownedRunRepository?.whenIdle();
   }
   dispose(): void { this.onboardingSession?.dispose(); this.agentReview?.dispose(); this.resourceFlowReview?.dispose(); this.deliveryReview?.dispose(); this.pipelineReview?.dispose();this.migrationReview?.dispose();this.releaseAutomationReview?.dispose(); }
   onboardingAction(input: OnboardingAction): void {
@@ -583,6 +597,7 @@ export class DashboardController {
         id: 'recorded-diagnostics', path: 'diagnostics/history.json', mediaType: 'application/json', content: JSON.stringify(history, null, 2) + '\n',
       }];
     }
+    this.ownedRunRepository?.observe(this.state);
     this.state.revision++;
     for (const listener of this.listeners) { try { listener(); } catch { /* A disconnected viewer cannot change a deployment. */ } }
   }

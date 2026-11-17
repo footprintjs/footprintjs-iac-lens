@@ -1,7 +1,7 @@
 # Reviewed core candidate
 
-The active core is `footprintjs-iac-0.5.0-alpha.2-native-23b43c4bcd03.tgz`.
-SHA-256: `23b43c4bcd03e07cdf4cdcd32cdc09b1ff5911344202d80219bb82bf8258d9e7`.
+The active core is `footprintjs-iac-0.5.0-alpha.2-system-fbe88aa7ede8.tgz`.
+SHA-256: `fbe88aa7ede852007d8156e83a620b652358c0a152a76b4617a91e882e284ef6`.
 
 It includes the stable-owner version registry with recorded configuration reviews,
 explicit activation and retained histories, plus the reusable onboarding preset,

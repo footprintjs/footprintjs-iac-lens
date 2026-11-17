@@ -4,7 +4,8 @@ import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build, type Metafile } from 'esbuild';
 import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToPipeableStream, renderToStaticMarkup } from 'react-dom/server';
+import { Writable } from 'node:stream';
 import test from 'node:test';
 import type { DashboardState } from '../src/core/types.ts';
 
@@ -55,7 +56,7 @@ test('the public Agents entry is independent of the dashboard shell and browser 
   assert.match(stylesheet, /\.agents-workspace/);
 });
 
-test('an available catalog adds navigation without opening or rendering agents on the initial infrastructure view', async () => {
+test('an available catalog adds agent navigation to the lazy run landing without opening the agent workspace', async () => {
   const result = await build({ stdin: { contents: "export { IacLens } from './web/App.tsx'; export { setDashboard } from './web/lib/use-dashboard.ts';", loader: 'ts', resolveDir: root },
     bundle: true, write: false, platform: 'node', format: 'esm', packages: 'external', jsx: 'automatic', loader: { '.css': 'empty' }, logLevel: 'silent',
     plugins: [{ name: 'admitted-shell-state', setup(builder) {
@@ -73,14 +74,27 @@ test('an available catalog adds navigation without opening or rendering agents o
       return renderToStaticMarkup(createElement(IacLens));
     };
     const base = render(state);
+    assert.match(base, /Opening runs/);
     assert.doesNotMatch(base, /aria-label="Workspace"|>Agents<|Agents workspace/);
-    const available = render({ ...state, agentPlatformAvailable: true, agentPlatform: {
+    // Resolve the lazy landing before checking its navigation. Availability must
+    // add an entry, without selecting or opening that optional feature.
+    setDashboard({ state: { ...state, agentPlatformAvailable: true, agentPlatform: {
       version: 1, id: 'admitted', label: 'Private admitted agent catalog', busy: false, agents: [], limitations: [],
-    } });
-    assert.match(available, /aria-label="Workspace"/);
-    assert.match(available, /aria-pressed="true"[^>]*>Infrastructure/);
-    assert.match(available, /aria-pressed="false"[^>]*>Agents/);
-    assert.doesNotMatch(available, /Private admitted agent catalog|Agents workspace|Reading agent records/);
+    } }, connected: true, posting: false, agentPlatform: () => { opened++; } });
+    const available = await new Promise<string>((resolveMarkup, reject) => {
+      let markup = '';
+      const stream = renderToPipeableStream(createElement(IacLens), {
+        onAllReady() { stream.pipe(new Writable({
+          write(chunk, _encoding, next) { markup += chunk.toString(); next(); },
+          final(done) { resolveMarkup(markup); done(); },
+        })); },
+        onError: reject,
+      });
+    });
+    assert.match(available, /aria-label="Lens navigation"/);
+    assert.match(available, /aria-current="page"[^>]*>.*?<span>Runs<\/span>/);
+    assert.match(available, /<span>Agents<\/span>/);
+    assert.doesNotMatch(available, /aria-label="Workspace"|>Infrastructure<|Private admitted agent catalog|Agents workspace|Reading agent records/);
     assert.equal(opened, 0);
   } finally { await rm(folder, { recursive: true, force: true }); }
 });

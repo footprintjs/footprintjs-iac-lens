@@ -29,7 +29,8 @@ function topology(): SystemTopologyView {
 const render = (view = topology(), simple = false) => renderToStaticMarkup(createElement(components.Graph, { view, simple }));
 
 test('system graph exposes host, runtime, categories, origin and declared products in readable HTML cards', () => {
-  const html = render(); assert.match(html, /data-boundary-id="host"/); assert.match(html, /data-boundary-id="runtime" data-parent-id="host"/);
+  const html = render(); assert.match(html, /data-system-renderer="explainable-ui"/); assert.match(html, /data-fp="traced-flow"/); assert.match(html, /data-unstyled="true"/); assert.doesNotMatch(html, /<svg class="topology-wires"/);
+  assert.match(html, /data-boundary-id="host"/); assert.match(html, /data-boundary-id="runtime" data-parent-id="host"/);
   assert.match(html, /Office server/); assert.match(html, /systemd/); assert.match(html, /Node.js/); assert.match(html, /SQLite/); assert.match(html, /Storage/); assert.match(html, /Identity &amp; access/);
   for (const origin of ['Existing', 'Installed by deployment', 'Embedded in app']) assert(html.includes(origin));
   assert.doesNotMatch(html, /foreignObject/); assert.match(html, /width:184px;height:104px/); assert.match(html, /arrows show communication, not deployment order/);
@@ -40,15 +41,29 @@ test('simple and system design retain the same component IDs, connections and tr
   for (const html of [simple, detailed]) { assert.match(html, /data-component-id="api"/); assert.match(html, /Sign-in service: Checking/); assert.match(html, /shared operation/); assert.match(html, /Unconfirmed/); }
   assert.match(simple, /What runs where, and what is connected/);
 });
+test('isometric uses the actual shared renderer with projected physical floors and readable untransformed component cards',()=>{
+ const view=topology(),before=structuredClone(view);
+ const html=renderToStaticMarkup(createElement(components.Graph,{view,renderer:'isometric',simple:true}));
+ assert.match(html,/data-fp-renderer="isometric"/);assert.match(html,/data-system-perspective="isometric"/);
+ assert.equal((html.match(/data-physical-floor="boundary"/g)??[]).length,view.boundaries.length);
+ assert.equal((html.match(/data-physical-floor="component"/g)??[]).length,view.nodes.length);
+ for(const node of view.nodes)assert(html.includes(`data-component-id="${node.id}"`));
+ for(const text of ['Existing','Embedded in app','Installed by deployment','Starting','Unconfirmed','Connected','Node.js','SQLite'])assert(html.includes(text),text);
+ assert.match(html,/<title>Sign-in service: Checking<\/title>/);
+ assert.doesNotMatch(html,/rotateX\(|rotateY\(|skew\(/,'isometric geometry must not tilt readable text or misalign the edge canvas');
+ assert.deepEqual(view,before);
+ assert.match(render(),/data-fp-renderer="flat"/,'existing standalone consumers keep their flat default');
+});
 test('connection failures and recovery use only supplied check states', () => {
-  const view = topology(); (view.connections[0] as {status: string}).status = 'failed'; assert.match(render(view), /class="topology-edge-label edge-failed"[^>]*>Failed/);
-  (view.connections[0] as {status: string}).status = 'connected'; assert.match(render(view), /class="topology-edge-label edge-connected"[^>]*aria-label="Sign-in service: Connected"/);
-  (view.connections[0] as {status: string}).status = 'untested'; const html = render(view); assert.match(html, /class="topology-edge-label edge-untested"[^>]*>Not checked/); assert.doesNotMatch(html, /class="topology-edge-label edge-connected"/);
+  // EUI renders accessible SVG titles in SSR; its edge-label portal mounts in the browser.
+  const view = topology(); (view.connections[0] as {status: string}).status = 'failed'; assert.match(render(view), /<title>Sign-in service: Failed<\/title>/);
+  (view.connections[0] as {status: string}).status = 'connected'; assert.match(render(view), /<title>Sign-in service: Connected<\/title>/);
+  (view.connections[0] as {status: string}).status = 'untested'; const html = render(view); assert.match(html, /<title>Sign-in service: Not checked<\/title>/); assert.doesNotMatch(html, /<title>Sign-in service: Connected<\/title>/);
 });
 test('live arrows use explicit-size status-coloured heads and a separate crossing halo', () => {
   const html = render();
   assert.match(html, /markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8"/);
-  assert.match(html, /fill="#b67a18"/);
+  assert.match(html, /fill="var\(--fp-color-warning, #b67a18\)"/);
   assert.match(html, /class="topology-wire-halo"/);
   assert.match(html, /class="topology-wire-line"[^>]+marker-end="url\(#[^)]+-checking\)"/);
   assert.doesNotMatch(html, /context-stroke/);
@@ -65,7 +80,7 @@ test('unknown technology remains local generic glyph plus declared label, never 
 test('the optional topology UI is a separate browser chunk with no architecture renderer in the entry', async () => {
   const result = await build({ absWorkingDir: root, entryPoints: ['web/features/system-topology/SystemTopologySlot.tsx'], outdir: '/not-written', bundle: true, write: false, splitting: true, platform: 'browser', format: 'esm', packages: 'external', jsx: 'automatic', logLevel: 'silent' });
   const entry = result.outputFiles.find(file => file.path.endsWith('/SystemTopologySlot.js'))!.text;
-  assert.match(entry, /import\(/); assert.doesNotMatch(entry, /topology-node-category|Placement declared/);
+  assert.match(entry, /import\(/); assert.doesNotMatch(entry, /topology-node-category|Placement declared|footprint-explainable-ui/);
   assert(result.outputFiles.some(file => file.path.includes('/SystemTopologyGraph-') && file.text.includes('topology-node-category')));
 });
 

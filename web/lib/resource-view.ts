@@ -33,6 +33,11 @@ function resourceHandles(node: ResourceNodeView, edges: ResourceEdgeView[], mode
 
 export function buildResourceView(state: DashboardState, selected?: string, mode?: ResourceLayoutMode): { nodes: ResourceFlowNode[]; edges: ResourceFlowEdge[] } {
   const view = layoutResources(state, mode);
+  const paint = (edge: ResourceEdgeView) => {
+    const status = edge.connectionStatus ?? view.nodes.find(node => node.id === edge.target)?.progress.status;
+    return status === 'failed' ? 'var(--fp-color-error,#c74b4b)' : status === 'ready' || status === 'connected' ? 'var(--fp-color-success,#31866a)'
+      : status === 'deploying' || status === 'checking' ? 'var(--fp-color-primary,#3478db)' : 'var(--fp-text-muted,#8e9eb3)';
+  };
   return {
     nodes: view.nodes.map(node => ({ id: node.id, type: 'resource', position: node.position, selected: selected === node.id,
       data: { resource: node.resource, description: node.description, progress: node.progress, size: node.size,
@@ -45,7 +50,7 @@ export function buildResourceView(state: DashboardState, selected?: string, mode
     edges: view.edges.map(edge => ({ id: edge.id, source: edge.source, target: edge.target, type: 'resource',
       sourceHandle: edge.route.sourceHandle, targetHandle: edge.route.targetHandle, data: { kind: edge.kind, route: edge.route, label: edge.label, connectionStatus: edge.connectionStatus },
       ariaLabel: `${edge.source} ${edge.kind === 'order' ? 'must precede' : 'communicates with'} ${edge.target}${edge.connectionStatus ? `, ${edge.connectionStatus}` : ''}`,
-      animated: edge.active, style: { stroke: edge.color, strokeWidth: edge.kind === 'order' ? 1.7 : 1.1, ...(edge.kind === 'communication' ? { strokeDasharray: '4 5' } : {}) },
-      markerEnd: { type: MarkerType.ArrowClosed, color: edge.color, width: 17, height: 17 } })),
+      animated: edge.active, style: { stroke: paint(edge), strokeWidth: edge.kind === 'order' ? 1.7 : 1.1, ...(edge.kind === 'communication' ? { strokeDasharray: '4 5' } : {}) },
+      markerEnd: { type: MarkerType.ArrowClosed, color: paint(edge), width: 17, height: 17 } })),
   };
 }

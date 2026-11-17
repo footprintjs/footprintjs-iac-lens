@@ -1,9 +1,10 @@
 import { Component, useMemo, type ComponentProps, type ReactNode } from 'react';
-import { ExplainableShell, ExplainableView, graphFromStructure } from 'footprint-explainable-ui';
+import { ExplainableShell, ExplainableView, FootprintTheme, graphFromStructure } from 'footprint-explainable-ui';
 import type { Recording } from '../../src/core/types.ts';
 import { Icon } from './Icon.tsx';
 import { RecordedDependencyInspector } from './RecordedDependencyPanel.tsx';
 import { prepareEvidenceSnapshot } from '../lib/evidence-snapshot.ts';
+import {useLensTheme} from '../theme/LensThemeContext.tsx';
 
 class EvidenceBoundary extends Component<{ children: ReactNode }, { error?: string }> {
   state: { error?: string } = {};
@@ -14,6 +15,7 @@ class EvidenceBoundary extends Component<{ children: ReactNode }, { error?: stri
 }
 
 export default function EvidenceView({ recording, running, title = 'Deployment execution' }: { recording?: Recording; running: boolean; title?: string }) {
+  const theme=useLensTheme();
   const prepared = useMemo(() => {
     try { return { graph: recording?.structure ? graphFromStructure(recording.structure) : undefined,
       view: recording?.snapshot ? prepareEvidenceSnapshot(recording.snapshot) : undefined }; }
@@ -28,17 +30,17 @@ export default function EvidenceView({ recording, running, title = 'Deployment e
   return <div className="evidence-view" data-evidence-mode={limited ? 'state-timeline' : 'full'}><div className="evidence-notice"><Icon name="evidence" size={16}/><span>{limited
     ? 'This recording includes additional read/write provenance. The updated dependency reader is available below; the native timeline, values and original recording are retained.'
     : 'Native recorded execution · move the cursor to inspect captured state. Recorded dependencies describe this run; external gaps remain unknown.'}</span></div>
-    <EvidenceBoundary key={String((recording.snapshot as { runId?: unknown }).runId ?? 'recording')}>
+    <FootprintTheme tokens={theme.tokens}><EvidenceBoundary key={String((recording.snapshot as { runId?: unknown }).runId ?? 'recording')}>
       {limited ? <ExplainableView recording={{ snapshot: snapshot as unknown as NonNullable<ShellProps['runtimeSnapshot']>, structure: recording.structure,
         narrativeEntries: recording.narrativeEntries as ShellProps['narrativeEntries'] }} layout="developer" minHeight={500}
-        theme={{ mode: 'light' }}/>
+        theme={{ tokens: theme.tokens }}/>
       : <ExplainableShell runtimeSnapshot={snapshot as unknown as ShellProps['runtimeSnapshot']} traceGraph={graph}
         showStageId
         narrativeEntries={recording.narrativeEntries as ShellProps['narrativeEntries']} title={title}
-        traceTheme={{ mode: 'light', visited: '#317b68', current: '#3478db' }}
+        traceTheme={{ visited: theme.tokens.colors?.nodeVisited, current: theme.tokens.colors?.nodeCursor }}
         panelLabels={{ topology: 'Execution structure', details: 'Recorded evidence', timeline: 'Stage timeline' }}
         defaultExpanded={{ details: true, topology: false, timeline: false }}/>}
-    </EvidenceBoundary>
+    </EvidenceBoundary></FootprintTheme>
     {limited && <RecordedDependencyInspector recording={{ ...recording, snapshot }}/>}
   </div>;
 }
