@@ -8,3 +8,4 @@ dist/
 *.key
 .DS_Store
 *.tgz
+!vendor/footprintjs-iac-0.5.0-alpha.5-connection.0.tgz

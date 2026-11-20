@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { RevisionReviewView } from '../../src/core/revision-review.ts';
+import type { RevisionCause, RevisionReviewView } from '../../src/core/revision-review.ts';
 import { DetailsPanel } from './DetailsPanel.tsx';
 import { Icon } from './Icon.tsx';
 import './change-review.css';
@@ -13,6 +13,24 @@ function summary(view: RevisionReviewView): string {
     view.unchanged.length ? `${view.unchanged.length} unchanged` : ''].filter(Boolean).join(' · ');
 }
 function json(value: unknown): string { return value === undefined ? '(not present)' : JSON.stringify(value, null, 2); }
+
+function ChangeCauses({ causes }: { causes: readonly RevisionCause[] }) {
+  const groups = new Map<string, { cause: RevisionCause; paths: Set<string> }>();
+  for (const cause of causes) {
+    const key = JSON.stringify([cause.capabilityPath, cause.property, cause.ruleId, cause.adapterId, cause.reason]);
+    const group = groups.get(key) ?? { cause, paths: new Set<string>() };
+    group.paths.add(cause.path);
+    groups.set(key, group);
+  }
+  return <div aria-label="Why this change"><h3>Why this change?</h3>
+    {[...groups].map(([key, { cause, paths }]) => <div key={key}>
+      <p>{cause.reason ?? 'The adapter mapped this declaration to the changed fields.'}</p>
+      <small><code>{cause.capabilityPath}.{cause.property}</code><br/>
+        Rule <code>{cause.ruleId}</code> · Adapter <code>{cause.adapterId}</code></small>
+      <ul>{[...paths].map(path => <li key={path}><code>{path}</code></li>)}</ul>
+    </div>)}
+  </div>;
+}
 
 /** Small version bar in Simple; exact resource and JSON differences stay behind Details. */
 export function ChangeReview({ view, disabled, readOnly = false, onReview, onApply }: {
@@ -54,6 +72,7 @@ export function RevisionDetails({ view, readOnly }: { view: RevisionReviewView; 
         {view.state.error && <p className="revision-details-error" role="status">{view.state.error}</p>}
         {view.resources.length === 0 ? <p>{readOnly ? 'No resource diff is attached to this recorded version.' : 'Review changes to load the current deployment plan.'}</p> : <div className="revision-resource-list">{view.resources.map(row => <article key={row.resourceId} className={`revision-resource revision-action-${row.action}`}>
           <header><strong>{row.title}</strong><span>{row.label}</span><code>{row.resourceId}</code></header>
+          {!!row.causes?.length && <ChangeCauses causes={row.causes}/>}
           {row.changes?.length ? <div className="revision-field-list">{row.changes.map((field, index) => <div key={`${field.path}:${index}`} className="revision-field">
             <code className="revision-field-path">{field.path}</code><div><section><span>Before</span><pre>{json(field.before)}</pre></section><section><span>After</span><pre>{json(field.after)}</pre></section></div>
           </div>)}</div> : row.action !== 'noop' && <p>{row.change === 'drift' ? 'The live resource differs from the desired definition.' : row.action === 'verify' ? 'Readiness will be verified without a planned configuration change.' : 'The host has not supplied field-level differences.'}</p>}

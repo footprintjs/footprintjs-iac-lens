@@ -1,0 +1,8 @@
+/* A symbol is presentation; recorded labels, origins and progress keep their own rows. */
+.iac-lens .topology-symbol-card .topology-node-summary{position:relative;min-height:70px;gap:1px}
+.iac-lens .topology-symbol-art{position:absolute;left:0;top:22px;width:52px;height:44px;overflow:visible;pointer-events:none}
+.iac-lens .topology-symbol-card .topology-node-summary>strong{box-sizing:border-box;padding-left:64px;width:100%;max-width:100%}
+.iac-lens .topology-symbol-card .topology-node-context{box-sizing:border-box;padding-left:64px;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:2px;min-height:30px}
+.iac-lens .topology-symbol-card .topology-node-context>.topology-node-status{max-width:100%;font-size:8px}
+.iac-lens .topology-symbol-card .topology-node-context>.topology-technology{max-width:100%}
+.iac-lens .topology-boundary-symbol{width:26px;height:26px;flex:0 0 26px;pointer-events:none}

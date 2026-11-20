@@ -1,15 +1,19 @@
 import {Position,type NodeHandle} from '@xyflow/react';
 import type {TraceGraph} from 'footprint-explainable-ui/flowchart';
 import type {SystemTopologyView,TopologyBoundaryView,TopologyNodeView} from 'footprintjs-iac/system-topology';
+import type {DiagramSymbolDefinition} from '../../../src/core/system-symbols.ts';
 import {createSystemGraphPlacement,type SystemGraphData,type SystemGraphNode,type SystemGraphPlacement} from './create-system-graph.ts';
-import type {TopologyBox} from './topology-layout.ts';
+import {componentArtworkSize,type TopologyBox,type TopologyGeometryProfile} from './topology-layout.ts';
 import type {TopologyPoint,TopologyRoute} from './topology-routing.ts';
 import {placeIsometricLabel} from './place-isometric-label.ts';
+import {routeIsometricObjectConnections,type IsometricArtworkPort} from './isometric-object-routing.ts';
+import {createIsometricLabelClearance} from './isometric-label-clearance.ts';
 
 const SCALE=1.35,COS_30=Math.sqrt(3)/2;
 interface Rectangle {x:number;y:number;width:number;height:number}
-interface PhysicalObject {box:TopologyBox;floor:TopologyPoint[];card?:TopologyBox;header?:{x:number;y:number;width:number}}
+interface PhysicalObject {box:TopologyBox;floor:TopologyPoint[];card?:TopologyBox;anchor?:TopologyPoint;header?:{x:number;y:number;width:number;height:number}}
 const corners=(box:Rectangle)=>[{x:box.x,y:box.y},{x:box.x+box.width,y:box.y},{x:box.x+box.width,y:box.y+box.height},{x:box.x,y:box.y+box.height}];
+const center=(box:Rectangle)=>({x:box.x+box.width/2,y:box.y+box.height/2});
 const bounds=(points:readonly TopologyPoint[])=>{
   const x=Math.min(...points.map(point=>point.x)),y=Math.min(...points.map(point=>point.y));
   return{x,y,width:Math.max(...points.map(point=>point.x))-x,height:Math.max(...points.map(point=>point.y))-y};
@@ -20,20 +24,52 @@ export function projectSystemFloor(point:TopologyPoint):TopologyPoint {
 }
 export const isometricSystemPath=(points:readonly TopologyPoint[])=>points.map((point,index)=>`${index?'L':'M'} ${point.x} ${point.y}`).join(' ');
 
-/** Upright cards sit on projected physical footprints. Text and status evidence are never tilted. */
-export function createIsometricSystemPlacement(view:SystemTopologyView):SystemGraphPlacement&{objects:ReadonlyMap<string,PhysicalObject>} {
-  const authored=createSystemGraphPlacement(view),objects=new Map<string,PhysicalObject>();
+/** Match DiagramSymbol's xMidYMid meet transform in the upright artwork viewport. */
+function artworkPorts(ground:TopologyPoint,height:number,symbol?:DiagramSymbolDefinition):IsometricArtworkPort[]|undefined {
+  if(symbol?.presentation!=='object'||!symbol.ports)return;
+  const {width:sourceWidth,height:sourceHeight}=symbol.viewBox;
+  const scale=Math.min(componentArtworkSize.width/sourceWidth,height/sourceHeight);
+  return symbol.ports.map(port=>({
+    side:port.side,
+    point:{
+      x:ground.x+(port.x-sourceWidth/2)*scale,
+      y:ground.y-height/2+(port.y-sourceHeight/2)*scale,
+    },
+  }));
+}
+
+/** A single upright drawing needs a small base. The full layout still reserves its caption and wire space. */
+function compactFloor(component:TopologyBox):Rectangle {
+  const anchor=center(component);
+  const size=Math.min(component.width,component.height)-24;
+  return {x:anchor.x-size/2+12,y:anchor.y-size/2+12,width:size,height:size};
+}
+
+/** Upright drawings or cards sit on physical footprints. Text and status evidence are never tilted. */
+export function createIsometricSystemPlacement(view:SystemTopologyView,profile?:TopologyGeometryProfile,symbols?:ReadonlyMap<string,DiagramSymbolDefinition>):SystemGraphPlacement&{objects:ReadonlyMap<string,PhysicalObject>} {
+  const authored=createSystemGraphPlacement(view,profile),objects=new Map<string,PhysicalObject>();
   for(const source of authored.boxes.values()){
-    const floor=corners(source).map(projectSystemFloor);
     if(source.kind==='boundary'){
-      const header={x:floor[0]!.x+8,y:floor[0]!.y-31,width:260};
-      const box={...source,...bounds([...floor.map(point=>({...point,y:point.y+9})),...floor,...corners({...header,height:36})])};
+      const nodes=view.nodes.filter(node=>node.boundaryId===source.id);
+      const singleton=nodes.length===1&&!view.boundaries.some(boundary=>boundary.parentId===source.id)
+        ?authored.boxes.get(nodes[0]!.id):undefined;
+      const anchorHeight=profile?.nodeAnchorHeight;
+      const compact=singleton&&typeof anchorHeight==='number'&&anchorHeight>=32&&anchorHeight<=singleton.height
+        &&(!symbols||symbols.get(`component:${singleton.id}`)?.presentation==='object');
+      const floor=corners(compact?compactFloor(singleton):source).map(projectSystemFloor);
+      const width=profile?.boundaryHeaderWidth,height=profile?.boundaryHeaderHeight;
+      const headerHeight=typeof height==='number'&&Number.isFinite(height)&&height>=32&&height<=512?height:36;
+      const headerBase=compact?Math.min(floor[0]!.y,projectSystemFloor(center(singleton)).y-anchorHeight-8):floor[0]!.y;
+      const header={x:floor[0]!.x+8,y:headerBase-(height===undefined?31:headerHeight),width:typeof width==='number'&&Number.isFinite(width)&&width>=32&&width<=512?width:260,height:headerHeight};
+      const box={...source,...bounds([...floor.map(point=>({...point,y:point.y+9})),...floor,...corners(header)])};
       objects.set(source.id,{box,floor,header});
     }else{
-      const center=projectSystemFloor({x:source.x+source.width/2,y:source.y+source.height/2});
-      const card={...source,x:center.x-source.width/2,y:center.y-source.height-10};
+      const floor=corners(source).map(projectSystemFloor);
+      const ground=projectSystemFloor(center(source));
+      const height=profile?.nodeAnchorHeight,anchor=typeof height==='number'&&Number.isFinite(height)&&height>=32&&height<=source.height?height:undefined;
+      const card={...source,x:ground.x-source.width/2,y:ground.y-(anchor??source.height+10)};
       const box={...source,...bounds([...floor,...floor.map(point=>({...point,y:point.y+7})),...corners(card)])};
-      objects.set(source.id,{box,floor,card});
+      objects.set(source.id,{box,floor,card,...anchor===undefined?{}:{anchor:ground}});
     }
   }
   const parent=(id:string)=>view.boundaries.find(row=>row.id===id)?.parentId??view.nodes.find(row=>row.id===id)?.boundaryId;
@@ -45,10 +81,28 @@ export function createIsometricSystemPlacement(view:SystemTopologyView):SystemGr
   }
   const boxes=new Map([...objects].map(([id,object])=>[id,object.box]));
   const routes=new Map<string,TopologyRoute>();
-  const obstacles=[...objects.values()].flatMap(object=>object.card?[object.card]:object.header?[{...object.header,height:36}]:[]);
-  for(const [id,route]of authored.routes){
-    const points=route.points.map(projectSystemFloor),label=projectSystemFloor(route);
-    routes.set(id,placeIsometricLabel({...route,...label,points,path:route.path?isometricSystemPath(points):''},obstacles,[...routes.values()]));
+  const objectMode=[...objects.values()].some(object=>object.anchor!==undefined);
+  const objectRoutes=objectMode?routeIsometricObjectConnections(
+    view.connections,
+    [...objects.values()].flatMap(({box,card,anchor})=>card&&anchor?[{
+      id:box.id,body:card,ground:anchor,
+      ports:artworkPorts(anchor,anchor.y-card.y,symbols?.get(`component:${box.id}`)),
+    }]:[]),
+    [...objects.values()].flatMap(object=>object.header?[object.header]:[]),
+  ):undefined;
+  const obstacles=[...objects.values()].flatMap(object=>object.card?[object.card]:object.header?[object.header]:[]);
+  const symbolLayout=(profile?.nodeWidth??184)>184||(profile?.nodeHeight??104)>104||(profile?.boundaryHeaderWidth??260)>260;
+  const labelled=new Set(view.connections.filter(edge=>edge.kind==='communicatesWith').map(edge=>edge.id));
+  for(const [id,route]of objectRoutes??authored.routes){
+    const points=objectMode?route.points:route.points.map(projectSystemFloor),label=objectMode?route:projectSystemFloor(route);
+    // Symbol cards have a larger upright footprint. A hidden flat badge can
+    // still fit beside its projected wire, with a leader to its actual anchor.
+    const projected={...route,...label,points,path:route.path?isometricSystemPath(points):'',
+      ...objectMode&&!labelled.has(id)?{labelHidden:true}:{},
+      ...symbolLayout&&labelled.has(id)?{labelHidden:false}:{}};
+    const placed=[...routes.values()];
+    const clearance=objectRoutes?createIsometricLabelClearance(id,objectRoutes,obstacles,placed):undefined;
+    routes.set(id,placeIsometricLabel(projected,obstacles,placed,symbolLayout,clearance));
   }
   const extent=bounds([...boxes.values()].flatMap(corners));
   return{boxes,routes,objects,geometry:{width:extent.width,height:extent.height,boxes:[...boxes.values()]}};

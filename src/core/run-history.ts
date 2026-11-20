@@ -1,5 +1,6 @@
 import type { DashboardState, Recording } from './types.ts';
 import type {AdapterDeploymentView} from './adapter-deployment.ts';
+import type {LensDeploymentChart} from './deployment-chart-reader.ts';
 
 export type RunKind = 'deployment' | 'workflow' | 'checks' | 'agent';
 export type RunStatus = 'running' | 'ready' | 'failed' | 'incomplete';
@@ -15,7 +16,8 @@ export interface RunFrame {
  deployment?:AdapterDeploymentView;
 }
 export type RecordedRunFrame = RunFrame;
-export interface RunRecord { version: 1; summary: RunSummary; frames: RunFrame[]; omittedFrames: number; limitations: string[]; recording?: Recording }
+export interface RunRecord { version: 1; summary: RunSummary; frames: RunFrame[]; omittedFrames: number; limitations: string[]; recording?: Recording;
+  deploymentSchedule?: { firstSequence: number; chart: LensDeploymentChart } }
 export interface RunCatalog { version: 1; runs: RunSummary[]; omitted: number; limitations: string[] }
 export type RunHistoryIndex = RunCatalog;
 /** A registered observation-only source; replay never receives a deployment port. */

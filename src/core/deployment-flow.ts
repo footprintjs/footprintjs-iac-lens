@@ -4,6 +4,7 @@ import { describeResource, resourceProgress, type ResourceDescription } from './
 import type { DashboardState, ProgressEvent, ResourceProgress } from './types.ts';
 import { projectNativeDeploymentChart, projectDeploymentSchedulePreview } from './native-deployment-chart.ts';
 import { resourceFlowWorkspace, type ResourceFlowWorkspaceState } from './resource-flow-workspace.ts';
+import type { DeploymentScheduleReasons } from './deployment-chart-reader.ts';
 
 export interface DeploymentFlowCapability {
   blockId: string; unitId: string; label: string; family: SystemBlockFamily; mode: SystemUnitMode;
@@ -21,9 +22,11 @@ export interface DeploymentFlowNode {
   id: string; resource: Resource; description: ResourceDescription; progress: ResourceProgress;
   capabilities: DeploymentFlowCapability[]; dependsOn: string[]; waitingFor: string[];
   column: number; row: number; observed?: DeploymentFlowObservation;
+  schedule?: DeploymentScheduleReasons; scheduleOffset?: number; failureGate?: { resourceId?: string };
 }
 export interface DeploymentFlowEdge {
   id: string; source: string; target: string; kind: 'dependency' | 'observed-order' | 'native-schedule'; label: string;
+  wait?: 'dependency' | 'capacity' | 'batch-barrier';
 }
 export interface DeploymentFlowColumn {
   index: number; kind: 'recorded' | 'prerequisites' | 'unstarted' | 'native' | 'planned'; label: string;
@@ -74,7 +77,7 @@ export function projectDeploymentFlow(state: DashboardState): DeploymentFlow {
   let columns = started.length ? recordedColumns(started, warnings) : [];
   const remaining = nodes.filter(node => !node.observed);
   appendPrerequisites(remaining, byId, columns, started.length > 0, warnings);
-  const edges: DeploymentFlowEdge[] = nodes.flatMap(node => node.dependsOn.filter(id => byId.has(id)).map(id => ({
+  let edges: DeploymentFlowEdge[] = nodes.flatMap(node => node.dependsOn.filter(id => byId.has(id)).map(id => ({
     id: `dependency:${id}:${node.id}`, source: id, target: node.id, kind: 'dependency' as const, label: 'Must be ready first',
   })));
   appendObservedEdges(started, edges);
@@ -85,15 +88,40 @@ export function projectDeploymentFlow(state: DashboardState): DeploymentFlow {
   const topology = native.chart ?? preview?.chart;
   if (topology) {
     for (const binding of topology.nodes) {
-      const node = byId.get(binding.resourceId)!;
-      node.column = binding.column; node.row = binding.row;
+      const node = byId.get(binding.resourceId);
+      if (node) {
+        node.column = binding.column;
+        node.row = binding.row;
+        node.schedule = binding.schedule;
+        if (node.schedule && node.progress.status === 'skipped') {
+          const snapshot = state.run?.recording?.snapshot as {sharedState?: Record<string, unknown>} | undefined;
+          const outcome = snapshot?.sharedState?.[`schedule-outcome:${node.id}`] as {kind?: unknown; resourceId?: unknown} | undefined;
+          if (outcome?.kind === 'failure-gate') node.failureGate = typeof outcome.resourceId === 'string' ? { resourceId: outcome.resourceId } : {};
+          else if (events.some(event => event.resourceId === node.id && event.status === 'skipped' && event.message === 'A preceding operation failed')) node.failureGate = {};
+        }
+      }
     }
-    columns = topology.batches.map(batch => {
-      const overlapping = batch.resourceIds.some(id => byId.get(id)!.observed?.overlapsWith.some(other => batch.resourceIds.includes(other)));
-      return { index: batch.index, kind: native.chart ? 'native' as const : 'planned' as const, resourceIds: batch.resourceIds, overlapping,
-        label: overlapping ? 'Overlapping work' : batch.scheduledParallel ? 'Scheduled together' : native.chart ? 'Native chart step' : 'Planned build step' };
+    columns = topology.batches.flatMap(batch => {
+      // Deletes live in native execution and replay, outside the desired resource graph.
+      const resourceIds = batch.resourceIds.filter(id => byId.has(id));
+      if (!resourceIds.length) return [];
+      const overlapping = resourceIds.some(id => byId.get(id)?.observed?.overlapsWith.some(other => resourceIds.includes(other)));
+      return [{ index: batch.index, kind: native.chart ? 'native' as const : 'planned' as const, resourceIds, overlapping,
+        label: overlapping ? 'Overlapping work' : batch.scheduledParallel ? 'Scheduled together' : native.chart ? 'Native chart step' : 'Planned build step' }];
     });
-    edges.push(...topology.edges);
+    edges.push(...topology.edges.filter(edge => byId.has(edge.source) && byId.has(edge.target)));
+    edges = edges.flatMap(edge => {
+      const schedule = byId.get(edge.target)?.schedule;
+      if (!schedule) return [edge];
+      const dep = schedule.dependencies.find(row => row.resourceId === edge.source);
+      if (edge.kind === 'dependency' && dep) {
+        const label = dep.attributes.length ? dep.attributes.map(attr => `${edge.source}.${attr}`).join(', ') : edge.source;
+        return [{ ...edge, wait: 'dependency', label: `Needs ${label}` }];
+      }
+      if (edge.kind === 'native-schedule' && !dep) return [{ ...edge, wait: schedule.capacity ? 'capacity' : 'batch-barrier',
+        label: schedule.capacity ? 'Waits for capacity' : 'Waits for the preceding batch' }];
+      return [];
+    });
   }
   for (const node of nodes) {
     if (node.dependsOn.some(id => !byId.has(id))) warnings.push(`Some prerequisites of ${node.id} are missing from this graph.`);
@@ -115,6 +143,7 @@ function workspaceFlow(state: DashboardState, workspace: ResourceFlowWorkspaceSt
   const columns: DeploymentFlowColumn[] = [], edges: DeploymentFlowEdge[] = nodes.flatMap(node => node.dependsOn.filter(id => byId.has(id)).map(id => ({
     id: `dependency:${id}:${node.id}`, source: id, target: node.id, kind: 'dependency' as const, label: 'Must be ready first',
   })));
+  const recordedDependencies = new Map<string, DeploymentFlowEdge>();
   const positioned = new Set<string>();
   const found = workspace.found ?? [];
   for (const phase of ['acquire', 'connect'] as const) {
@@ -137,13 +166,19 @@ function workspaceFlow(state: DashboardState, workspace: ResourceFlowWorkspaceSt
     for (const childNode of childFlow.nodes) {
       const node = byId.get(childNode.id)!;
       node.column = offset + childNode.column; node.row = childNode.row;
+      node.schedule = childNode.schedule;
+      node.scheduleOffset = childNode.schedule ? offset : undefined;
+      node.failureGate = childNode.failureGate;
       if (childNode.observed && child) node.observed = { ...childNode.observed, runId: child.run.id };
       positioned.add(node.id);
     }
     columns.push(...childFlow.columns.map(column => ({ ...column, index: offset + column.index,
       kind: !child ? 'planned' as const : column.kind,
       label: `${phase === 'acquire' ? 'Create' : 'Connect'} · ${!child ? 'Planned prerequisites' : column.label}` })));
-    if (child) edges.push(...childFlow.edges.filter(edge => edge.kind !== 'dependency').map(edge => ({ ...edge, id: `${child.run.id}:${edge.id}` })));
+    if (child) for (const edge of childFlow.edges) {
+      if (edge.kind !== 'dependency') edges.push({ ...edge, id: `${child.run.id}:${edge.id}` });
+      else if (edge.wait) recordedDependencies.set(edge.id, edge);
+    }
     warnings.push(...childFlow.warnings);
   }
   appendPrerequisites(nodes.filter(node => !positioned.has(node.id)), byId, columns, positioned.size > 0, warnings);
@@ -158,7 +193,7 @@ function workspaceFlow(state: DashboardState, workspace: ResourceFlowWorkspaceSt
   }
   return { basis: workspace.children.some(child => child.run.events.length) ? 'recorded' : 'prerequisites',
     layoutSource: workspace.children.length ? 'native-children' : workspace.phaseGraphs ? 'phase-plan' : state.schedulePreview ? 'schedule-preview' : 'prerequisites',
-    nodes, edges, columns, existingPrerequisites: [], warnings: [...new Set(warnings)] };
+    nodes, edges: edges.map(edge => recordedDependencies.get(edge.id) ?? edge), columns, existingPrerequisites: [], warnings: [...new Set(warnings)] };
 }
 
 /** A native sequence establishes order; clocks or array positions cannot resolve missing/tied sequences. */

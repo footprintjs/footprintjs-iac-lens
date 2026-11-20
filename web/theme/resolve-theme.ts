@@ -8,10 +8,11 @@ export interface ResolvedLensTheme {
   mode: 'light' | 'dark';
   tokens: LensThemeTokens;
   style: CSSProperties;
+  preset?: 'paper';
 }
 
-export function resolveLensTheme(input?: LensTheme): ResolvedLensTheme {
-  const mode=input?.mode??'light',base=mode==='dark'?darkPalette:lightPalette;
+export function resolveLensTheme(input?: LensTheme,presetBase?:LensThemeTokens): ResolvedLensTheme {
+  const mode=input?.mode??'light',base=presetBase??(mode==='dark'?darkPalette:lightPalette);
   const overrides=input?.tokens,colors={...base.colors,...overrides?.colors};
   // One primary/success override changes the associated chart defaults unless the host supplied a distinct role.
   if (overrides?.colors?.primary) {
@@ -22,7 +23,7 @@ export function resolveLensTheme(input?: LensTheme): ResolvedLensTheme {
   if (overrides?.colors?.success && overrides.colors.nodeVisited===undefined) colors.nodeVisited=overrides.colors.success;
   const pairs={onPrimary:'primary',onSuccess:'success',onError:'error',onWarning:'warning',onTracing:'tracing',onNodeCursor:'nodeCursor',onNodeVisited:'nodeVisited',onNodeMain:'nodeMain'} as const;
   for(const [foreground,fill]of Object.entries(pairs) as [keyof typeof pairs,typeof pairs[keyof typeof pairs]][]) {
-    if(colors[foreground]===undefined)colors[foreground]=accentForeground(colors[fill]);
+    if(colors[foreground]===undefined||colors[fill]!==base.colors?.[fill]&&overrides?.colors?.[foreground]===undefined)colors[foreground]=accentForeground(colors[fill]);
   }
   const tokens:LensThemeTokens={...base,...overrides,colors,radius:overrides?.radius??base.radius,fontFamily:{...base.fontFamily,...overrides?.fontFamily}};
   for(const group of ['typography','spacing','radii','borders','elevation','nodes','motion','controls'] as const){

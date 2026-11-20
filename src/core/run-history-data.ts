@@ -3,6 +3,7 @@ import type { RunCatalog, RunFrame, RunRecord, RunSummary } from './run-history.
 import type { Recording } from './types.ts';
 import { runObservationIdentity } from './run-history-identity.ts';
 import {readRunFrameDeployment} from './run-history-deployment.ts';
+import {readLensDeploymentChart} from './deployment-chart-reader.ts';
 
 export const RUN_CATALOG_MAX_RUNS=128, RUN_RECORD_MAX_FRAMES=128;
 function fail():never{throw Error('Invalid recorded run history');}
@@ -62,7 +63,7 @@ function recording(input:unknown,runId:string,graphDigest?:string):Recording {
  if(row.narrativeEntries!==undefined&&(!Array.isArray(row.narrativeEntries)||row.narrativeEntries.length>100_000))fail();return row as Recording;
 }
 export function readRunRecord(input:unknown):RunRecord {
- const row=runObject(copyRunData(input),['version','summary','frames','omittedFrames','limitations','recording']);
+ const row=runObject(copyRunData(input),['version','summary','frames','omittedFrames','limitations','recording','deploymentSchedule']);
  if(row.version!==1||!Array.isArray(row.frames)||row.frames.length>RUN_RECORD_MAX_FRAMES)fail();const head=summary(row.summary);count(row.omittedFrames);strings(row.limitations);
  if(head.frameCount!==row.frames.length)fail();let previous=0,previousClock:number|undefined,identity:string|undefined;
  const positions=new Set<string>();
@@ -82,5 +83,12 @@ export function readRunRecord(input:unknown):RunRecord {
   const verified=onb?onb.status==='ready'&&onb.deployment?.promoted===true:app?app.phase==='ready'&&app.deployment?.promoted===true:last?.appAccess?.status==='ready';
   if(!verified||head.appUrl!==undefined&&registeredRunAppUrl(last?.neoUrl??app?.deployment?.appUrl)!==head.appUrl)fail();
  }
- return{version:1,summary:head,frames,omittedFrames:row.omittedFrames,limitations:row.limitations,...row.recording!==undefined?{recording:recording(row.recording,head.runId,frames[0]?.state.graph?.digest)}:{}};
+ let deploymentSchedule:RunRecord['deploymentSchedule'];
+ if(row.deploymentSchedule!==undefined){
+  const entry=runObject(row.deploymentSchedule,['firstSequence','chart']),firstSequence=count(entry.firstSequence),chart=readLensDeploymentChart(entry.chart);
+  const last=frames.at(-1);
+  if(!firstSequence||!last||firstSequence>last.sequence||chart.runId!==head.runId||chart.stack!==last.state.graph?.name||chart.graphDigest!==last.state.graph?.digest||!chart.resources.some(resource=>resource.schedule))fail();
+  deploymentSchedule={firstSequence,chart};
+ }
+ return{version:1,summary:head,frames,omittedFrames:row.omittedFrames,limitations:row.limitations,...row.recording!==undefined?{recording:recording(row.recording,head.runId,frames[0]?.state.graph?.digest)}:{},...deploymentSchedule?{deploymentSchedule}:{}};
 }

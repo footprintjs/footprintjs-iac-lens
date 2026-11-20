@@ -1,13 +1,14 @@
-import { readDeploymentChart, readDeploymentSchedulePreview, type DeploymentChart, type DeploymentResourceStages } from 'footprintjs-iac/progress';
+import { readDeploymentSchedulePreview, type DeploymentChart } from 'footprintjs-iac/progress';
 import type { InfraGraph } from 'footprintjs-iac';
 import type { DashboardState } from './types.ts';
+import { readLensDeploymentChart, type LensDeploymentChart, type LensDeploymentResource } from './deployment-chart-reader.ts';
 
 export interface NativeDeploymentBatch {
   index: number; gateStageId: string; joinStageId?: string; resourceIds: string[];
   /** A native selector scheduled these branches; this does not establish observed overlap. */
   scheduledParallel: boolean;
 }
-export interface NativeDeploymentNode extends DeploymentResourceStages { column: number; row: number }
+export interface NativeDeploymentNode extends LensDeploymentResource { column: number; row: number }
 export interface NativeDeploymentScheduleEdge {
   id: string; source: string; target: string; kind: 'native-schedule'; label: 'Next scheduled batch';
 }
@@ -25,7 +26,7 @@ const MAX_STAGES = 20_000, MAX_RESOURCES = 4_096, MAX_BRANCHES = 128, MAX_EDGES 
 /** Project the constructor's captured topology. Never schedule resources or infer progress here. */
 export function projectNativeDeploymentChart(state: DashboardState, input: unknown = state.run?.chart): NativeDeploymentChartAdmission {
   if (input === undefined) return { warnings: [] };
-  try { return { chart: admit(state, readDeploymentChart(input)), warnings: [] }; }
+  try { return { chart: admit(state, readLensDeploymentChart(input)), warnings: [] }; }
   catch { return { warnings: [unavailable] }; }
 }
 
@@ -36,22 +37,25 @@ export function projectDeploymentSchedulePreview(state: DashboardState, input: u
   catch { return { warnings: ['The planned deployment schedule could not be matched to this resource graph.'] }; }
 }
 
-function admit(state: DashboardState, chart: DeploymentChart): NativeDeploymentChartView {
+function admit(state: DashboardState, chart: LensDeploymentChart): NativeDeploymentChartView {
   const graph = state.graph, run = state.run;
   require(graph && run && !!run.id && chart.runId === run.id && chart.stack === graph.name
     && chart.graphDigest === graph.digest);
   return { runId: chart.runId, ...admitTopology(graph, chart) };
 }
 
-function admitTopology(graph: InfraGraph | null, chart: Pick<DeploymentChart, 'stack' | 'graphDigest' | 'resources' | 'structure'>): DeploymentSchedulePreviewView {
+function admitTopology(graph: InfraGraph | null, chart: Pick<LensDeploymentChart, 'stack' | 'graphDigest' | 'resources' | 'structure'>): DeploymentSchedulePreviewView {
   require(graph && chart.stack === graph.name && chart.graphDigest === graph.digest);
   require(chart.resources.length > 0 && chart.resources.length <= MAX_RESOURCES
-    && chart.resources.length === graph.resources.length);
+    && chart.resources.length >= graph.resources.length);
   const desired = new Set(graph.resources.map(resource => resource.id));
-  require(desired.size === graph.resources.length && chart.resources.every(binding => desired.has(binding.resourceId)));
+  const retained = chart.resources.filter(binding => binding.action !== 'delete');
+  require(desired.size === graph.resources.length && retained.length === desired.size
+    && retained.every(binding => desired.has(binding.resourceId))
+    && chart.resources.every(binding => binding.action !== 'delete' || !desired.has(binding.resourceId)));
 
   const { spine, stages } = topology(chart.structure);
-  const groups = new Map<string, DeploymentResourceStages[]>();
+  const groups = new Map<string, LensDeploymentResource[]>();
   for (const binding of chart.resources) groups.set(binding.gateStageId, [...groups.get(binding.gateStageId) ?? [], binding]);
   require(spine.filter(stage => groups.has(stage.id)).length === groups.size);
   require(spine.every(stage => !['decider', 'selector', 'fork'].includes(stage.type) || groups.has(stage.id)));
@@ -87,7 +91,24 @@ function admitTopology(graph: InfraGraph | null, chart: Pick<DeploymentChart, 's
       resourceIds: ordered.map(binding => binding.resourceId), scheduledParallel: parallel });
     for (const [row, binding] of ordered.entries()) nodes.push({ ...binding, column, row });
   }
-  require(nodes.length === graph.resources.length);
+  require(nodes.length === chart.resources.length);
+  const graphById = new Map(graph.resources.map(resource => [resource.id, resource]));
+  const byId = new Map(nodes.map(node => [node.resourceId, node]));
+  const fullBatchRuns: number[] = [];
+  for (const batch of batches) fullBatchRuns.push(batch.index && batches[batch.index - 1]!.resourceIds.length === batch.resourceIds.length
+    ? fullBatchRuns[batch.index - 1]! : batch.index);
+  for (const { resourceId, batchIndex, schedule } of nodes) {
+    if (!schedule) continue;
+    const expected = graphById.get(resourceId)?.dependsOn ?? [];
+    const sources = new Set(schedule.dependencies.map(dep => dep.resourceId));
+    require(sources.size === expected.length && sources.size === schedule.dependencies.length && expected.every(id => sources.has(id)));
+    const firstEligible = Math.max(0, ...expected.map(id => (byId.get(id)?.batchIndex ?? -1) + 1));
+    require(firstEligible <= batchIndex && (batchIndex === 0 || schedule.batchBarrier === batchIndex - 1));
+    if (schedule.capacity) {
+      const { fromBatch, throughBatch, limit } = schedule.capacity;
+      require(fromBatch === firstEligible && fromBatch >= fullBatchRuns[throughBatch]! && batches[throughBatch]?.resourceIds.length === limit);
+    }
+  }
   const edges: NativeDeploymentScheduleEdge[] = [];
   for (let index = 1; index < batches.length; index++) {
     const before = batches[index - 1]!, after = batches[index]!;

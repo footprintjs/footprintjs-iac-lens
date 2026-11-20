@@ -144,24 +144,26 @@ test('cards show recorded live actions, verified progress and persistent Existin
  assert.match(ready,/data-origin="existing"/);assert.match(ready,/1\/1 verified/);assert.match(ready,/Native deployment step unavailable/);assert.doesNotMatch(ready,/aria-label="Show deployment step/);
 });
 test('parallel native actions remain explicit rather than pretending to have a serial percentage',()=>{
- const node={...topology().nodes[0]!,actions:[{resourceId:'services',phase:'observe',status:'running',scope:'component',label:'Checking component',evidence:{kind:'adapter',runId:'native-one',complete:false}},{resourceId:'services',phase:'apply',status:'running',scope:'component',label:'Applying component',evidence:{kind:'adapter',runId:'native-one',complete:false}}]};
+ const node={...topology().nodes[0]!,actions:[{resourceId:'services',phase:'observe',status:'running',scope:'component',label:'Checking component',evidence:{kind:'adapter',runId:'native-one',runtimeStageId:'provider/observe#1',complete:false}},{resourceId:'services',phase:'apply',status:'running',scope:'component',label:'Applying component',evidence:{kind:'adapter',runId:'native-one',runtimeStageId:'provider/apply#2',complete:false}}]};
  const html=renderToStaticMarkup(createElement(components.TopologyNodeCard,{node,box:{x:0,y:0,width:184,height:104},onSelect(){}}));
  assert.match(html,/2 actions in progress/);assert.match(html,/0\/1 verified/);assert.doesNotMatch(html,/50%/);
 });
 
 test('card action follows chronological native phase history and prefers a live component over shared work',()=>{
  const evidence={kind:'adapter' as const,runId:'native-one',runtimeStageId:'provider/observe#1',complete:true};
- const actions=[{resourceId:'services',phase:'revalidate' as const,status:'passed' as const,scope:'shared-resource' as const,label:'Checking existing setup',evidence},{resourceId:'services',phase:'start' as const,status:'passed' as const,scope:'shared-resource' as const,label:'Restarting service group',evidence},{resourceId:'services',componentId:'api',phase:'observe' as const,status:'passed' as const,scope:'component' as const,label:'Checking component',evidence}];
+ const actions=[{resourceId:'services',phase:'revalidate' as const,status:'passed' as const,scope:'shared-resource' as const,label:'Checking existing setup',evidence:{...evidence,runtimeStageId:'provider/revalidate#1'}},{resourceId:'services',phase:'start' as const,status:'passed' as const,scope:'shared-resource' as const,label:'Restarting service group',evidence:{...evidence,runtimeStageId:'provider/start#2'}},{resourceId:'services',componentId:'api',phase:'observe' as const,status:'passed' as const,scope:'component' as const,label:'Checking component',evidence}];
  const node={...topology().nodes[0]!,actions};
  assert.equal(currentTopologyAction(node).action?.phase,'observe');
  const html=renderToStaticMarkup(createElement(components.TopologyNodeCard,{node,box:{x:0,y:0,width:184,height:104},onSelect(){}}));
- assert.match(html,/Checking component/);assert.match(html,/>Done</);assert.doesNotMatch(html,/Restarting service group|3 recorded actions/);
+ assert.match(html,/class="topology-node-action action-passed"[^>]*><span>Checking component<\/span><small>Done<\/small>/);
+ assert.match(html,/title="Restarting service group: Confirmed"/,'earlier steps now remain visible as recorded dots, separately from the current action');
+ assert.match(html,/3 steps recorded/);assert.doesNotMatch(html,/3 recorded actions/);
  const running={...node,actions:[...actions,{...actions[2]!,status:'running' as const},{...actions[1]!,status:'running' as const}]};
  assert.equal(currentTopologyAction(running).action?.scope,'component');assert.equal(currentTopologyAction(running).runningCount,2);
 });
 
 test('a passed live callback remains Observed until the retained native action is admitted',()=>{
- const node={...topology().nodes[0]!,actions:[{resourceId:'services',phase:'observe',status:'passed',scope:'component',label:'Checking component',evidence:{kind:'adapter',runId:'native-one',complete:false}}]};
+ const node={...topology().nodes[0]!,actions:[{resourceId:'services',phase:'observe',status:'passed',scope:'component',label:'Checking component',evidence:{kind:'adapter',runId:'native-one',runtimeStageId:'provider/observe#1',complete:false}}]};
  const renderCard=()=>renderToStaticMarkup(createElement(components.TopologyNodeCard,{node,box:{x:0,y:0,width:184,height:104},onSelect(){}}));
  assert.match(renderCard(),/>Observed</);assert.doesNotMatch(renderCard(),/>Done</);assert.match(renderCard(),/0\/1 verified/);
  node.actions[0]!.evidence.complete=true;assert.match(renderCard(),/>Done</);

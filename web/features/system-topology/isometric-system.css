@@ -17,3 +17,9 @@
 .iac-lens .topology-isometric .topology-boundary-heading small{font-size:8px}
 .iac-lens .topology-isometric .topology-wire-line,.iac-lens .topology-isometric .topology-wire-halo{stroke-linejoin:round;stroke-linecap:round}
 .iac-lens .topology-isometric .topology-wire-label-leader{stroke:currentColor;stroke-width:1;stroke-dasharray:2 3;opacity:.65;fill:none}
+
+/* Labels sit above physical floor nodes; wires retain a readable screen weight at overview. */
+.iac-lens .topology-isometric .react-flow__edgelabel-renderer{z-index:100}
+.iac-lens .topology-isometric .topology-wire-line{vector-effect:non-scaling-stroke;stroke-width:1.4}
+.iac-lens .topology-isometric .topology-wire-halo{vector-effect:non-scaling-stroke;stroke-width:4}
+.iac-lens .topology-isometric button.topology-edge-label{cursor:pointer}

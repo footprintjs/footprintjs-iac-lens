@@ -7,6 +7,7 @@ import type { DashboardState } from '../../src/core/types.ts';
 import type { EvidenceKind } from './EvidenceSource.tsx';
 import { Icon } from './Icon.tsx';
 import { StatusBadge } from './StatusBadge.tsx';
+import { DeploymentWaitDetails } from './DeploymentWaitDetails.tsx';
 
 export function Inspector({ state, resource, onClose, onEvidence }: {
   state: DashboardState;
@@ -51,6 +52,8 @@ export function Inspector({ state, resource, onClose, onEvidence }: {
           {deployment.observed && <><dt>Observed start</dt><dd>{eventTime(deployment.observed.startedAt)}</dd>
             {deployment.observed.finishedAt !== undefined && <><dt>Observed finish</dt><dd>{eventTime(deployment.observed.finishedAt)}</dd></>}</>}
         </dl>
+        <h4>Step details</h4>
+        <DeploymentWaitDetails {...deployment.wait}/>
         {progress.message && <p className={`resource-message message-${progress.status}`}>{progress.message}</p>}
         {deployment.events.length ? <ol className="resource-events">
           {deployment.events.map((event, index) => <li key={`${event.sequence ?? event.seq ?? index}:${event.status}`}>

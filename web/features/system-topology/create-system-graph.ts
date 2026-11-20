@@ -1,7 +1,7 @@
 import {Position,type NodeHandle} from '@xyflow/react';
 import type {TraceGraph,TraceNode,TraceNodeData} from 'footprint-explainable-ui/flowchart';
 import type {SystemTopologyView,TopologyBoundaryView,TopologyNodeView} from 'footprintjs-iac/system-topology';
-import {layoutSystemTopology,type TopologyBox} from './topology-layout.ts';
+import {layoutSystemTopology,type TopologyBox,type TopologyGeometryProfile} from './topology-layout.ts';
 import {routeTopologyConnections} from './topology-routes.ts';
 import {labelRect} from './topology-route-geometry.ts';
 import type {TopologyPoint,TopologyRoute} from './topology-routing.ts';
@@ -13,7 +13,7 @@ export interface SystemGraphData extends TraceNodeData {
   ports:readonly NodeHandle[];
   isometric?:{
     floor:readonly TopologyPoint[];
-    header?:{x:number;y:number;width:number};
+    header?:{x:number;y:number;width:number;height?:number};
   };
 }
 export type SystemGraphNode=TraceNode&{data:SystemGraphData};
@@ -24,8 +24,8 @@ export interface SystemGraphPlacement {
 }
 
 /** Physical placement is authored topology, never workflow order or trace ancestry. */
-export function createSystemGraphPlacement(view:SystemTopologyView):SystemGraphPlacement {
-  const geometry=layoutSystemTopology(view),boxes=new Map(geometry.boxes.map(box=>[box.id,box]));
+export function createSystemGraphPlacement(view:SystemTopologyView,profile?:TopologyGeometryProfile):SystemGraphPlacement {
+  const geometry=layoutSystemTopology(view,profile),boxes=new Map(geometry.boxes.map(box=>[box.id,box]));
   return{geometry,boxes,routes:routeTopologyConnections(view.definition.connections,boxes)};
 }
 

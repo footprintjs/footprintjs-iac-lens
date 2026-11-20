@@ -29,10 +29,11 @@ export function deploymentStepTitle(node: DeploymentFlowNode): string {
 export function buildDeploymentFlowView(state: DashboardState, selected?: string, prerequisites = false) {
   const flow = projectDeploymentFlow(state);
   const titles = new Map(flow.nodes.map(node => [node.id, deploymentStepTitle(node)]));
+  const columnGap = flow.edges.some(edge => edge.wait) ? 151 : 58;
   const maxRows = Math.max(1, ...flow.columns.map(column => column.resourceIds.length));
   const nodes: DeploymentStepNode[] = [...flow.nodes].sort((a, b) => a.column - b.column || a.row - b.row).map(step => ({
     id: step.id, type: 'deployment-step', selected: selected === step.id,
-    position: { x: step.column * (STEP_WIDTH + 58), y: step.row * (STEP_HEIGHT + 58) + (maxRows - (flow.columns.find(column => column.index === step.column)?.resourceIds.length ?? 1)) * (STEP_HEIGHT + 58) / 2 },
+    position: { x: step.column * (STEP_WIDTH + columnGap), y: step.row * (STEP_HEIGHT + 58) + (maxRows - (flow.columns.find(column => column.index === step.column)?.resourceIds.length ?? 1)) * (STEP_HEIGHT + 58) / 2 },
     data: { step, title: titles.get(step.id)!, waiting: step.waitingFor.map(id => titles.get(id) ?? id).join(', '),
       ...(step.row === 0 && (flow.columns.find(column => column.index === step.column)?.resourceIds.length ?? 0) > 1
         ? { columnLabel: flow.columns.find(column => column.index === step.column)!.label } : {}) },
@@ -49,21 +50,28 @@ export function buildDeploymentFlowView(state: DashboardState, selected?: string
   const observedPairs = new Set(flow.edges.filter(edge => edge.kind === 'observed-order').map(edge => JSON.stringify([edge.source, edge.target])));
   const nativePairs = new Set(flow.edges.filter(edge => edge.kind === 'native-schedule').map(edge => JSON.stringify([edge.source, edge.target])));
   const dependencyPairs = new Set(flow.edges.filter(edge => edge.kind === 'dependency').map(edge => JSON.stringify([edge.source, edge.target])));
-  const edges: Edge[] = flow.edges.filter(edge => edge.kind === 'observed-order'
+  const edges: Edge[] = flow.edges.filter(edge => {
+    if (edge.wait) return true;
+    return edge.kind === 'observed-order'
     || (edge.kind === 'native-schedule' && !observedPairs.has(JSON.stringify([edge.source, edge.target])))
     || (edge.kind === 'dependency' && !observedPairs.has(JSON.stringify([edge.source, edge.target])) && !nativePairs.has(JSON.stringify([edge.source, edge.target]))
       && (prerequisites || flow.layoutSource === 'prerequisites'
-        || (flow.layoutSource === 'native-events' && !nodeById.get(edge.target)?.observed)))).map(edge => {
+        || (flow.layoutSource === 'native-events' && !nodeById.get(edge.target)?.observed)));
+  }).map(edge => {
     const observed = edge.kind === 'observed-order';
     const scheduled = edge.kind === 'native-schedule';
     const target = nodeById.get(edge.target)!;
     const color = target.progress.status === 'failed' ? 'var(--fp-color-error,#be6266)' : target.progress.status === 'deploying' ? 'var(--fp-color-primary,#4382d7)'
       : observed && target.progress.status === 'ready' ? 'var(--fp-color-success,#559980)' : 'var(--fp-text-muted,#a6b3c5)';
+    const solid = edge.wait ? edge.wait === 'dependency' : observed;
     return { id: edge.id, source: edge.source, target: edge.target, type: 'smoothstep',
-      label: observed ? prerequisites && dependencyPairs.has(JSON.stringify([edge.source, edge.target])) ? 'then · needs' : 'then' : scheduled ? 'next' : 'needs',
-      ariaLabel: `${titles.get(edge.source)} ${observed ? 'finished before' : scheduled ? 'is scheduled before' : 'is required by'} ${titles.get(edge.target)}${observed && prerequisites && dependencyPairs.has(JSON.stringify([edge.source, edge.target])) ? '; also a prerequisite' : ''}`,
+      ...(edge.wait && { data: { wait: edge.wait } }),
+      label: edge.wait ? solid ? edge.label : undefined
+        : observed ? prerequisites && dependencyPairs.has(JSON.stringify([edge.source, edge.target])) ? 'then · needs' : 'then' : scheduled ? 'next' : 'needs',
+      ariaLabel: edge.wait ? `${edge.target}. ${edge.label}`
+        : `${titles.get(edge.source)} ${observed ? 'finished before' : scheduled ? 'is scheduled before' : 'is required by'} ${titles.get(edge.target)}${observed && prerequisites && dependencyPairs.has(JSON.stringify([edge.source, edge.target])) ? '; also a prerequisite' : ''}`,
       animated: target.progress.status === 'deploying',
-      style: { stroke: color, strokeWidth: observed ? 2.2 : 1.5, ...(!observed ? { strokeDasharray: scheduled ? '3 4' : '7 5' } : {}) },
+      style: { stroke: color, strokeWidth: solid ? 2.2 : 1.5, ...(!solid ? { strokeDasharray: scheduled ? '3 4' : '7 5' } : {}) },
       markerEnd: { type: MarkerType.ArrowClosed, color, width: 15, height: 15 },
       labelStyle: { fill: 'var(--fp-text-secondary,#718198)', fontSize: 11 }, labelBgStyle: { fill: 'var(--fp-bg-elevated,#f8fafc)' }, labelBgPadding: [6, 3] as [number, number],
     };

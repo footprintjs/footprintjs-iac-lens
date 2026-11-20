@@ -17,6 +17,12 @@ The scene preserves **Existing**, managed and embedded origins. Its optional
 plain component/boundary labels rather than hidden keyboard controls. Detailed
 native evidence and architecture remain accessible through **Details**.
 
+Consumer definitions with `presentation: 'object'` render as unframed isometric
+objects directly on their host/runtime ground, with labels and recorded progress
+nearby. The normal run view allows clicking an object to inspect its native
+evidence. Pointer or keyboard exploration pauses Follow while preserving the
+selected moment and the other pane's current subflow.
+
 Deployment uses Explainable UI's standard stage renderer, measured layout,
 subflow drill and breadcrumb. It opens the complete recorded resource operation
 at its root, rather than selecting its deepest adapter body. Both panes inherit
@@ -30,6 +36,61 @@ returns to the complete visible scope. Camera navigation never moves the shared
 replay cursor or executes deployment work. Reduced-motion preferences disable
 the camera animation.
 
+**Follow execution** starts enabled for a newly selected run. It follows only
+the selected publication's native running stages, enters their exact child
+scope, and returns to the appropriate parent when the active work moves there.
+Parallel child scopes stay visible together at their deepest common parent;
+parallel stages in one scope fit together. A single deployment pane still shows
+one resource: several active resources use a stable selection and display their
+count, while system highlighting includes every exactly linked active resource.
+
+Automatic camera fitting happens only when entering or leaving a scope. The
+whole visible subflow fits once; successive steps change their highlights without
+panning or zooming. Brief recorded gaps between steps retain that entered scope
+as context while its resource is deploying. Context is rebuilt from the selected
+recording prefix, so a backwards seek cannot retain a future subflow. An empty
+frontier still has no active-step or component highlight.
+
+The running-system pane outlines components whose recorded action references
+resolve to that same native running frontier, plus their declared enclosing
+boundaries. A shared-resource action remains shared work; the outline does not
+claim an independent per-component operation. Progress, readiness, origins and
+connection outcomes continue to come from the saved system observations. No
+matching action means no component highlight; missing detail is not guessed
+from names or resource proximity.
+
+Clicking a node, drilling, panning or zooming pauses Follow while retaining the
+current scope and replay moment. Press Follow execution to resume at that same
+moment. Seeking or playing the single replay control keeps Follow available for
+historical observations; it never switches a historical frame to live data.
+Completed, skipped, failed and unconfirmed work is not treated as currently
+running. When the resource settles, the chart returns to its resource overview.
+
+System cards show the current native action and a separate recorded-work meter
+in Simple mode. Each dot is one observed runtime stage, with shared/component
+rows for the same instance counted once. At most eight actual dots are shown;
+the count includes earlier recorded instances retained in Details. This is not a
+percentage of planned work: the adapter has not declared every future action for
+each component. Provisional passed actions remain Observed; admitted outcomes
+are Confirmed, and failures or uncertainty stay visible. The existing verification
+strip still waits for independently admitted component/check outcomes. Existing
+databases without recorded deployment actions receive no invented work meter.
+
+The running-system camera gently centers on the physical area containing the
+recorded work. It moves when that area changes, rather than for each step.
+Components within one runtime or host share an area; parallel areas are framed
+together. Zoom is capped at 18% above the complete overview and never enlarges
+cards above their authored size. The complete active area remains visible, with
+connected neighbours retained when they fit. Paper colours and the recorded
+progress remain on the cards while the camera moves.
+
+Brief same-resource gaps can retain the last visited area as camera context,
+without retaining active component highlights. This context is rebuilt from the
+selected recording prefix; rewinding cannot borrow a later area. Completion
+returns to the overview. Moving either chart manually pauses Follow execution;
+resuming it centers the area for that same replay moment. Reduced-motion
+preferences apply camera transitions immediately.
+
 **New run** opens the existing registered setup controls. With onboarding, these
 are the same native workflow and sealed review/Deploy actions used elsewhere;
 there is no second executor or automatic chain. A new deployment run identity
@@ -37,12 +98,19 @@ closes setup and follows the corresponding catalog entry once admitted.
 
 ## Replay and live state
 
-The range control selects actual `RunRecord.frames`, in sequence. It never calls
+Explainable UI's compact `TimeTravelControls` provides the single **Replay
+position** slider, previous/next buttons and playback clock. Lens maps each
+position to an actual `RunRecord.frames` publication, in sequence. It never calls
 an execution endpoint, mutates desired configuration, or creates intermediate
 states. **Recorded steps** is the default when clock coverage is incomplete.
 Complete native clocks allow the slider to display the recorded elapsed time.
-The Play control is labelled **Step replay** and advances existing observations
-at a reading pace; it does not claim the original wall-clock speed. **Live**
+**Play** advances existing observations at a reading pace; it does not claim the
+original wall-clock speed. A collapsed **Stages** strip sits below the slider.
+Expanding it exposes compact activity buttons; selecting one stops playback and
+jumps to its first captured publication. Only adjacent identical captions are
+grouped. This is a navigation strip, without a Gantt chart, inferred work
+durations or fabricated native stage identities. Expanding or collapsing it
+preserves the current replay position. **Live**
 requires a connected stream and a matching current native running observation.
 An older saved in-progress result is never labelled live. Catalog/record polling is read-only display
 refresh, not a source of run identity or recorded progress.
@@ -70,13 +138,17 @@ non-HTTP schemes are not shown.
 - `web/features/runs/RunWorkspaceSlot.tsx`: lazy feature boundary.
 - `RunHome.tsx`: recent activity and bounded list.
 - `RunPlayer.tsx`, `RunTimeline.tsx`, `RunScene.tsx`: selected observation,
-  playback cursor and quiet scene.
+  shared cursor, Explainable UI replay controls and quiet scene.
+- `create-replay-snapshots.ts`, `create-replay-timeline-rows.ts`: display-only
+  publication mapping and adjacent-caption navigation, without execution claims.
 - `RunDetails.tsx`: historical recording/diagram exploration without mutation
   controls. Current-run details open the existing advanced workspace.
 - `use-run-history.ts`: admitted read-only requests, request cancellation and
   refresh while a run is active.
 - `model.ts`: ordering, selection and safe application-link presentation.
 - `select-run-moment.ts`: one publication for both diagrams.
+- `system-follow-context.ts`: prefix-derived physical camera context, separate
+  from the exact current execution highlights.
 - `RunDeploymentSlot.tsx`, `RunDeploymentScene.tsx`: lazy native step canvas.
 - `src/core/run-history-deployment.ts`: bounded scoped projection validation.
 - `src/server/run-frame-deployment.ts`: per-publication native projection capture.

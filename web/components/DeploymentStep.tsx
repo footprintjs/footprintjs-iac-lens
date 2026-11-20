@@ -9,9 +9,9 @@ export function DeploymentStep({ data, selected }: NodeProps<DeploymentStepNode>
   const families = [...new Set(step.capabilities.map(unit => unit.family))];
   const action = step.progress.action === 'noop' ? 'Check existing' : step.progress.action === 'create' ? 'Create'
     : step.progress.action === 'find' ? 'Read-only lookup' : step.progress.action === 'update' ? 'Update' : step.progress.action === 'delete' ? 'Remove' : 'Resource operation';
-  const stateText = step.progress.status === 'pending' ? waiting ? `Waiting for ${waiting}` : 'Not started'
+  const stateText = step.progress.status === 'pending' ? waiting ? `Waiting for ${waiting}` : step.schedule?.capacity ? 'Waiting for capacity' : step.schedule?.batchBarrier !== undefined ? 'Waiting for the preceding batch' : 'Not started'
     : found ? 'Existing resource found · read-only lookup'
-    : step.progress.status === 'skipped' ? 'Not run after an earlier failure'
+    : step.progress.status === 'skipped' ? step.failureGate ? 'Skipped · failure gate' : 'Not run after an earlier failure'
     : step.observed?.overlapsWith.length ? 'Work overlapped with another step'
     : step.progress.action === 'noop' && step.progress.status === 'ready' ? 'Existing resource checked' : action;
   return <div className={`deployment-step step-${step.progress.status}${selected ? ' step-selected' : ''}`}>

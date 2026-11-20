@@ -1,6 +1,6 @@
 import { projectSystemBlocks } from './capabilities.ts';
 import { connectionProgress } from './connections.ts';
-import { projectDeploymentFlow } from './deployment-flow.ts';
+import { projectDeploymentFlow, type DeploymentFlowEdge } from './deployment-flow.ts';
 import { buildSceneLabel, buildScenePurpose, capabilityKind, type BuildSceneKind } from './build-scene-labels.ts';
 import type { ConnectionStatus, DashboardState, ResourceStatus } from './types.ts';
 
@@ -14,7 +14,7 @@ export interface BuildSceneNode {
   uncertain: boolean;
 }
 export interface BuildSceneEdge { id: string; from: string; to: string; status: ConnectionStatus }
-export interface BuildSceneFlowEdge { id: string; from: string; to: string; kind: 'dependency' | 'observed-order' | 'native-schedule' }
+export interface BuildSceneFlowEdge { id: string; from: string; to: string; kind: DeploymentFlowEdge['kind']; wait?: DeploymentFlowEdge['wait']; label?: string }
 export interface BuildScene {
   phase: BuildScenePhase; headline: string; subline?: string; simulation: boolean;
   nodes: BuildSceneNode[]; edges: BuildSceneEdge[]; flowEdges: BuildSceneFlowEdge[]; counts: { ready: number; total: number };
@@ -52,7 +52,8 @@ export function projectBuildScene(state: DashboardState): BuildScene {
     return [{ id, from: relation.from, to: relation.to, status: connectionProgress(state, id, relation.from, relation.to).status }];
   });
   const scene: BuildScene = { phase: 'idle', headline: 'Ready to build', simulation: (state.mode ?? state.run?.mode) === 'simulator',
-    nodes, edges, flowEdges: flow.edges.map(edge => ({ id: edge.id, from: edge.source, to: edge.target, kind: edge.kind })),
+    nodes, edges, flowEdges: flow.edges.map(edge => ({ id: edge.id, from: edge.source, to: edge.target, kind: edge.kind,
+      ...(edge.wait && { wait: edge.wait, label: edge.label }) })),
     counts: { ready: nodes.filter(node => node.status === 'ready').length, total: nodes.length },
     activeIds: nodes.filter(node => node.status === 'deploying' && !node.uncertain).map(node => node.id), warnings: [...new Set(warnings)] };
   return { ...scene, ...sceneMessage(state, scene) };

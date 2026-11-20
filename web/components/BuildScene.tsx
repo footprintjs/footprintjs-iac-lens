@@ -18,7 +18,7 @@ function caption(node: SceneNode) {
 function isChecking(node: SceneNode) { return /^(?:noop|no-op|verify|check|read|observe|find)$/i.test(node.action ?? ''); }
 
 /** Stable positions come from the native flow; links below show observed communication. */
-export function BuildScene({ scene, execution = 'idle', workflowStatus, changes, compact = false }: { compact?:boolean; scene: Scene; execution?: 'idle' | 'running' | 'passed' | 'failed'; workflowStatus?: ResourceFlowState['status']; changes?: readonly RevisionResourceView[] }) {
+export function BuildScene({ scene, execution = 'idle', workflowStatus, changes, onConnection, compact = false }: { onConnection?(id:string):void; compact?:boolean; scene: Scene; execution?: 'idle' | 'running' | 'passed' | 'failed'; workflowStatus?: ResourceFlowState['status']; changes?: readonly RevisionResourceView[] }) {
   const markerId = `build-arrow-${useId().replace(/:/g, '')}`;
   const descriptionId = `${markerId}-description`;
   const changeMap = new Map(changes?.map(change => [change.resourceId, change]));
@@ -28,7 +28,7 @@ export function BuildScene({ scene, execution = 'idle', workflowStatus, changes,
   const codeStatus = codeExecution === 'running' ? 'deploying' : (captured || workflowStatus) && codeExecution === 'passed' ? 'ready' : (captured || workflowStatus) && codeExecution === 'failed' ? 'failed' : 'pending';
   return <div className={`simple-scene${compact ? ' simple-scene-compact' : ''}`} role="group" aria-label="Your system being built">
     <div className="simple-scene-viewport" role="region" aria-label="Build flow and live connections" tabIndex={0}><div className="simple-scene-center"><div className="simple-scene-stage" style={{ width, height }}>
-    <svg className="simple-scene-wires" viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label="Recorded build flow and communication" aria-describedby={descriptionId}>
+    <svg className="simple-scene-wires" viewBox={`0 0 ${width} ${height}`} width={width} height={height} role={onConnection ? "group" : "img"} aria-label="Recorded build flow and communication" aria-describedby={descriptionId}>
       <desc id={descriptionId}>{scene.nodes.map(node => `${node.title}: ${caption(node)}${node.step && !workflowStatus ? `, recorded step ${node.step}` : ''}${changeMap.has(node.id) ? `; planned ${changeMap.get(node.id)!.label.toLowerCase()}` : ''}.`).join(' ')} {scene.edges.map(edge => `${scene.nodes.find(node => node.id === edge.from)?.title ?? edge.from} to ${scene.nodes.find(node => node.id === edge.to)?.title ?? edge.to}: ${edge.status}.`).join(' ')}</desc>
       <defs><marker id={markerId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1l8 4-8 4" fill="none" stroke="currentColor" strokeWidth="1.5"/></marker></defs>
       {scene.flowEdges.map(edge => {
@@ -36,7 +36,7 @@ export function BuildScene({ scene, execution = 'idle', workflowStatus, changes,
         if (!from || !to) return null;
         const x1 = from.x + 166, y1 = from.y + 80, x2 = to.x + 4, y2 = to.y + 80;
         const mid = (x1 + x2) / 2;
-        return <path key={edge.id} className={`simple-build-link build-link-${edge.kind}`} d={`M${x1},${y1}H${mid}V${y2}H${x2}`} markerEnd={`url(#${markerId})`}><title>{edge.kind === 'dependency' ? 'Required first' : edge.kind === 'native-schedule' ? 'Planned build flow' : 'Recorded build order'}</title></path>;
+        return <path key={edge.id} className={`simple-build-link build-link-${edge.kind}${edge.wait ? ` build-wait-${edge.wait}` : ''}`} d={`M${x1},${y1}H${mid}V${y2}H${x2}`} markerEnd={`url(#${markerId})`}><title>{edge.label ?? (edge.kind === 'dependency' ? 'Required first' : edge.kind === 'native-schedule' ? 'Planned build flow' : 'Recorded build order')}</title></path>;
       })}
       {scene.edges.map((edge, index) => {
         const from = locations.get(edge.from), to = locations.get(edge.to);
@@ -44,8 +44,12 @@ export function BuildScene({ scene, execution = 'idle', workflowStatus, changes,
         const fromNode = scene.nodes.find(node => node.id === edge.from)!, toNode = scene.nodes.find(node => node.id === edge.to)!;
         const x1 = from.x + 84, x2 = to.x + 84, y1 = from.y + (fromNode.embedded.length ? 198 : 172), y2 = to.y + (toNode.embedded.length ? 198 : 172);
         const bottom = Math.max(y1, y2) + 38 + (index % 3) * 16;
-        return <g key={edge.id} className={`simple-wire wire-${edge.status}`}><title>{`${edge.status}: ${scene.nodes.find(node => node.id === edge.from)?.title ?? ''} to ${scene.nodes.find(node => node.id === edge.to)?.title ?? ''}`}</title>
+        return <g key={edge.id} role={onConnection ? 'button' : undefined} tabIndex={onConnection ? 0 : undefined}
+          aria-label={`Inspect connection from ${edge.from} to ${edge.to}`} onClick={onConnection && (() => onConnection(edge.id))}
+          onKeyDown={onConnection && (event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onConnection(edge.id); } })}
+          className={`simple-wire wire-${edge.status}`}><title>{`${edge.status}: ${scene.nodes.find(node => node.id === edge.from)?.title ?? ''} to ${scene.nodes.find(node => node.id === edge.to)?.title ?? ''}`}</title>
           <path d={`M${x1},${y1}C${x1},${bottom} ${x2},${bottom} ${x2},${y2}`} markerEnd={`url(#${markerId})`}/>
+          {onConnection && <path className="simple-wire-hit" d={`M${x1},${y1}C${x1},${bottom} ${x2},${bottom} ${x2},${y2}`}/>}
           <circle cx={(x1 + x2) / 2} cy={.125 * (y1 + y2) + .75 * bottom} r="5"/>
         </g>;
       })}

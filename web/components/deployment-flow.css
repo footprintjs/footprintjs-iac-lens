@@ -36,3 +36,10 @@
 @keyframes flow-started-fade{0%,100%{background-color:var(--fp-accent-bg, #eaf3ff);box-shadow:0 0 0 3px color-mix(in srgb, var(--fp-accent, #7ba9e3) 9%, transparent)}50%{background-color:var(--fp-accent-bg, #f7fbff);box-shadow:0 0 0 5px color-mix(in srgb, var(--fp-accent, #7ba9e3) 16%, transparent)}}
 @media(max-width:700px){.iac-lens .deployment-flow-heading{align-items:flex-start;padding:16px;flex-wrap:wrap}.iac-lens .deployment-flow h2{font-size:17px}.iac-lens .deployment-flow-toolbar{padding:9px 16px;flex-wrap:wrap}.iac-lens .deployment-flow-toolbar>small{display:none}.iac-lens .deployment-flow-explainer{padding:11px 16px;flex-direction:column;gap:4px}.iac-lens .capability-inventory>summary small{display:block;margin:5px 0 0}}
 @media(prefers-reduced-motion:reduce){.iac-lens .deployment-step{animation:none;transition:none}}
+.deployment-step-details{padding:.65rem 1rem;border-top:1px solid var(--fp-border,#dce3ed)}
+.deployment-step-details h3{margin:0 0 .35rem;font-size:.85rem}
+.deployment-step-details h3 code{margin-left:.4rem;color:var(--fp-text-secondary,#718198)}
+.deployment-wait-details{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.3rem 1rem;margin:0;font-size:.8rem}
+.deployment-wait-details div{display:contents}
+.deployment-wait-details dt{font-weight:600}
+.deployment-wait-details dd,.deployment-wait-details dd p{margin:0}

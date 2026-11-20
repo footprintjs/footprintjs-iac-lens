@@ -6,14 +6,35 @@ import {pathToFileURL} from 'node:url';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {build,type Metafile} from 'esbuild';
-import {tokensToCSSVars} from 'footprint-explainable-ui';
+import {paperDark,paperLight,tokensToCSSVars} from 'footprint-explainable-ui';
 import {resolveLensTheme} from '../web/theme/resolve-theme.ts';
 import {lensTokenVariables} from '../web/theme/css-variables.ts';
 import {lightPalette,darkPalette} from '../web/theme/palettes.ts';
 import {accentForeground} from '../web/theme/contrast.ts';
 import type {LensTheme,LensThemeTokens} from '../web/theme/types.ts';
+import {loadPaperThemePresets} from '../web/theme/load-theme-preset.ts';
 
 const root=resolve(import.meta.dirname,'..');
+
+test('Paper uses the installed public presets without mutating them or replacing explicit host tokens',async()=>{
+ const presets=await loadPaperThemePresets();
+ assert.equal(await loadPaperThemePresets(),presets,'the optional preset module is shared across mounts');
+ assert.equal(presets.paperLight,paperLight);assert.equal(presets.paperDark,paperDark);
+ for(const [mode,base]of [['light',paperLight],['dark',paperDark]] as const){
+  const before=JSON.stringify(base),resolved=resolveLensTheme({preset:'paper',mode},base);
+  for(const [key,value]of Object.entries(base.colors!))assert.equal(resolved.tokens.colors![key as keyof typeof base.colors],value);
+  for(const group of ['fontFamily','typography','spacing','radii','borders','elevation','nodes','motion','controls'] as const)assert.deepEqual(resolved.tokens[group],base[group]);
+  const overridden=resolveLensTheme({preset:'paper',mode,tokens:{colors:{primary:'#ffffff',nodeCursor:'#001122',onNodeCursor:'#eeeeee'},fontFamily:{sans:'Host Sans'},nodes:{radius:'17px'}}},base);
+  assert.equal(overridden.tokens.colors!.bgPrimary,base.colors!.bgPrimary);
+  assert.equal(overridden.tokens.colors!.primary,'#ffffff');assert.equal(overridden.tokens.colors!.onPrimary,'#000000');
+  assert.equal(overridden.tokens.colors!.nodeCursor,'#001122');assert.equal(overridden.tokens.colors!.onNodeCursor,'#eeeeee');
+  assert.equal(overridden.tokens.fontFamily!.sans,'Host Sans');assert.equal(overridden.tokens.fontFamily!.mono,base.fontFamily!.mono);
+  assert.equal(overridden.tokens.nodes!.radius,'17px');assert.equal(JSON.stringify(base),before);
+ }
+ const waiting=resolveLensTheme({preset:'paper'});
+ assert.equal(waiting.tokens.colors!.bgPrimary,lightPalette.colors!.bgPrimary,'no copied Paper palette pretends the optional module has loaded');
+ assert.equal(waiting.preset,undefined);
+});
 
 test('the lightweight bridge matches the installed peer emitter for every supported token and alias',()=>{
  const colors=Object.fromEntries(Object.keys(lightPalette.colors!).map((key,index)=>[key,'#'+(0x234567+index*1000).toString(16)]));
@@ -106,4 +127,5 @@ test('shared theming keeps the optional evidence package outside the initial bro
  const meta=result.metafile!,entry=Object.entries(meta.outputs).find(([,output])=>output.entryPoint==='web/main.tsx')![0];
  assert(![...staticInputs(meta,entry)].some(path=>path.includes('node_modules/footprint-explainable-ui/')));
  assert(Object.entries(meta.outputs).some(([,output])=>Object.keys(output.inputs).some(path=>path.includes('node_modules/footprint-explainable-ui/'))),'the evidence renderer remains available in a lazy chunk');
+ assert(Object.values(meta.outputs).some(output=>output.entryPoint==='web/theme/paper-presets.ts'),'the requested Paper preset has its own dynamic entry');
 });

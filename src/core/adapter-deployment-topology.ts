@@ -7,7 +7,7 @@ export interface AdapterTopology { resources: AdapterDeploymentResource[]; ances
 const absolute = (scope: string, id: string) => scope ? `${scope}/${id}` : id;
 
 /** Mounted charts own namespaces; references stay within their native scope. */
-export function buildAdapterTopology(chart: DeploymentChart, selected?: string): AdapterTopology {
+export function buildAdapterTopology(chart: DeploymentChart, selected?: string, includeStandalone = false): AdapterTopology {
   const root = new Map<string, Native>(), pending = [chart.structure];
   while (pending.length) {
     const stage = pending.pop()!;
@@ -21,9 +21,16 @@ export function buildAdapterTopology(chart: DeploymentChart, selected?: string):
   for (const binding of chart.resources) {
     if (selected && binding.resourceId !== selected) continue;
     const mount = root.get(binding.executeStageId);
-    if (!mount?.subflowStructure) continue;
+    if (!mount || (!mount.subflowStructure && !includeStandalone)) continue;
     const resource: AdapterDeploymentResource = { resourceId: binding.resourceId, label: mount.name, action: binding.action,
       rootScope: binding.executeStageId, stages: [], edges: [], scopes: [] };
+    if (!mount.subflowStructure) {
+      resource.scopes.push({ id: mount.id, label: mount.name });
+      resource.stages.push({ id: mount.id, stageId: mount.id, label: mount.name, kind: 'stage', nativeKind: mount.type,
+        scope: mount.id, resourceId: binding.resourceId, status: 'pending', runtimeStageIds: [], executions: 0, column: 0, row: 0 });
+      resources.push(resource);
+      continue;
+    }
     const byId = new Map<string, AdapterDeploymentStage>();
     function scope(first: Native, id: string, label: string, ancestors: BranchAncestor[], parentScope?: string, mountStageId?: string): void {
       resource.scopes.push({ id, label, ...(parentScope ? { parentScope } : {}), ...(mountStageId ? { mountStageId } : {}) });

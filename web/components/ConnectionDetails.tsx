@@ -2,17 +2,24 @@ import { CONNECTION_LABELS } from '../../src/core/connections.ts';
 import { eventTime } from '../../src/core/model.ts';
 import type { ConnectionProgress, ConnectionRun } from '../../src/core/types.ts';
 
-export function ConnectionDetails({ check, run, onEvidence }: {
+import type { CommunicationDetails } from 'footprintjs-iac/graph';
+import { CommunicationDeclaration } from './CommunicationDeclaration.tsx';
+
+export function ConnectionDetails({ check, run, details, onEvidence }: {
   check: ConnectionProgress;
   run: ConnectionRun;
-  onEvidence(): void;
+  details?: CommunicationDetails;
+  onEvidence?(): void;
 }) {
   const observedScope = check.observation?.details.scope;
   const scope = check.scopeDescription ?? (typeof observedScope === 'string' ? observedScope : run.scopeDescription);
   return <div className="connection-details">
     <div className="connection-details-heading"><strong>{CONNECTION_LABELS[check.status]}</strong>
-      <button className="text-button" onClick={onEvidence} disabled={!run.recording}>Inspect connection recording</button>
+      {onEvidence && <button className="text-button" onClick={onEvidence} disabled={!run.recording}>Inspect connection recording</button>}
     </div>
+    <CommunicationDeclaration details={details}/>
+    <h3>FootPrint check</h3>
+    {check.status === 'untested' && <p>No recorded check yet.</p>}
     {check.message && <p role="status">{check.message}</p>}
     <dl><dt>From</dt><dd><code>{check.from}</code></dd><dt>To</dt><dd><code>{check.to}</code></dd>
       {check.runtimeStageId && <><dt>Recorded stage</dt><dd><code>{check.runtimeStageId}</code></dd></>}

@@ -9,6 +9,8 @@ export * from './deployment-flow.ts';
 export * from './native-deployment-chart.ts';
 export * from './adapter-deployment.ts';
 export * from './topology-deployment-step.ts';
+export * from './execution-follow.ts';
+export * from './system-symbols.ts';
 export * from './run-history.ts';
 export * from './resource-evidence.ts';
 export * from './build-scene.ts';

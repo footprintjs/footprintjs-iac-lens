@@ -48,6 +48,16 @@ test('an image-only review names Program while retaining every native readiness 
   assert.deepEqual({ ...state, revisionReview: undefined }, { ...before, revisionReview: undefined });
 });
 
+test('a planned update preserves the binding cause without treating it as an observation', () => {
+  const state = fixture();
+  const cause = { capabilityPath: 'application.neo', property: 'stores', path: '/spec/template/spec/volumes',
+    ruleId: 'fleet-service', adapterId: 'neo-fleet-kubernetes', reason: 'Mounts the Fleet manifest read-only.' };
+  state.revisionReview = { ...ready(state), resources: [{ resourceId: 'neo-app', action: 'update', causes: [cause] }] };
+  assert.deepEqual(projectRevisionReview(state)!.affected[0]!.causes, [cause]);
+  assert.throws(() => readRevisionReview({ ...state.revisionReview, resources: [{ resourceId: 'neo-app', action: 'noop', causes: [cause] }] }),
+    /unsupported shape/);
+});
+
 test('only an actionable completed review can apply; missing/stale review inputs never activate the button', () => {
   for (const patch of [
     { status: 'available' as const }, { status: 'reviewing' as const }, { status: 'applying' as const },

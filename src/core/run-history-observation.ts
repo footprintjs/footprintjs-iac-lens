@@ -25,9 +25,10 @@ function nativeStages(data:Row|undefined){
  for(const event of capture.events){if(!row(event)||!Number.isSafeInteger(event.sequence)||event.sequence<=previous||!safeId(event.runtimeStageId)||!['start','end','decision','executed','error'].includes(event.type))return[];previous=event.sequence;}
  return capture.events as Row[];
 }
-function phaseCaption(state:DashboardState,status:RunStatus,appVerified:boolean):string{
+function phaseCaption(state:DashboardState,status:RunStatus,appVerified:boolean,removal:boolean):string{
  if(status==='incomplete')return 'This run could not be confirmed';
  if(status==='failed')return 'This run needs attention';
+ if(removal)return status==='ready'?'Removal verified':'Removing your setup';
  if(status==='ready')return appVerified?'Your app is ready':'Run complete';
  const actions=state.systemTopology?.nodes.flatMap(node=>(node.actions??[]).filter(action=>action.status==='running').map(action=>({node,action})))??[];
  const unique=new Map(actions.map(value=>[value.action.evidence.runtimeStageId,value]));
@@ -39,7 +40,7 @@ function phaseCaption(state:DashboardState,status:RunStatus,appVerified:boolean)
  }
  if(state.run?.status==='passed')return 'Checking the result';
  const action=state.run?.events.at(-1)?.action??state.run?.resources.find(resource=>resource.action)?.action;
- return action==='create'?'Building your setup':action==='noop'||action==='verify'?'Checking your setup':'Updating your setup';
+ return action==='create'?'Building your setup':action==='delete'?'Removing a resource':action==='noop'||action==='verify'?'Checking your setup':'Updating your setup';
 }
 /** Project one associated deployment. Preparation/check child captures remain associated facts, not extra runs. */
 export function deriveRunObservation(input:DashboardState):RunObservation|undefined {
@@ -58,7 +59,9 @@ export function deriveRunObservation(input:DashboardState):RunObservation|undefi
  if(onb?.status==='incomplete'||app?.phase==='incomplete'||row(run.report)?.outcome==='unconfirmed')status='incomplete';
  else if(onb?.status==='failed'||app?.phase==='failed')status='failed';
  else if(onb&&onb.status!=='ready'||app&&app.phase!=='ready'||onb?.busy||app?.busy)status='running';
- const appVerified=status==='ready'&&onboardingVersionAllowsReadiness(state.onboardingRegistry)&&!!(onb?onb.deployment?.promoted&&onb.status==='ready':app?app.deployment?.promoted&&app.phase==='ready':state.appAccess?.status==='ready');
+ const removal=events.some(event=>event.action==='delete')&&run.resources.length>0
+  &&run.resources.every(resource=>resource.action==='delete'&&(status!=='ready'||resource.status==='deleted'));
+ const appVerified=!removal&&status==='ready'&&onboardingVersionAllowsReadiness(state.onboardingRegistry)&&!!(onb?onb.deployment?.promoted&&onb.status==='ready':app?app.deployment?.promoted&&app.phase==='ready':state.appAccess?.status==='ready');
  const appUrl=appVerified?registeredRunAppUrl(state.neoUrl??app?.deployment?.appUrl):undefined;
  const checks=state.systemTopology?.observations;
  const position={nativeRunId:native?.runId??null,commits:Array.isArray(native?.commitLog)?native.commitLog.length:null,
@@ -75,7 +78,7 @@ export function deriveRunObservation(input:DashboardState):RunObservation|undefi
  const label=onb?.label??app?.label??state.target?.label??state.graph?.name??'Recorded run';
  const versionLabel=state.onboardingRegistry?.versions.find(version=>version.id===state.onboardingRegistry!.activeVersionId)?.label;
  const limitations=[...(!clocks.length?['This recording has step order but no native clock.']:[]),...(!native?['The detailed native recording was not available for this update.']:[]),...(state.mode==='simulator'?['Simulation: this run does not provision real infrastructure.']:[])];
- return{identity,nativePosition:JSON.stringify(position),runId:run.id,...targetId?{targetId}:{},label,...versionLabel?{versionLabel}:{},kind:'deployment',status,caption:phaseCaption(state,status,appVerified),
+ return{identity,nativePosition:JSON.stringify(position),runId:run.id,...targetId?{targetId}:{},label,...versionLabel?{versionLabel}:{},kind:'deployment',status,caption:phaseCaption(state,status,appVerified,removal),
   ...(currentTime===undefined?{}:{recordedAt:currentTime}),...(clocks.length?{startedAt:clocks.reduce((minimum,value)=>Math.min(minimum,value),Infinity)}:{}),
   ...(status==='ready'&&!postDeployment&&lastStage?.type==='end'&&time(lastStage.timestamp)?{finishedAt:lastStage.timestamp}:{}),...(appUrl?{appUrl}:{}),appVerified,limitations};
 }

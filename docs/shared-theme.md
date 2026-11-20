@@ -35,6 +35,20 @@ hosts using expressions should provide the corresponding `--lens-on-primary`,
 `--lens-on-accent` or `--lens-on-success` foreground in their CSS with
 `!important` to override the inline derived value.
 
+`theme={{preset:'paper'}}` opts into the installed Explainable UI `paperLight`
+palette; adding `mode:'dark'` selects `paperDark`. These are the library's actual
+public presets, imported on demand rather than copied into Lens. The standalone
+dashboard requests Paper by default; embedded consumers keep their existing
+neutral default unless they opt in. Explicit host tokens override Paper in the
+same way they override the neutral palette, including paired foreground colors.
+One resolved value is shared by the shell, both diagrams and replay controls.
+
+The preset arrives through a lazy module and updates the existing provider value.
+It adds no wrapper or Suspense remount, so changing palettes retains the selected
+run, replay position and feature state. Until it loads, or if it is unavailable,
+the readable neutral/host palette remains in place. The root exposes
+`data-lens-preset="paper"` only once the real Paper tokens have been applied.
+
 The bridge accepts the current release's colors, radius, font families and
 structured typography, spacing, radii, borders, elevation, node-paint, motion and
 control groups. Explicit paired foreground colors override computed defaults.

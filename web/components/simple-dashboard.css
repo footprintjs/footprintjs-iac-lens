@@ -49,6 +49,8 @@
 .iac-lens .simple-code > strong { font-size:12px; }
 .iac-lens .simple-build-link { color:var(--fp-text-muted, #cdd8e3); stroke:currentColor; fill:none; stroke-width:1.5; }
 .iac-lens .simple-build-link.build-link-dependency { stroke-dasharray:3 5; }
+.iac-lens .simple-build-link.build-wait-dependency { stroke-dasharray:none; }
+.iac-lens .simple-build-link.build-wait-capacity,.iac-lens .simple-build-link.build-wait-batch-barrier { stroke-dasharray:3 5; }
 .iac-lens .simple-wire { color:var(--fp-text-muted, #d4dfe8); }
 .iac-lens .simple-wire > path { stroke:currentColor; stroke-width:1.7; stroke-dasharray:4 6; fill:none; }
 .iac-lens .simple-wire > circle { fill:var(--fp-bg-elevated, #fff); stroke:currentColor; stroke-width:2; }
@@ -86,3 +88,7 @@
 .iac-lens .has-system-topology .simple-heading .simple-eyebrow{display:none}
 .iac-lens .has-system-topology .simple-checks:empty{display:none}
 .iac-lens .has-system-topology .simple-actions .simple-button{padding:6px 11px}
+
+.iac-lens .simple-wire > .simple-wire-hit { stroke: transparent; stroke-width: 18; stroke-dasharray: none; pointer-events: stroke; cursor: pointer; }
+.iac-lens .simple-wire[role=button] > circle { pointer-events: all; cursor: pointer; }
+.iac-lens .simple-wire[role=button]:focus-visible > circle { stroke-width: 4; }

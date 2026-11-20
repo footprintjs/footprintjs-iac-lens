@@ -5,6 +5,7 @@ import {deriveRunObservation,readRunCatalog,readRunRecord,type RunCatalog,type R
 import type {DashboardState} from '../core/types.ts';
 import {runFrameState} from './run-frame-state.ts';
 import {runFrameDeployment} from './run-frame-deployment.ts';
+import { readLensDeploymentChart } from '../core/deployment-chart-reader.ts';
 
 const MAX_BYTES=32*1024*1024;
 const UNCONFIRMED_CAPTURE='This viewer cannot confirm that the earlier running capture is still active. Its recorded progress is retained; no provider outcome is inferred.';
@@ -83,7 +84,14 @@ export class FileRunRepository implements RunRepository {
     ...next.finishedAt!==undefined?{finishedAt:next.finishedAt}:{},
     ...next.appUrl?{appUrl:next.appUrl}:{},appVerified:next.appVerified,limitations:[...next.limitations,...omittedFrames?['Some intermediate progress updates are outside this bounded replay. The native recording is retained separately.']:[]]};
    const native=next.status!=='running'?(state.run?.recording??state.recording):undefined;
-   const record=readRunRecord({version:1,summary,frames,omittedFrames,limitations:summary.limitations,...native?{recording:native}:{}});
+   let deploymentSchedule=prior?.deploymentSchedule;
+   if(!deploymentSchedule&&state.run?.chart?.runId===next.runId){
+    try{
+     const chart=readLensDeploymentChart(state.run.chart);
+     if(chart.stack===state.graph?.name&&chart.graphDigest===state.graph?.digest&&chart.resources.some(resource=>resource.schedule))deploymentSchedule={firstSequence:frame.sequence,chart};
+    }catch{/* Retain the original progress if this optional chart cannot be admitted. */}
+   }
+   const record=readRunRecord({version:1,summary,frames,omittedFrames,limitations:summary.limitations,...native?{recording:native}:{},...deploymentSchedule?{deploymentSchedule}:{}});
    this.records.set(id,record);this.entries=[...this.entries.filter(row=>row.summary.id!==id),{summary:record.summary,digest:entry?.digest??''}];this.changed.add(id);
    const excess=Math.max(0,this.entries.length-(this.limits.maxRuns??12));if(excess){const removed=this.entries.sort((a,b)=>a.summary.sequence-b.summary.sequence).splice(0,excess);this.omitted+=excess;for(const old of removed){this.records.delete(old.summary.id);this.changed.delete(old.summary.id);}}
    this.schedule();

@@ -142,8 +142,8 @@ test('real overlapping native branches stay together, with a join before the pro
   assert.notEqual(data.row, network.row);
   assert.ok(app.column > data.column);
   assert.ok(!scene.flowEdges.some(edge => edge.from === 'data' && edge.to === 'network'));
-  assert.ok(scene.flowEdges.some(edge => edge.kind === 'native-schedule' && edge.from === 'data' && edge.to === 'app'));
-  assert.ok(scene.flowEdges.some(edge => edge.kind === 'native-schedule' && edge.from === 'network' && edge.to === 'app'));
+  assert.ok(scene.flowEdges.some(edge => edge.wait === 'dependency' && edge.from === 'data' && edge.to === 'app'));
+  assert.ok(scene.flowEdges.some(edge => edge.wait === 'dependency' && edge.from === 'network' && edge.to === 'app'));
   assert.deepEqual(projectBuildScene(ready).warnings, []);
 });
 

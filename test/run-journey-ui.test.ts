@@ -57,9 +57,10 @@ test('recorded times appear only when retained; completion does not imply a veri
  assert.equal(momentText(held,1),'1:01');
 });
 test('replay controls are step based when timing is incomplete and disabled when no replay was captured',()=>{
- let html=renderToStaticMarkup(createElement(components.RunTimeline,{record:record(),index:0,playing:false,following:false,isLive:false,onSeek:noop,onPlay:noop,onLive:noop}));
- assert.match(html,/Recorded steps/);assert.match(html,/Moment 1 of 2/);assert.match(html,/type="range"/);assert.match(html,/aria-label="Recorded progress"/);assert.doesNotMatch(html,/Deploy|Restart|native-start/);
- html=renderToStaticMarkup(createElement(components.RunTimeline,{record:record({frames:[],summary:summary({frameCount:0,replayAvailable:false})}),index:0,playing:false,following:false,isLive:false,onSeek:noop,onPlay:noop,onLive:noop}));
+ let html=renderToStaticMarkup(createElement(components.RunTimeline,{record:record(),index:0,following:false,isLive:false,onSeek:noop,onLive:noop}));
+ assert.match(html,/Recorded steps/);assert.match(html,/Moment 1 of 2/);assert.match(html,/type="range"/);assert.match(html,/aria-label="Replay position"/);assert.match(html,/data-fp="time-travel-controls"/);assert.match(html,/data-stage-strip-placement="below"/);assert.doesNotMatch(html,/gantt-timeline|Deploy|Restart|native-start/);
+ assert.match(html,/data-orientation="horizontal"/);assert.match(html,/aria-expanded="false"/);assert.doesNotMatch(html,/data-fp="run-stage-strip"/);
+ html=renderToStaticMarkup(createElement(components.RunTimeline,{record:record({frames:[],summary:summary({frameCount:0,replayAvailable:false})}),index:0,following:false,isLive:false,onSeek:noop,onLive:noop}));
  assert.match(html,/disabled=""/);assert.match(html,/No replay captured/);
 });
 test('a verified historical address is presented as recorded verification rather than current health',()=>{

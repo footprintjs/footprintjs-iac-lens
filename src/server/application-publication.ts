@@ -1,7 +1,8 @@
 import { validateSystemTopologyView } from 'footprintjs-iac/system-topology/node';
 import { validateInfraGraph } from 'footprintjs-iac/graph';
 import { readSystemDesign } from 'footprintjs-iac/system';
-import { readDeploymentChart, readDeploymentSchedulePreview } from 'footprintjs-iac/progress';
+import { readDeploymentSchedulePreview } from 'footprintjs-iac/progress';
+import { readLensDeploymentChart } from '../core/deployment-chart-reader.ts';
 import { applicationText, applicationUrl } from '../core/application.ts';
 import { readApplicationSourceView } from '../core/application-source.ts';
 import { readDashboardState } from '../core/client.ts';
@@ -114,7 +115,7 @@ function run(input: unknown): void {
     progressProvenance(event, row.id);
   }
   if (row.recording !== undefined) recording(row.recording);
-  if (row.chart !== undefined) readDeploymentChart(row.chart);
+  if (row.chart !== undefined) readLensDeploymentChart(row.chart);
   if (row.report !== undefined) object(row.report);
 }
 function observedRun(input: unknown, identity: boolean): void {

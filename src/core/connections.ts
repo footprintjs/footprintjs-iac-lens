@@ -16,3 +16,10 @@ export function connectionProgress(state: DashboardState, connectionId: string, 
   return state.connections?.checks.find(check => check.connectionId === connectionId && check.from === from && check.to === to)
     ?? { connectionId, from, to, status: 'untested' };
 }
+
+/** Connection indices are scoped to the graph. Check both endpoints before joining metadata. */
+export function declaredConnection(graph: InfraGraph | null | undefined, check: Pick<ConnectionProgress, 'connectionId' | 'from' | 'to'>) {
+  const match = /^communication:(0|[1-9][0-9]*)$/.exec(check.connectionId);
+  const edge = match && graph?.relations[Number(match[1])];
+  return edge && edge.kind === 'communicatesWith' && edge.from === check.from && edge.to === check.to ? edge : undefined;
+}

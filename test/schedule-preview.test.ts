@@ -95,7 +95,7 @@ for (const maxConcurrency of [1, 2]) {
     assert.equal(ready.run?.status, 'passed');
     assert.equal(host.applies(), 1);
     assert.equal(ready.run?.chart?.graphDigest, host.graph.digest);
-    assert.deepEqual(ready.run?.chart?.resources, host.schedulePreview.resources);
+    assert.deepEqual(ready.run?.chart?.resources.map(({ schedule: _recordedReasons, ...position }) => position), host.schedulePreview.resources);
     assert.deepEqual(ready.run?.chart?.structure, host.schedulePreview.structure);
     assert.ok(ready.run?.resources.every(resource => resource.status === 'ready' && resource.action === 'create'));
     assert.deepEqual(positions(ready), before);

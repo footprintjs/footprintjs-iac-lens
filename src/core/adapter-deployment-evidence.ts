@@ -1,4 +1,5 @@
-import { readDeploymentChart, type DeploymentChart } from 'footprintjs-iac/progress';
+import type { DeploymentChart } from 'footprintjs-iac/progress';
+import { readLensDeploymentChart } from './deployment-chart-reader.ts';
 import type { DashboardState } from './types.ts';
 import { buildAdapterTopology } from './adapter-deployment-topology.ts';
 
@@ -32,12 +33,17 @@ export function adapterObservations(state: DashboardState, chart: DeploymentChar
   const recording = row(state.run!.recording), proof = row(recording.provenance), snapshot = row(recording.snapshot);
   if (proof.runId !== state.run!.id || proof.stack !== chart.stack || proof.graphDigest !== chart.graphDigest) throw Error('Foreign adapter recording');
   const nativeRunId = text(snapshot.runId);
-  const recordedChart = readDeploymentChart({ ...chart, structure: recording.structure });
+  const recordedChart = readLensDeploymentChart({ ...chart, structure: recording.structure });
   if (JSON.stringify(recordedChart.structure) !== JSON.stringify(chart.structure)) throw Error('Foreign adapter structure');
-  const topology = buildAdapterTopology(chart), all = new Map(topology.resources.flatMap(resource => resource.stages.map(stage => [stage.id, stage] as const)));
+  const topology = buildAdapterTopology(chart, undefined, state.run!.mode === 'kubernetes');
+  const all = new Map(topology.resources.flatMap(resource => resource.stages.map(stage => [stage.id, stage] as const)));
   const output: AdapterObservationIndex = { nativeRunId, stages: new Map(), decisions: new Map(), providerStages: new Set(), warnings: [], incomplete: false };
   let work = 0;
   const spend = () => { if (++work > 150000) throw Error('Oversized native observation'); };
+  const inScope = (id: string, scope: string) => {
+    const stage = all.get(id)!;
+    return stage.scope === scope || (!scope && stage.scope === stage.id && stage.stageId === stage.id);
+  };
   function instance(runtimeInput: unknown, declaredId?: unknown): { id: string; value: Instance } | undefined {
     const runtime = text(runtimeInput), id = stageKey(runtime);
     if (!all.has(id)) return;
@@ -46,7 +52,7 @@ export function adapterObservations(state: DashboardState, chart: DeploymentChar
     const value = observations.get(runtime) ?? { started: false, completed: false, failed: false, unknown: false }; observations.set(runtime, value);
     return { id, value };
   }
-  function outcome(value: unknown): 'failed' | 'unknown' | undefined {
+  function outcome(stageId: string, value: unknown): 'failed' | 'unknown' | undefined {
     if (value === undefined) return;
     const writes = row(value);
     for (const key of ['adapterFlowOutcome', 'verificationFlowOutcome', 'adapterFlowProgress']) if (writes[key] !== undefined) {
@@ -55,6 +61,8 @@ export function adapterObservations(state: DashboardState, chart: DeploymentChar
     }
     if (writes.nativeHasError === true) return 'failed';
     if (writes.adapterFlowPassed === false) return 'unknown';
+    const progress = writes[`progress:${all.get(stageId)!.resourceId}`];
+    if (progress !== undefined && row(progress).status === 'failed') return 'failed';
   }
   function commits(input: unknown, scope = ''): void {
     for (const raw of list(input ?? [])) {
@@ -63,9 +71,9 @@ export function adapterObservations(state: DashboardState, chart: DeploymentChar
       if (scope && commit.stageId === scope) continue;
       if (commit.runtimeStageId === undefined) continue;
       const observed = instance(commit.runtimeStageId, commit.stageId); if (!observed) continue;
-      if (all.get(observed.id)!.scope !== scope) throw Error('Native commit belongs to another chart scope');
+      if (!inScope(observed.id, scope)) throw Error('Native commit belongs to another chart scope');
       observed.value.started = true; observed.value.completed = true;
-      const result = outcome(commit.overwrite); if (result) observed.value[result] = true;
+      const result = outcome(observed.id, commit.overwrite); if (result) observed.value[result] = true;
       const writes = commit.overwrite === undefined ? undefined : row(commit.overwrite);
       if (writes?.adapterFlowProgress !== undefined) output.providerStages.add(observed.id);
     }
@@ -79,10 +87,10 @@ export function adapterObservations(state: DashboardState, chart: DeploymentChar
       if (node.runtimeStageId !== undefined) {
         const observed = instance(node.runtimeStageId, node.id);
         if (observed) {
-          if (all.get(observed.id)!.scope !== scope) throw Error('Native tree belongs to another chart scope');
+          if (!inScope(observed.id, scope)) throw Error('Native tree belongs to another chart scope');
           observed.value.started = true;
           if (node.errors !== undefined && Object.keys(row(node.errors)).length) observed.value.failed = true;
-          const result = outcome(node.stageWrites); if (result) observed.value[result] = true;
+          const result = outcome(observed.id, node.stageWrites); if (result) observed.value[result] = true;
         }
       }
       if (node.next) pending.push(node.next);

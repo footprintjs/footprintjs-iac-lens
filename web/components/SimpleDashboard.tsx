@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import { ConnectionDetails } from './ConnectionDetails.tsx';
+import { DetailsPanel } from './DetailsPanel.tsx';
+import { connectionProgress, declaredConnection, untestedConnections } from '../../src/core/connections.ts';
 import type {RecordedDeploymentStep} from '../../src/core/topology-deployment-step.ts';
 import { SystemTopologySlot } from '../features/system-topology/SystemTopologySlot.tsx';
 import {ReleaseAutomationPanel} from './ReleaseAutomationPanel.tsx';
@@ -99,5 +103,12 @@ export function SimpleDashboard({ state, posting, error, neoUrl, onRun, onResour
 }
 
 function SystemTopologyFallback({ state, scene, changes, onRecordedStep }: { onRecordedStep?(step:RecordedDeploymentStep):void; state: DashboardState; scene: ReturnType<typeof projectBuildScene>; changes: Parameters<typeof BuildScene>[0]['changes'] }) {
-  return state.systemTopology ? <SystemTopologySlot view={state.systemTopology} state={state} onRecordedStep={onRecordedStep} simple/> : <BuildScene compact={!!state.releaseAutomation} scene={scene} execution={state.run?.status} workflowStatus={state.resourceFlow?.status} changes={changes}/>;
+  const [selected, setSelected] = useState<{ id: string; digest?: string }>();
+  const edge = selected && selected.digest === state.graph?.digest && scene.edges.find(item => item.id === selected.id);
+  const check = edge && connectionProgress(state, edge.id, edge.from, edge.to);
+  const declaration = check && declaredConnection(state.graph, check);
+  return state.systemTopology ? <SystemTopologySlot view={state.systemTopology} state={state} onRecordedStep={onRecordedStep} simple/> : <><BuildScene onConnection={id => setSelected({ id, digest: state.graph?.digest })} compact={!!state.releaseAutomation} scene={scene} execution={state.run?.status} workflowStatus={state.resourceFlow?.status} changes={changes}/>
+    {check && declaration && state.graph && <DetailsPanel title={declaration.label ?? `${check.from} → ${check.to}`} onClose={() => setSelected(undefined)}>
+      <ConnectionDetails details={declaration.details} check={check} run={state.connections ?? untestedConnections(state.graph)}/>
+    </DetailsPanel>}</>;
 }

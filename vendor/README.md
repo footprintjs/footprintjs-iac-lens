@@ -1,6 +1,8 @@
 # Reviewed core candidate
 
-The active core is `footprintjs-iac-0.5.0-alpha.2-system-fbe88aa7ede8.tgz`.
+The active local preview is `footprintjs-iac-0.5.0-alpha.5-connection.0.tgz`. It adds optional declared operation, protocol and route metadata to communication edges. The dependency lock pins the package integrity.
+
+The previous system-topology core was `footprintjs-iac-0.5.0-alpha.2-system-fbe88aa7ede8.tgz`.
 SHA-256: `fbe88aa7ede852007d8156e83a620b652358c0a152a76b4617a91e882e284ef6`.
 
 It includes the stable-owner version registry with recorded configuration reviews,

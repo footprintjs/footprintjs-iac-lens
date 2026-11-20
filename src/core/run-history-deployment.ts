@@ -1,5 +1,6 @@
 import type {AdapterDeploymentView} from './adapter-deployment.ts';
 import type {DashboardState} from './types.ts';
+import {prunedResourceProgress} from './pruned-resource-progress.ts';
 
 /** A per-moment projection is small enough to retain beside 128 physical snapshots. */
 export const RUN_FRAME_DEPLOYMENT_MAX_BYTES=128*1024;
@@ -21,12 +22,13 @@ export function readRunFrameDeployment(input:unknown,state:DashboardState):Adapt
  if(view.nativeRunId!==undefined&&!text(view.nativeRunId))fail();
  if(list(view.warnings,32).some(value=>!text(value)))fail();
  const resources=list(view.resources,4096),desired=new Set(state.graph?.resources.map(resource=>resource.id)??[]);
+ const pruned=prunedResourceProgress(state);
  if(view.available!==!!resources.length||view.available&&(!state.run||view.runId!==state.run.id||!state.graph))fail();
  unique(resources.map(resource=>resource.resourceId));
  let total=0;
  for(const input of resources){
   const resource=row(input,['resourceId','label','action','rootScope','adapterScope','stages','edges','scopes']);
-  if(!text(resource.resourceId)||!desired.has(resource.resourceId)||!text(resource.label)||!text(resource.action)||!text(resource.rootScope))fail();
+  if(!text(resource.resourceId)||!(desired.has(resource.resourceId)||resource.action==='delete'&&pruned.has(resource.resourceId))||!text(resource.label)||!text(resource.action)||!text(resource.rootScope))fail();
   const scopes=list(resource.scopes,4096),stages=list(resource.stages,12000),edges=list(resource.edges,24000);
   if(!scopes.length||!stages.length||(total+=scopes.length+stages.length+edges.length)>30000)fail();
   unique(scopes.map(scope=>scope.id));unique(stages.map(stage=>stage.id));unique(edges.map(edge=>edge.id));
@@ -40,7 +42,11 @@ export function readRunFrameDeployment(input:unknown,state:DashboardState):Adapt
   }
   for(const input of stages){
    const stage=row(input,['id','stageId','label','kind','nativeKind','scope','resourceId','status','runtimeStageIds','executions','column','row','childScope','reason']);
-   if(!text(stage.id)||!text(stage.stageId)||!text(stage.label)||!text(stage.scope)||!scopeIds.has(stage.scope)||stage.id!==stage.scope+'/'+stage.stageId||stage.resourceId!==resource.resourceId)fail();
+   const standalone=state.run?.mode==='kubernetes'&&scopes.length===1&&stages.length===1&&!edges.length
+    &&stage.kind==='stage'&&stage.childScope===undefined&&stage.id===stage.stageId&&stage.id===stage.scope
+    &&stage.scope===resource.rootScope&&stage.id==='execute-'+resource.resourceId;
+   if(!text(stage.id)||!text(stage.stageId)||!text(stage.label)||!text(stage.scope)||!scopeIds.has(stage.scope)
+    ||(stage.id!==stage.scope+'/'+stage.stageId&&!standalone)||stage.resourceId!==resource.resourceId)fail();
    if(!['stage','decision','subflow','loop'].includes(stage.kind)||!['pending','running','completed','skipped','failed','unknown'].includes(stage.status))fail();
    if(stage.nativeKind!==undefined&&!text(stage.nativeKind))fail();
    const runtime=list(stage.runtimeStageIds,12000);if(runtime.some(value=>!text(value)||!value.startsWith(stage.id+'#')))fail();unique(runtime);

@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {getViewportForBounds,type Rect,type Viewport} from '@xyflow/react';
 
-interface DiagramCameraOptions {padding?:number;maxFitZoom?:number;minZoom?:number}
+interface DiagramCameraOptions {padding?:number;maxFitZoom?:number;minZoom?:number;autoFit?:boolean}
 
 /** Fit the complete authored geometry, including routes outside node bounds. */
 export function fitDiagramCamera(bounds:Rect,size:{width:number;height:number},options:DiagramCameraOptions={}):Viewport|undefined {
@@ -11,7 +11,7 @@ export function fitDiagramCamera(bounds:Rect,size:{width:number;height:number},o
 }
 
 /** One controlled EUI camera; progress updates preserve the user's pan and zoom. */
-export function useDiagramCamera(bounds:Rect,{padding=24,maxFitZoom=1,minZoom=.01}:DiagramCameraOptions={}) {
+export function useDiagramCamera(bounds:Rect,{padding=24,maxFitZoom=1,minZoom=.01,autoFit=true}:DiagramCameraOptions={}) {
   const containerRef=useRef<HTMLDivElement>(null);
   const [size,setSize]=useState({width:0,height:0});
   const [viewport,setViewport]=useState<Viewport>({x:0,y:0,zoom:1});
@@ -23,7 +23,8 @@ export function useDiagramCamera(bounds:Rect,{padding=24,maxFitZoom=1,minZoom=.0
     const observer=new ResizeObserver(measure);observer.observe(element);return()=>observer.disconnect();
   },[hasBounds]);
   useEffect(()=>{
+    if(!autoFit)return;
     const fitted=fitDiagramCamera(bounds,size,{padding,maxFitZoom,minZoom});if(fitted)setViewport(fitted);
-  },[bounds.x,bounds.y,bounds.width,bounds.height,size.width,size.height,padding,maxFitZoom,minZoom]);
-  return{containerRef,viewport,onViewportChange:setViewport};
+  },[bounds.x,bounds.y,bounds.width,bounds.height,size.width,size.height,padding,maxFitZoom,minZoom,autoFit]);
+  return{containerRef,viewport,onViewportChange:setViewport,size};
 }

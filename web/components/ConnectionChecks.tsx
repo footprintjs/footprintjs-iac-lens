@@ -1,4 +1,4 @@
-import { CONNECTION_LABELS } from '../../src/core/connections.ts';
+import { CONNECTION_LABELS, declaredConnection } from '../../src/core/connections.ts';
 import { eventTime } from '../../src/core/model.ts';
 import type { DashboardState } from '../../src/core/types.ts';
 import { ConnectionDetails } from './ConnectionDetails.tsx';
@@ -19,10 +19,9 @@ export function ConnectionChecks({ state, selected, compact = false, onSelect, o
     return `${resource?.spec.kind ?? 'Resource'} ${metadata?.name ?? id}`;
   };
   const label = (id: string, from: string, to: string) => {
-    const index = Number(id.slice('communication:'.length));
-    return state.graph?.relations[index]?.label ?? `${name(from)} → ${name(to)}`;
+    return declaredConnection(state.graph, { connectionId: id, from, to })?.label ?? `${name(from)} → ${name(to)}`;
   };
-  const details = focused && <ConnectionDetails check={focused} run={run} onEvidence={onEvidence}/>;
+  const details = focused && <ConnectionDetails details={declaredConnection(state.graph, focused)?.details} check={focused} run={run} onEvidence={onEvidence}/>;
   return <section className={`connection-checks${compact ? ' checks-compact' : ''}`} aria-label="Connection checks">
     <div className="connection-checks-bar"><div className="connection-checks-heading"><Icon name="network" size={16}/>
       <strong>{compact ? 'Connections' : run.label ?? 'Connection checks'}</strong>

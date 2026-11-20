@@ -28,6 +28,18 @@ test('a completed resource run does not claim the application was verified or ex
  const completed=deriveRunObservation(value)!;assert.equal(completed.status,'ready');assert.equal(completed.appVerified,false);assert.equal(completed.appUrl,undefined);
  value.appAccess={status:'ready'};const verified=deriveRunObservation(value)!;assert.equal(verified.appVerified,true);assert.equal(verified.appUrl,value.neoUrl);
 });
+test('a confirmed removal reports absence instead of resurfacing a previous ready link',()=>{
+ const value=state(),run=value.run!;
+ run.resources[0]!.action='delete';run.events[0]!.action='delete';
+ assert.equal(deriveRunObservation(value)?.caption,'Removing your setup');
+ run.status='passed';run.resources[0]!.status='deleted';
+ run.events.push({...run.events[0]!,sequence:2,status:'deleted'});
+ value.appAccess={status:'ready'};value.neoUrl='https://app.example.test';
+ const done=deriveRunObservation(value)!;
+ assert.equal(done.caption,'Removal verified');
+ assert.equal(done.appVerified,false);
+ assert.equal(done.appUrl,undefined);
+});
 test('registered production URLs are allowed, while credentials and executable URLs are refused',()=>{
  assert.equal(registeredRunAppUrl('https://neo.example.test/app'),'https://neo.example.test/app');
  for(const value of ['javascript:alert(1)','data:text/html,hi','https://user:password@app.example.test'])assert.equal(registeredRunAppUrl(value),undefined);

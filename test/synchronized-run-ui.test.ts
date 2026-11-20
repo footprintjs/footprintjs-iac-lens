@@ -58,7 +58,8 @@ test('the selected run exposes two quiet panes and exactly one shared replay tim
   const file=join(directory,'render.mjs');await writeFile(file,result.outputFiles[0]!.text);const {RunPlayer}=await import(pathToFileURL(file).href);
   const held=record(),html=renderToStaticMarkup(createElement(RunPlayer,{record:held,summary:held.summary,liveState:{revision:0,busy:false,graph:null},connected:false,loading:false,onBack:()=>{},onCurrentDetails:()=>{}}));
   assert.match(html,/Deployment flow/);assert.match(html,/Running system/);assert.match(html,/Synchronized deployment and running system/);
-  assert.equal((html.match(/aria-label="Recorded progress"/g)??[]).length,1);
+  assert.equal((html.match(/aria-label="Replay position"/g)??[]).length,1);
+  assert.equal((html.match(/data-fp="time-travel-controls"/g)??[]).length,1);
   assert.equal((html.match(/aria-label="Run replay"/g)??[]).length,1);
  }finally{await rm(directory,{recursive:true,force:true});}
 });

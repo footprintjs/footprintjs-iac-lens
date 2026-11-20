@@ -15,13 +15,19 @@ import { readApplicationRequest } from './application-request.ts';
 import { readAgentPlatformRequest } from './agent-platform-request.ts';
 import { readOnboardingRequest } from './onboarding-request.ts';
 import { readOnboardingVersionRequest } from './onboarding-version-request.ts';
+import {validateDiagramSymbolPack,type DiagramSymbolPack} from '../core/system-symbols.ts';
 
-export interface DashboardOptions extends ControllerOptions { staticDirectory: string; port?: number }
+export interface DashboardOptions extends ControllerOptions {
+  staticDirectory: string; port?: number;
+  /** Optional consumer-owned passive symbols; execution and recorded facts remain unchanged. */
+  diagramSymbols?:DiagramSymbolPack;
+}
 
 /** Loopback-only consumer server; every resource mutation still belongs to InfraEngine. */
 export async function startDashboard(options: DashboardOptions): Promise<{
   url: string; server: Server; controller: DashboardController; close(): Promise<void>;
 }> {
+  const diagramSymbols=options.diagramSymbols===undefined?null:validateDiagramSymbolPack(options.diagramSymbols);
   const controller = new DashboardController(options);
   await controller.initialize();
   const streams = new Map<import('node:http').ServerResponse, () => void>();
@@ -31,6 +37,7 @@ export async function startDashboard(options: DashboardOptions): Promise<{
       admitRequest(request, port);
       const path = new URL(request.url ?? '/', `http://127.0.0.1:${port}`).pathname;
       if (request.method === 'GET' && path === '/api/state') return json(response, 200, controller.getSnapshot());
+      if(request.method==='GET'&&path==='/api/diagram-symbols')return json(response,200,diagramSymbols);
       if(request.method==='GET'&&path==='/api/runs')return json(response,200,await controller.listRuns());
       if(request.method==='GET'&&path.startsWith('/api/runs/')){
         const id=path.slice('/api/runs/'.length),record=await controller.readRun(id);

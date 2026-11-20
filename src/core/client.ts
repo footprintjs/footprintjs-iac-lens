@@ -10,6 +10,7 @@ import type { AgentPlatformAction } from './agent-platform.ts';
 import type { DashboardState, Scenario } from './types.ts';
 import { readSystemViewDefinition } from './capabilities.ts';
 import { projectDeploymentSchedulePreview } from './native-deployment-chart.ts';
+import { prunedResourceProgress } from './pruned-resource-progress.ts';
 import { readRevisionReview } from './revision-review.ts';
 import { readResourceFlowAction, readResourceFlowState, type ResourceFlowAction } from './resource-flow.ts';
 import { readResourceFlowWorkspace } from './resource-flow-workspace.ts';
@@ -65,8 +66,15 @@ export function readDashboardState(value: unknown): DashboardState {
     if (state.graph) {
       if (definition.binding.graphDigest !== state.graph.digest) throw Error('System topology belongs to another resource graph');
       const resourceIds = new Set(state.graph.resources.map(resource => resource.id));
+      const pruned = prunedResourceProgress({ graph: state.graph, run: state.run });
       const bindings = [...definition.nodes.map(node => node.bindings), ...definition.boundaries.flatMap(boundary => boundary.bindings ? [boundary.bindings] : [])];
-      if (bindings.some(binding => binding.resourceIds.some(id => !resourceIds.has(id)))) throw Error('System topology has an unknown resource binding');
+      if (bindings.some(binding => binding.resourceIds.some(id => !resourceIds.has(id) && !pruned.has(id)))) throw Error('System topology has an unknown resource binding');
+      for (const observation of observations.resources) {
+        const event = pruned.get(observation.id);
+        if (event && (observation.action !== 'delete' || observation.status !== event.status
+          || observation.evidence.kind !== 'deployment' || observation.evidence.runId !== event.runId
+          || observation.evidence.runtimeStageId !== event.runtimeStageId)) throw Error('System topology has unbound removal evidence');
+      }
     }
     if (state.target?.id !== undefined && definition.binding.targetId !== state.target.id) throw Error('System topology belongs to another target');
     if (state.application?.selection && definition.binding.targetId !== state.application.selection.targetId) throw Error('System topology belongs to another application target');

@@ -8,9 +8,15 @@ export interface RevisionIdentity {
 export type RevisionChangeKind = 'added' | 'changed' | 'removed' | 'unchanged' | 'drift';
 export type RevisionPlanAction = 'create' | 'update' | 'verify' | 'delete' | 'noop';
 export interface RevisionFieldChange { path: string; before?: Json; after?: Json }
+/** Adapter-supplied link from a changed provider field to declared intent. */
+export interface RevisionCause {
+  capabilityPath: string; property: string; path: string; ruleId: string; adapterId: string;
+  reason?: string;
+}
 export interface RevisionResourceChange {
   resourceId: string; action: RevisionPlanAction; change?: RevisionChangeKind;
   changes?: readonly RevisionFieldChange[];
+  causes?: readonly RevisionCause[];
 }
 /** Host-supplied review of one immutable candidate against the current target. It is not progress. */
 export interface RevisionReviewState {
@@ -89,7 +95,7 @@ export function readRevisionReview(input: unknown): RevisionReviewState {
     if (!Array.isArray(row.resources) || row.resources.length > 4096) fail();
     const ids = new Set<string>();
     for (const item of row.resources) {
-      const value = record(item, ['resourceId', 'action', 'change', 'changes']);
+      const value = record(item, ['resourceId', 'action', 'change', 'changes', 'causes']);
       const id = string(value.resourceId, 256);
       if (ids.has(id)) fail(); ids.add(id);
       if (!['create', 'update', 'verify', 'delete', 'noop'].includes(String(value.action))) fail();
@@ -97,6 +103,15 @@ export function readRevisionReview(input: unknown): RevisionReviewState {
       if (value.changes !== undefined) {
         if (!Array.isArray(value.changes) || value.changes.length > 512) fail();
         for (const change of value.changes) string(record(change, ['path', 'before', 'after']).path, 2048);
+      }
+      if (value.causes !== undefined) {
+        if (value.action === 'noop' || value.action === 'verify' || !Array.isArray(value.causes) || value.causes.length > 512) fail();
+        for (const cause of value.causes) {
+          const fields = record(cause, ['capabilityPath', 'property', 'path', 'ruleId', 'adapterId', 'reason']);
+          for (const field of ['capabilityPath', 'property', 'ruleId', 'adapterId']) string(fields[field], 256);
+          string(fields.path, 1024);
+          optionalString(fields.reason, 4096);
+        }
       }
     }
   }

@@ -46,3 +46,11 @@ Connections use reserved row corridors, separate attachment points, rounded bend
 A configuration change clears the previous current topology. Only a publication bound to the newly active target/configuration can display again. Old recordings remain in history.
 
 The headless core and server require no React, diagram renderer or browser. Legacy hosts without topology retain the existing resource view.
+
+For recognizable consumer-owned symbols on this same canvas, see
+[System symbols](system-symbols.md). Symbol meaning and drawings belong to the
+application; recorded labels, placement and progress retain their native source.
+
+### Inspect a communication edge
+
+Select a connection or its status badge to see its declared operation, application and transport protocols, port and named route hops. The optional OSI labels appear inside the inspector. Recorded FootPrint check results and stage references have their own section. A registered route can exist before any probe runs. See the [local AWS example](../examples/aws-connection-review/README.md).

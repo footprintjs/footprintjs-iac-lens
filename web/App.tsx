@@ -1,5 +1,5 @@
 import type {RecordedDeploymentStep} from '../src/core/topology-deployment-step.ts';
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { localAppUrl } from '../src/core/model.ts';
 import { useDashboard } from './lib/use-dashboard.ts';
 import { Icon } from './components/Icon.tsx';
@@ -11,18 +11,22 @@ import './features/agents/shell.css';
 import {RunWorkspaceSlot} from './features/runs/RunWorkspaceSlot.tsx';
 import {OnboardingSlot} from './features/onboarding/OnboardingSlot.tsx';
 import type {LensTheme} from './theme/types.ts';
-import {resolveLensTheme} from './theme/resolve-theme.ts';
+import {useResolvedLensTheme} from './theme/use-resolved-theme.ts';
 import {LensThemeProvider} from './theme/LensThemeContext.tsx';
 import './theme/theme.css';
+import type {SystemSymbolAdapter} from '../src/core/system-symbols.ts';
+import {useResolvedSystemSymbols} from './lib/use-system-symbols.ts';
+import {SystemSymbolProvider} from './features/system-topology/symbol-context.tsx';
 
 const agentFeature = () => lazy(() => import('./features/agents/AgentWorkspace.tsx'));
 const SimpleDashboard=lazy(()=>import('./components/SimpleDashboard.tsx').then(module=>({default:module.SimpleDashboard})));
 const DetailsWorkspace=lazy(()=>import('./components/DetailsWorkspace.tsx').then(module=>({default:module.DetailsWorkspace})));
 
-export interface IacLensProps { baseUrl?: string; fitWindow?: boolean; theme?: LensTheme }
+export interface IacLensProps { baseUrl?: string; fitWindow?: boolean; theme?: LensTheme; symbolAdapter?:SystemSymbolAdapter }
 /** Optional React surface; the protocol, model and transport are framework-neutral. */
-export function IacLens({ baseUrl = '', fitWindow = true, theme }: IacLensProps) {
-  const resolvedTheme=useMemo(()=>resolveLensTheme(theme),[theme]);
+export function IacLens({ baseUrl = '', fitWindow = true, theme, symbolAdapter }: IacLensProps) {
+  const resolvedTheme=useResolvedLensTheme(theme);
+  const symbols=useResolvedSystemSymbols(baseUrl,symbolAdapter);
   const { state, connected, error, posting, run, resourceFlow, connectionProfile, hostAction, delivery, pipeline, migration, releaseAutomation, application, onboarding, onboardingVersion, agentPlatform, agentError, dismissError, dismissAgentError } = useDashboard(baseUrl);
   const [workspace, setWorkspace] = useState<'runs' | 'infrastructure' | 'agents'>('runs');
   const [AgentWorkspace, setAgentWorkspace] = useState(agentFeature);
@@ -49,7 +53,7 @@ export function IacLens({ baseUrl = '', fitWindow = true, theme }: IacLensProps)
     if (!state?.agentPlatform && !posting) void agentPlatform({ action: 'open' });
   };
   const simpleWorkspace=state&&<Suspense fallback={<section role="status">Opening setup…</section>}><SimpleDashboard onRecordedStep={openRecordedStep} state={state} posting={posting} error={error} neoUrl={neoUrl} onRun={(scenario, reviewId) => { void run(scenario, reviewId); }} onResourceFlow={input => { void resourceFlow(input); }} onProfileAction={connectionProfile} onHostAction={input => { void hostAction(input); }} onDelivery={input => { void delivery(input); }} onReleaseAutomation={input=>{void releaseAutomation(input);}} onMigration={input=>{void migration(input);}} onPipeline={input=>{void pipeline(input);}} onOnboardingVersion={input => { void onboardingVersion(input); }} onOnboarding={input => { void onboarding(input); }} onApplication={input => { void application(input); }} onDismissError={dismissError} onDetails={() => { setWorkspace('infrastructure');setView('evidence'); setDisplayMode('details'); }} onSystem={()=>{setWorkspace('infrastructure');setView('system');setDisplayMode('details');}}/></Suspense>;
-  return <LensThemeProvider value={resolvedTheme}><div data-lens-theme={resolvedTheme.mode} style={resolvedTheme.style} className={`iac-lens${fitWindow ? ' lens-fit' : ''}${displayMode === 'simple' ? ' lens-simple' : ''}${agentsAvailable ? ' lens-agent-navigation' : ''}${workspace==='runs'?' lens-runs':''}`}><header className="topbar"><a href="#" className="brand" aria-label="InfraChart Lens home" onClick={event => { event.preventDefault(); setWorkspace('runs'); setDisplayMode('simple'); setView('deployment'); }}><span className="brand-symbol"><Icon name="graph" size={23}/></span><span>FootPrintJS<span className="brand-divider">/</span><strong>InfraChart Lens</strong></span></a><div className="topbar-right">
+  return <LensThemeProvider value={resolvedTheme}><SystemSymbolProvider adapter={symbols}><div data-lens-theme={resolvedTheme.mode} data-lens-preset={resolvedTheme.preset} style={resolvedTheme.style} className={`iac-lens${fitWindow ? ' lens-fit' : ''}${displayMode === 'simple' ? ' lens-simple' : ''}${agentsAvailable ? ' lens-agent-navigation' : ''}${workspace==='runs'?' lens-runs':''}`}><header className="topbar"><a href="#" className="brand" aria-label="InfraChart Lens home" onClick={event => { event.preventDefault(); setWorkspace('runs'); setDisplayMode('simple'); setView('deployment'); }}><span className="brand-symbol"><Icon name="graph" size={23}/></span><span>FootPrintJS<span className="brand-divider">/</span><strong>InfraChart Lens</strong></span></a><div className="topbar-right">
       {workspace!=='runs'&&<button type="button" className="button button-secondary" onClick={()=>setWorkspace('runs')}>All runs</button>}
       {workspace!=='runs'&&agentsAvailable && <div className="display-modes workspace-modes" role="group" aria-label="Workspace"><button type="button" aria-pressed={workspace === 'infrastructure'} onClick={() => setWorkspace('infrastructure')}>Infrastructure</button><button type="button" aria-pressed={workspace === 'agents'} onClick={openAgents}>Agents</button></div>}
       {workspace!=='runs'&&<div className="display-modes" role="group" aria-label="Display mode"><button aria-pressed={displayMode === 'simple'} onClick={() => setDisplayMode('simple')}>Simple</button><button aria-pressed={displayMode === 'details'} onClick={() => { setView('system'); setDisplayMode('details'); }}>{workspace === 'agents' ? 'Details' : 'System design'}</button></div>}{workspace!=='runs'&&<span className={`connection-pill ${connected ? 'connected' : 'disconnected'}`}><span/>{connected ? state?.deploymentReadOnly ? 'Recorded' : 'Live' : 'Reconnecting'}</span>}</div></header>
@@ -61,5 +65,5 @@ export function IacLens({ baseUrl = '', fitWindow = true, theme }: IacLensProps)
       view={view} selectedResource={selectedResource} selectedConnection={selectedConnection} evidenceKind={evidenceKind}
       setView={setView} selectResource={selectResource} selectConnection={selectConnection} setEvidenceKind={setEvidenceKind}
       selectActivity={selectActivity} run={(scenario, reviewId) => { void run(scenario, reviewId); }} resourceFlow={input => { void resourceFlow(input); }} profileAction={connectionProfile} hostAction={input => { void hostAction(input); }} delivery={input => { void delivery(input); }} releaseAutomation={input=>{void releaseAutomation(input);}} migration={input=>{void migration(input);}} pipeline={input=>{void pipeline(input);}} onboardingVersion={input => { void onboardingVersion(input); }} onboarding={input => { void onboarding(input); }} application={input => { void application(input); }} dismissError={dismissError}/></Suspense>}
-  </div></LensThemeProvider>;
+  </div></SystemSymbolProvider></LensThemeProvider>;
 }

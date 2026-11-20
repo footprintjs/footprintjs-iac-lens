@@ -1,6 +1,6 @@
 import type { BindingResult, Resource } from 'footprintjs-iac';
 import type { DeploymentResourceStages } from 'footprintjs-iac/progress';
-import { projectDeploymentFlow, type DeploymentFlowCapability, type DeploymentFlowObservation } from './deployment-flow.ts';
+import { projectDeploymentFlow, type DeploymentFlow, type DeploymentFlowCapability, type DeploymentFlowNode, type DeploymentFlowObservation } from './deployment-flow.ts';
 import { describeResource, resourceProgress, type ResourceDescription } from './model.ts';
 import { projectNativeDeploymentChart } from './native-deployment-chart.ts';
 import { connectionProgress } from './connections.ts';
@@ -22,6 +22,7 @@ export interface ResourceEvidence {
     result?: unknown;
     recordingAvailable: boolean;
     warnings: string[];
+    wait: { node: DeploymentFlowNode; columns: DeploymentFlow['columns'] };
     phase?: 'acquire' | 'connect';
     found?: ResourceFlowFoundResource;
   };
@@ -61,6 +62,7 @@ export function projectResourceEvidence(state: DashboardState, resourceId: strin
       ...(node.observed && { observed: node.observed }), events,
       ...(Object.hasOwn(results, resourceId) && { result: results[resourceId] }),
       recordingAvailable: !!(run?.recording ?? (!workspace ? state.recording : undefined)), warnings: flow.warnings,
+      wait: { node, columns: flow.columns },
     },
     verification: { connections, identity: state.identity?.checks.filter(check => check.resourceIds?.includes(resourceId)) ?? [] },
   };

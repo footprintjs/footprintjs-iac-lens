@@ -1,0 +1,40 @@
+/* Consumer artwork is the physical object, with unframed native annotations. */
+.iac-lens .topology-object{position:absolute;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 7px;color:var(--fp-text-primary,#40546b);font-family:inherit;text-align:center;background:none;border:0;box-shadow:none}
+.iac-lens .topology-object-summary{display:flex;flex-direction:column;align-items:center;gap:2px;width:100%;min-width:0;margin:0;padding:0;border:0;outline:0;box-shadow:none;background:none;color:inherit;font:inherit;text-align:center}
+.iac-lens button.topology-object-summary{cursor:pointer}
+.iac-lens .topology-object-artwork{position:relative;flex:none}
+.iac-lens .topology-object-artwork [data-fp="diagram-node-appearance"]>span{bottom:auto!important;top:0;margin-bottom:0!important}
+.iac-lens .topology-object-artwork[data-operation-scope="shared"] [data-activity]>span::after{content:" · Shared"}
+.iac-lens .topology-object-art{display:block;flex:none;overflow:visible;pointer-events:none;filter:drop-shadow(0 4px 3px color-mix(in srgb,var(--fp-text-primary,#334b63) 12%,transparent));transition:filter .2s ease,opacity .2s ease}
+.iac-lens .topology-object-summary>strong{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:15px;font-weight:650}
+.iac-lens .topology-object-meta{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:14px;white-space:nowrap}
+.iac-lens .topology-object-meta .topology-origin{padding:0;border:0;background:none;font-size:8px;line-height:13px}
+.iac-lens .topology-object-meta .topology-node-category{font-size:7px;line-height:10px}
+.iac-lens .topology-object .topology-node-context{justify-content:center;gap:7px;min-height:17px}
+.iac-lens .topology-object .topology-technology{font-size:8px;min-height:17px;gap:3px;max-width:55%}
+.iac-lens .topology-object .topology-node-context>.topology-node-status{max-width:55%;font-size:8px;gap:3px}
+.iac-lens .topology-object .topology-node-action{justify-content:center;font-size:8px;line-height:12px;max-width:100%}
+.iac-lens .topology-object .topology-recorded-work{justify-content:center;gap:6px;min-height:9px}
+.iac-lens .topology-object .topology-node-progress{margin-top:auto;width:130px;max-width:100%;justify-content:center}
+.iac-lens .topology-object.topology-ready .topology-node-progress-track>i,.iac-lens .topology-object.topology-connected .topology-node-progress-track>i{background:var(--fp-color-success,#5a9d84)}
+.iac-lens .topology-object.topology-failed .topology-node-progress-track>i{background:var(--fp-color-error,#bc7181)}
+.iac-lens .topology-object-boundary{position:absolute;box-sizing:border-box;color:var(--fp-text-primary,#40546b);font-family:inherit;background:none;border:0;box-shadow:none;pointer-events:auto}
+.iac-lens .topology-object-boundary-summary{display:flex;align-items:center;gap:8px;width:100%;height:80px;margin:0;padding:0;border:0;outline:0;box-shadow:none;background:none;color:inherit;font:inherit;text-align:left}
+.iac-lens button.topology-object-boundary-summary{cursor:pointer}
+.iac-lens .topology-boundary-object-art{width:80px;height:80px;flex:0 0 80px;overflow:visible;pointer-events:none;filter:drop-shadow(0 3px 2px color-mix(in srgb,var(--fp-text-primary,#334b63) 10%,transparent))}
+.iac-lens .topology-object-boundary-caption{display:flex;flex:1;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.iac-lens .topology-object-boundary-caption>strong{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:14px}
+.iac-lens .topology-object-boundary-caption>span,.iac-lens .topology-object-boundary-caption>small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:8px;line-height:11px;color:var(--fp-text-secondary,#70859d)}
+.iac-lens .topology-object-boundary-caption .topology-technology{min-height:16px;font-size:8px}
+.iac-lens .topology-object-boundary-progress{position:absolute;left:88px;bottom:0;width:108px;max-width:calc(100% - 88px);height:3px;overflow:hidden;border-radius:2px;background:var(--fp-border,#dce4ed);pointer-events:none}
+.iac-lens .topology-object-boundary-progress>i{display:block;height:100%;background:var(--fp-text-muted,#7f91ac);transition:width .2s ease}
+.iac-lens .topology-object-boundary.topology-ready .topology-object-boundary-progress>i,.iac-lens .topology-object-boundary.topology-connected .topology-object-boundary-progress>i{background:var(--fp-color-success,#5a9d84)}
+.iac-lens .topology-object-boundary.topology-failed .topology-object-boundary-progress>i{background:var(--fp-color-error,#bc7181)}
+.iac-lens .topology-object.topology-pending .topology-object-art,.iac-lens .topology-object-boundary.topology-pending .topology-boundary-object-art{filter:grayscale(1);opacity:.48}
+.iac-lens .topology-object:is(.topology-installing,.topology-starting,.topology-checking) .topology-object-art,.iac-lens .topology-object-boundary:is(.topology-installing,.topology-starting,.topology-checking) .topology-boundary-object-art{filter:drop-shadow(0 0 5px color-mix(in srgb,var(--fp-node-cursor,var(--fp-accent,#527fc4)) 55%,transparent))}
+.iac-lens .topology-object.topology-failed .topology-object-art,.iac-lens .topology-object-boundary.topology-failed .topology-boundary-object-art{filter:drop-shadow(0 0 4px color-mix(in srgb,var(--fp-color-error,#bc7181) 55%,transparent))}
+/* Focus follows the silhouette rather than drawing another box around the object. */
+.iac-lens .topology-object[data-execution-focus="true"] .topology-object-art,.iac-lens .topology-object-boundary[data-execution-focus="true"] .topology-boundary-object-art,
+.iac-lens .topology-object-summary:is(:hover,:focus-visible) .topology-object-art,.iac-lens .topology-object-boundary-summary:is(:hover,:focus-visible) .topology-boundary-object-art{filter:drop-shadow(0 0 5px color-mix(in srgb,var(--fp-node-cursor,var(--fp-accent,#527fc4)) 65%,transparent))}
+.iac-lens .topology-object .topology-node-action:focus-visible{outline:0;text-decoration:underline}
+@media(prefers-reduced-motion:reduce){.iac-lens .topology-object-art,.iac-lens .topology-object-boundary-progress>i{transition:none}}

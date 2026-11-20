@@ -9,7 +9,7 @@ export function createDeploymentTraceGraph(view:ReturnType<typeof buildDeploymen
       prevIds:view.edges.filter(edge=>edge.target===node.id).map(edge=>asStageId(edge.source)),
       nextIds:view.edges.filter(edge=>edge.source===node.id).map(edge=>asStageId(edge.target)),
     }})),
-    edges:view.edges.map(edge=>({...edge,type:undefined,data:{...edge.data,kind:'next' as const,
+    edges:view.edges.map(edge=>({...edge,type:edge.data?.wait?'default':undefined,data:{...edge.data,kind:'next' as const,
       // Labels and dash patterns retain needs/scheduled/observed semantics.
       relationship:edge.label,domain:'deployment',
     }})),

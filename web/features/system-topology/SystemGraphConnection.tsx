@@ -9,12 +9,13 @@ export function SystemGraphConnection({id}:EdgeProps){
   const {view,placement,onSelect}=useSystemGraph(),edge=view.connections.find(row=>row.id===id),route=placement.routes.get(id);
   const markerBase=`system-edge-${useId().replace(/:/g,'')}`;
   if(!edge||!route?.path)return null;
-  const marker=`${markerBase}-${edge.status}`;
+  const marker=`${markerBase}-${edge.status}`,markerSize='objects' in placement?12:8;
   const color=connectionColour(edge,connectionColours(view.connections)),label=labels[edge.status];
   const content=<>{edge.status==='connected'&&<i className="topology-edge-swatch" aria-hidden="true" style={{background:color}}/>}{label}</>;
   return <>
-    <defs><marker id={marker} markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8 Z" fill={color}/></marker></defs>
-    <g style={{color}} className={`topology-edge edge-${edge.status}${edge.kind==='dependsOn'?' edge-dependency':''}`}>
+    <defs><marker id={marker} markerUnits="userSpaceOnUse" markerWidth={markerSize} markerHeight={markerSize} viewBox="0 0 8 8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8 Z" fill={color}/></marker></defs>
+    {edge.kind==='communicatesWith' && onSelect && <path d={route.path} fill="none" stroke="transparent" strokeWidth={15} style={{pointerEvents:'stroke',cursor:'pointer'}} onClick={()=>onSelect({kind:'connection',id})}/>}
+    <g pointerEvents="none" style={{color}} className={`topology-edge edge-${edge.status}${edge.kind==='dependsOn'?' edge-dependency':''}`}>
       <path className="topology-wire-halo" d={route.path}/><path className="topology-wire-line" d={route.path} markerEnd={`url(#${marker})`}/><title>{`${edge.label??edge.kind}: ${label}`}</title>
       {route.labelAnchor&&!route.labelHidden&&<path className="topology-wire-label-leader" d={`M ${route.labelAnchor.x} ${route.labelAnchor.y} L ${route.x} ${route.y}`}/>}
     </g>

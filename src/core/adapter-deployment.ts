@@ -1,4 +1,4 @@
-import { readDeploymentChart } from 'footprintjs-iac/progress';
+import { readLensDeploymentChart } from './deployment-chart-reader.ts';
 import type { DashboardState } from './types.ts';
 import { projectNativeDeploymentChart } from './native-deployment-chart.ts';
 import { buildAdapterTopology } from './adapter-deployment-topology.ts';
@@ -28,8 +28,8 @@ export function projectAdapterDeployment(state: DashboardState, resourceId?: str
   const admission = projectNativeDeploymentChart(state), warnings = [...admission.warnings];
   if (!admission.chart || !state.run?.chart || !state.graph) return { available: false, resources: [], warnings };
   try {
-    const chart = readDeploymentChart(state.run.chart);
-    const topology = buildAdapterTopology(chart, resourceId);
+    const chart = readLensDeploymentChart(state.run.chart);
+    const topology = buildAdapterTopology(chart, resourceId, state.run.mode === 'kubernetes');
     let observations: AdapterObservationIndex | undefined;
     if (state.run.recording) {
       try { observations = adapterObservations(state, chart); }
